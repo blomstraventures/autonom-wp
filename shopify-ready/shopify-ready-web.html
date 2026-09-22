@@ -1,0 +1,161 @@
+<!-- Autonom Shopify Ready — Intro -->
+<section id="autonom-shopify-ready-intro">
+  <div class="asr-brand">AUTONOM</div>
+  <h2>Shopify Ready</h2>
+  <p class="asr-lead">
+    Upload your supplier or product CSV. Autonom checks it against Shopify's real import
+    schema — duplicate SKUs, destructive handle overwrites, blank cells that will wipe live
+    data, malformed prices — <strong>before</strong> you import. Safe auto-fixes are applied;
+    dangerous changes are flagged for review.
+  </p>
+  <div class="asr-trust">🔒 Local-first · Your customer data never leaves your browser</div>
+
+  <div class="asr-benefits">
+    <div class="asr-benefit">
+      <strong>Danger Report before import</strong>
+      <p>See exactly which rows will overwrite live products, and which will create new ones.</p>
+    </div>
+    <div class="asr-benefit">
+      <strong>Safe auto-fixes only</strong>
+      <p>Whitespace trimmed, prices cleaned, handles generated. Nothing that could corrupt data.</p>
+    </div>
+    <div class="asr-benefit">
+      <strong>Row-level references</strong>
+      <p>Every issue tells you which rows to review. No hunting through 10,000 lines.</p>
+    </div>
+    <div class="asr-benefit">
+      <strong>Download the fixed CSV</strong>
+      <p>One click produces a Shopify-ready file. Original file is never modified.</p>
+    </div>
+  </div>
+</section>
+
+[autonom_shopify_ready]
+
+<!-- Autonom Shopify Ready — SEO & Guide -->
+<article id="autonom-shopify-ready-seo">
+
+  <section class="asr-seo-block">
+    <h2>Why Shopify CSV imports break live stores</h2>
+    <p>
+      A CSV import is the fastest way to add or update thousands of products in Shopify.
+      It is also the fastest way to <strong>destroy them</strong>. The Shopify importer is
+      powerful and unforgiving: it will happily overwrite existing products, blank out
+      fields you did not mean to touch, and merge variants into the wrong parent — all
+      without a warning until after the damage is done.
+    </p>
+    <p>
+      The worst part is that the errors are silent. A supplier sends a CSV with an empty
+      <code>Variant Price</code> cell. Shopify imports it. That product's price becomes
+      blank. It stops selling. You find out three days later when a customer complains.
+      <strong>Shopify Ready catches that before you click import.</strong>
+    </p>
+  </section>
+
+  <section class="asr-seo-block">
+    <h2>What Autonom Shopify Ready checks</h2>
+    <div class="asr-seo-grid">
+      <div class="asr-seo-card">
+        <h3>Destructive handle overwrites</h3>
+        <p>If the same Handle appears multiple times with different Titles, Shopify will keep the first Title and silently ignore the rest. We flag every case.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Duplicate SKUs</h3>
+        <p>Duplicate SKUs cause Shopify to merge variants into the wrong product, breaking inventory tracking. We detect and list every affected row.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Blank-cell destruction</h3>
+        <p>Blank cells in optional columns will overwrite existing values with blank on re-import. We warn when this pattern is likely.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Price and currency format</h3>
+        <p>Prices containing $, €, or thousand separators fail silently. We strip them safely and show what changed.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Missing handles and titles</h3>
+        <p>Rows without a Handle or Title cannot import. We auto-generate handles from Titles and flag missing Titles.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Option name consistency</h3>
+        <p>Variant rows belonging to the same product must share the same Option1 Name. Inconsistent names create separate products instead of variants.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Image URL format</h3>
+        <p>Image Src must be an absolute HTTPS URL. Relative paths and HTTP URLs fail silently and leave products without images.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Published and inventory values</h3>
+        <p>Published must be TRUE or FALSE. Variant Inventory Qty must be an integer. Non-conforming values are ignored by Shopify.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>Malformed HTML in descriptions</h3>
+        <p>Unclosed HTML tags in the Body (HTML) column can break your storefront theme. We detect the most common case.</p>
+      </div>
+      <div class="asr-seo-card">
+        <h3>UTF-8 BOM detection</h3>
+        <p>Excel often adds a hidden byte-order mark that breaks CSV parsers. We detect and strip it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="asr-seo-block">
+    <h2>Safe auto-fixes vs. flagged issues</h2>
+    <p>
+      Autonom applies only the fixes that are provably safe. Everything else is flagged for
+      human review.
+    </p>
+    <ul class="asr-list">
+      <li><strong>Auto-fixed:</strong> whitespace trimming, currency symbol removal from prices, thousand-separator normalization, missing handles generated from Titles, UTF-8 BOM stripping.</li>
+      <li><strong>Flagged, never auto-fixed:</strong> duplicate SKUs, destructive handle overwrites, inconsistent option names, malformed HTML, invalid image URLs, non-integer inventory, invalid Published values.</li>
+    </ul>
+    <p>
+      The reason is simple: silently changing an SKU or a handle could break inventory in a
+      way that is much worse than refusing to import. We take the same position a careful
+      consultant would — review, then fix.
+    </p>
+  </section>
+
+  <section class="asr-seo-block">
+    <h2>How to check a Shopify CSV in 3 steps</h2>
+    <ol class="asr-steps">
+      <li><strong>Upload the CSV</strong> — drag it onto the drop zone or choose a file. Nothing is uploaded to a server.</li>
+      <li><strong>Review the Danger Report</strong> — see exactly which rows are safe, which will be auto-fixed, and which will overwrite live products.</li>
+      <li><strong>Download the cleaned CSV</strong> — one click produces a Shopify-ready file. Back up your store, then import.</li>
+    </ol>
+  </section>
+
+  <section class="asr-seo-block">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="asr-faq-item">
+      <h3>Is my CSV uploaded to any server?</h3>
+      <p>No. Every check runs locally in your browser using JavaScript. Your CSV is read from disk, parsed locally, and written back to a new file — nothing is transmitted.</p>
+    </div>
+
+    <div class="asr-faq-item">
+      <h3>Can Autonom tell if my handles already exist in my store?</h3>
+      <p>No. We do not connect to your store. We can detect destructive patterns within the CSV itself — the same handle appearing multiple times with different Titles — but we cannot tell you which handles are already live. Always back up before importing.</p>
+    </div>
+
+    <div class="asr-faq-item">
+      <h3>Will Autonom change my product data automatically?</h3>
+      <p>Only for fixes that are provably safe: whitespace, currency symbols in prices, missing handles generated from Titles. Anything that could corrupt inventory or overwrite live data is flagged and left unchanged for you to review.</p>
+    </div>
+
+    <div class="asr-faq-item">
+      <h3>Does it work with Shopify's full CSV template?</h3>
+      <p>Yes. The tool reads any CSV with Shopify-compatible headers. Missing optional columns are not treated as errors — only missing required columns (Handle, Title) will block import.</p>
+    </div>
+
+    <div class="asr-faq-item">
+      <h3>What about WooCommerce, Etsy, or Amazon?</h3>
+      <p>Not yet. The rules differ per platform. This version is Shopify-specific because the failure modes are well-documented and deterministic.</p>
+    </div>
+
+    <div class="asr-faq-item">
+      <h3>Can I use the cleaned CSV commercially?</h3>
+      <p>Yes. The output is your file. No attribution, no watermark, no restrictions.</p>
+    </div>
+  </section>
+
+</article>
