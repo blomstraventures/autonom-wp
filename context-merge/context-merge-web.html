@@ -1,0 +1,168 @@
+<!-- Autonom Context Merge — Intro -->
+<section id="autonom-context-merge-intro">
+  <div class="cm-brand">Autonom · Context Merge</div>
+  <h1>Twenty files in. <em>One clean context</em> out.</h1>
+  <p class="cm-lead">
+    AI tools accept a handful of attachments per session. You have twenty. Autonom merges
+    them into a single, cleaned document — every paragraph rebuilt, every running header
+    stripped, every page number removed — ready to paste or upload as one file.
+    <strong>Everything runs in your browser.</strong>
+  </p>
+  <span class="cm-pill">Nothing leaves your device</span>
+</section>
+
+[autonom_context_merge]
+
+<!-- Autonom Context Merge — SEO & Guide -->
+<article id="autonom-context-merge-seo">
+
+  <section class="cm-seo-block">
+    <h2>The attachment limit problem</h2>
+    <p>
+      ChatGPT allows up to five files per session. Perplexity caps uploads by plan tier.
+      Gemini, Claude, and Copilot all impose similar limits — and they are not the kind
+      of thing you can negotiate. If your research requires synthesizing twelve papers,
+      analyzing nine contracts, or comparing twenty supplier documents, you cannot
+      upload them all.
+    </p>
+    <p>
+      The usual workaround is to merge the files externally, which usually means uploading
+      them to a server you do not control. For a research paper that is fine. For a
+      contract, a patient record, or an internal company document, it is not.
+    </p>
+    <p>
+      <strong>Autonom Context Merge runs entirely in your browser.</strong> Drop the
+      files in, get a single cleaned document out, upload that one file to whatever AI
+      tool you use. Nothing crosses a network.
+    </p>
+  </section>
+
+  <section class="cm-seo-block">
+    <h2>What "clean" actually means here</h2>
+    <p>
+      When you extract text from a PDF, you do not get prose. You get a layout. Lines
+      break at visual boundaries rather than paragraph endings. Words hyphenate across
+      lines. Page numbers, running headers, and footers appear as if they were body
+      text. Lists lose their markers. Headings get merged into the paragraph beneath
+      them.
+    </p>
+    <p>
+      Autonom cleans each document before merging, so the merged output reads like a
+      properly typeset book — one continuous document with real paragraphs, real
+      headings, real lists:
+    </p>
+    <ul class="cm-list">
+      <li><strong>Hyphenated word joining.</strong> <code>infor-</code> then <code>mation</code> becomes <code>information</code>. Genuine hyphens like <code>state-of-the-art</code> are never affected because they never break across lines.</li>
+      <li><strong>Paragraph reflow.</strong> Broken visual lines are joined into real paragraphs. Blank lines — the true paragraph boundaries — are preserved.</li>
+      <li><strong>Page number removal.</strong> Standalone digits, <code>Page 3 of 12</code>, <code>3 / 12</code>, and <code>- 3 -</code> are removed.</li>
+      <li><strong>Running header detection.</strong> Lines that repeat three or more times within a document are stripped. Detection is per-document, so a header from one file does not affect another.</li>
+      <li><strong>List preservation.</strong> Lines starting with <code>-</code>, <code>*</code>, <code>•</code>, or a numbered marker stay on their own lines.</li>
+      <li><strong>Heading preservation.</strong> Short lines with no trailing punctuation are treated as headings, not merged into body text.</li>
+    </ul>
+  </section>
+
+  <section class="cm-seo-block">
+    <h2>How the merge works</h2>
+    <p>
+      Every document is cleaned independently first — so a running header in file A
+      does not get confused with a similar line in file B. Then the cleaned documents
+      are concatenated with a visible separator. You choose the separator style:
+    </p>
+    <ul class="cm-list">
+      <li><strong>Filename heading</strong> — each document starts with its filename as a heading. Best when the AI needs to reference sources by name ("In the contract dated 2024-03, clause 4.2 states…").</li>
+      <li><strong>Dividing rule</strong> — a plain horizontal rule between sections. Neutral, works well for homogeneous content.</li>
+      <li><strong>No separator</strong> — documents are joined end-to-end with a single blank line. Best for very short files that should read as one continuous stream.</li>
+    </ul>
+  </section>
+
+  <section class="cm-seo-block">
+    <h2>Why this saves tokens too</h2>
+    <p>
+      Cleaning a single document saves almost nothing — a few tokens here and there.
+      Cleaning twenty documents saves a lot. Every removed page number, every rejoined
+      line break, every stripped header is a token you do not pay for. Typical
+      savings across a merged multi-document set are <strong>10–25%</strong>, which
+      translates directly into longer usable context per session.
+    </p>
+    <p>
+      The larger savings are structural: instead of pasting twenty attachments across
+      multiple sessions (and losing conversational continuity), you paste one context
+      block into one session and ask questions across the entire set.
+    </p>
+  </section>
+
+  <section class="cm-seo-block">
+    <h2>Supported file types</h2>
+    <ul class="cm-list">
+      <li><strong>PDF</strong> — text extracted locally using PDF.js. Works on text-based PDFs; not on scans (no OCR).</li>
+      <li><strong>Plain text (.txt)</strong> — read directly.</li>
+      <li><strong>Markdown (.md)</strong> — read as text. Headings and lists preserved in the merged output.</li>
+      <li><strong>HTML (.html, .htm)</strong> — parsed locally, scripts and styles stripped, visible text extracted.</li>
+      <li><strong>CSV (.csv)</strong> — read as text. Useful for merging data files into a context block.</li>
+    </ul>
+    <p>
+      All extraction happens on your device. There is no server that receives your
+      files, and no telemetry that records filenames or content.
+    </p>
+  </section>
+
+  <section class="cm-seo-block">
+    <h2>How to use it in 3 steps</h2>
+    <ol class="cm-steps">
+      <li><strong>Add your documents.</strong> Drag a folder of PDFs onto the drop area, or click to browse. Up to 30 files at once.</li>
+      <li><strong>Choose your cleanups.</strong> Every step is a toggle. Pick a separator style. Click <strong>Merge and clean</strong>.</li>
+      <li><strong>Copy or download.</strong> Pick plain text, Markdown, or HTML. The merged result is one clean file you can paste into ChatGPT, Claude, Gemini, or any other AI tool.</li>
+    </ol>
+  </section>
+
+  <section class="cm-seo-block">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="cm-faq-item">
+      <h3>Is my content uploaded anywhere?</h3>
+      <p>No. Every PDF is parsed, every text file is read, every cleanup runs in your browser. The merged document lives in your device's memory until you copy or download it. You can verify this in DevTools — the network tab will show zero outbound requests carrying your content.</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>How many files can I merge at once?</h3>
+      <p>Up to 30 files per session. If you need more, merge in two batches and then paste the two outputs together, or use Autonom twice and combine the results.</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>Does it work on scanned PDFs?</h3>
+      <p>No. Autonom does not perform OCR. If your PDF is a scan — images of pages rather than text — the extraction returns very little. Run the scan through an OCR tool first (Tesseract, Acrobat, your scanner's software), then paste the OCR result as plain text into the paste tab.</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>Will the merged document fit in one ChatGPT message?</h3>
+      <p>That depends on the source. ChatGPT's context window is roughly 32,000 tokens on the free tier (about 20,000 words). If your merged output is larger than that, you have three options: reduce the number of source files, use a model with a larger window, or split the merge into two parts and ask your questions in two sessions.</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>How does the running-header detection actually work?</h3>
+      <p>Autonom counts each short line's occurrences within each document. Lines appearing three or more times — the fingerprint of a running header or footer — are removed. Long lines are exempt, so real repeated content (a phrase that happens to appear three times) is not damaged. Detection is per-document, so a header from file A never affects file B.</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>Does the filename appear in the merged output?</h3>
+      <p>Only if you choose "Filename heading" as the separator. That is the recommended default, because it lets the AI reference sources by name. If you prefer a clean stream without filenames, choose "No separator".</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>What about PDFs with two columns?</h3>
+      <p>Most two-column PDFs extract correctly because the algorithm groups text by Y-coordinate. Complex layouts — like scientific papers with sidebars or footnotes in margins — may interleave. If you see interleaving in the output, extract the file separately, fix the order manually, and paste it as text in the paste tab.</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>Why does the token count go down?</h3>
+      <p>Because PDF-sourced text is full of visual artefacts that consume tokens without carrying meaning: line breaks, page numbers, running headers, hyphenation fragments. Removing them reduces the token cost of the merged document. Typical savings across multiple files are 10–25%.</p>
+    </div>
+
+    <div class="cm-faq-item">
+      <h3>Can I use the output commercially?</h3>
+      <p>Yes. Anything you merge with Context Merge is yours. No watermark, no attribution requirement, no restrictions on commercial use.</p>
+    </div>
+
+  </section>
+
+</article>
