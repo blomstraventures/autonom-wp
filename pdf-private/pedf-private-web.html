@@ -1,0 +1,203 @@
+<!-- Autonom PDF Private — Intro -->
+<section id="autonom-pdf-private-intro">
+  <div class="pp-brand">Autonom · PDF Private</div>
+  <h1>Cut a PDF <em>inside a page</em> — not just between pages.</h1>
+  <p class="pp-lead">
+    Most PDF tools only split between whole pages. Autonom lets you place a cut anywhere —
+    right where 2025 ends and 2026 begins, mid-sentence, mid-table. Chain operations
+    together: merge, then rotate, then watermark, then number pages. Download once.
+    <strong>Your file stays in your browser and is never sent to a server.</strong>
+  </p>
+  <span class="pp-pill">Nothing is transmitted</span>
+</section>
+
+[autonom_pdf_private]
+
+<!-- Autonom PDF Private — Full SEO -->
+<article id="autonom-pdf-private-seo">
+
+  <section class="pp-seo-block">
+    <h2>The PDF tools that upload your file</h2>
+    <p>
+      Most online PDF tools do one thing well: they upload your document to a server you do
+      not control. Smallpdf, iLovePDF, Sejda, PDF2Go — they all follow the same pattern.
+      You get a useful function, and in exchange you trust a company you have never heard
+      of with a file you would never email to a stranger.
+    </p>
+    <p>
+      For most PDFs, that trade is fine. For contracts, medical records, tax filings, or
+      legal briefs, it is not. Autonom PDF Private removes the trade-off. Every operation
+      runs inside your browser, using WebAssembly. <strong>Your PDF is never sent to a
+      server.</strong> You can verify this yourself in DevTools.
+    </p>
+  </section>
+
+  <section class="pp-seo-block">
+    <h2>Cut a PDF inside a page, not just between pages</h2>
+    <p>
+      Every online PDF splitter does the same thing: it asks you to select whole pages. A
+      range of pages. "Pages 1-5." "Pages 10 to 20." That is useful when you are splitting
+      a book into chapters. It is useless when the split point is <strong>inside</strong>
+      a page — like a rent table that has 2025 in the top half and 2026 in the bottom half,
+      or a contract page with two unrelated sections stacked vertically.
+    </p>
+    <p>
+      Autonom PDF Private lets you place the cut anywhere on the page. Upload the PDF, click
+      a thumbnail to open the cut-line editor, and drag the line to wherever you need the
+      split. Everything above the line becomes part 1. Everything below — including all
+      following pages — becomes part 2. Download both at once as a ZIP, or just the first
+      part if you want a quick preview.
+    </p>
+  </section>
+
+  <section class="pp-seo-block">
+    <h2>Chain operations. Download once.</h2>
+    <p>
+      Most online PDF tools force you to download and re-upload the file between operations.
+      Watermark, then download, then re-upload, then add page numbers, then download again.
+      Ten steps for a job that should be one.
+    </p>
+    <p>
+      Autonom PDF Private keeps a <strong>working document</strong> in memory. You can merge,
+      then rotate, then watermark, then add page numbers — all in one session, on one file.
+      Every operation refreshes the page preview so you can see the result. A history strip
+      shows what has been applied. When you are done, download the final PDF once. If you
+      change your mind, one click resets the document to the original.
+    </p>
+    <p>
+      <strong>And all of it runs inside your browser.</strong> Your PDF is read from your
+      disk, processed in JavaScript, and saved back to your disk. It is never transmitted
+      to a server, never stored in the cloud, and never logged.
+    </p>
+  </section>
+
+  <section class="pp-seo-block">
+    <h2>Seven operations, one tool</h2>
+    <ul class="pp-list">
+      <li>
+        <strong>Merge.</strong> Combine two or more PDFs into a single file. Reorder them
+        with up/down buttons before merging.
+      </li>
+      <li>
+        <strong>Keep selected.</strong> Extract a specific set of pages into a new working
+        document. Use click, shift-click, ctrl-click, or the range input.
+      </li>
+      <li>
+        <strong>Delete selected.</strong> Remove unwanted pages — cover sheets, blank pages,
+        advertisements — from any PDF. Everything else stays in its original order.
+      </li>
+      <li>
+        <strong>Split document.</strong> Cut <em>inside</em> a page. Place the line
+        anywhere. Everything above becomes part 1; everything below (plus following pages)
+        becomes part 2. Produces a downloadable ZIP.
+      </li>
+      <li>
+        <strong>Rotate.</strong> Fix pages that came in sideways. Rotate all pages at once,
+        or just the ones that are wrong. Handles 90°, 180°, and 270° cumulatively.
+      </li>
+      <li>
+        <strong>Watermark.</strong> Stamp text across every page. Choose diagonal, center,
+        top, or bottom placement. Control the color and opacity. Optional skip for cover pages.
+      </li>
+      <li>
+        <strong>Page numbers.</strong> Add page numbers to a PDF that lacks them. Choose
+        the format, the position, and the starting number.
+      </li>
+    </ul>
+  </section>
+
+  <section class="pp-seo-block">
+    <h2>What it does not do — and why</h2>
+    <p>
+      Every serious tool states its limits. Here are ours, plainly.
+    </p>
+    <ul class="pp-list">
+      <li>
+        <strong>It does not compress PDFs.</strong> Real compression requires re-encoding
+        embedded images with a JPEG or JPEG-2000 codec inside the browser. That is doable
+        with WebAssembly but adds a large engine and seconds of processing per page. On the
+        roadmap as a future addition, not a v1 feature.
+      </li>
+      <li>
+        <strong>It does not redact content.</strong> Drawing a black box on a PDF does not
+        remove the text underneath. Autonom has a dedicated tool planned for verifying
+        redactions and scrubbing hidden metadata.
+      </li>
+      <li>
+        <strong>It does not convert to or from other formats.</strong> If you need to turn
+        a PDF into a DOCX or vice versa, use a dedicated converter. PDF Private is a
+        toolkit for PDFs, not a format bridge.
+      </li>
+      <li>
+        <strong>It does not handle password-protected PDFs.</strong> Files encrypted with
+        a user password cannot be opened by the tool. Files that are encrypted only with an
+        owner password (the "print denied" kind) usually can.
+      </li>
+      <li>
+        <strong>It does not work on very large documents.</strong> Browser memory is the
+        limit. A 200-page PDF works but uses significant RAM. 500-page PDFs may fail. Split
+        large documents into batches.
+      </li>
+    </ul>
+  </section>
+
+  <section class="pp-seo-block">
+    <h2>How to use it in 3 steps</h2>
+    <ol class="pp-steps">
+      <li><strong>Drop your PDF file(s).</strong> One file for most operations. Multiple files if you are merging.</li>
+      <li><strong>Chain operations.</strong> Pick an operation, configure its settings, click Apply. Its result becomes the new working document. Repeat as many times as you need.</li>
+      <li><strong>Download once.</strong> When you are done, one click gives you the final PDF. Reset reverts everything back to the original if you change your mind.</li>
+    </ol>
+  </section>
+
+  <section class="pp-seo-block">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="pp-faq-item">
+      <h3>Are my PDFs uploaded to a server?</h3>
+      <p>No. Every operation runs in your browser using JavaScript and WebAssembly. Your PDF is read, processed, and written back to a new file entirely on your device. Open DevTools, click the Network tab, run an operation, and watch — zero requests carry your document.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>What does "cut inside a page" mean, exactly?</h3>
+      <p>Most PDF splitters only split between whole pages. If you want to split a table that has 2025 in the top half and 2026 in the bottom half, they cannot help you. Autonom lets you place a cut anywhere on the page — mid-table, mid-sentence, mid-signature. Everything above becomes one PDF, everything below becomes another.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>How do chained operations work?</h3>
+      <p>You have one <em>working document</em>. Every operation transforms it. Merge combines your dropped files. Rotate rotates the current working document. Watermark stamps the current working document. Page numbers do the same. The history strip shows what has been applied, and one click of Download gives you the accumulated result.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>Can I undo? Can I start over?</h3>
+      <p>Yes. Click Reset to original and the working document reverts to the file you first dropped. All history, cuts, and intermediate states are cleared.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>What does the range input accept?</h3>
+      <p>Comma-separated tokens. A single number selects one page. A dash between two numbers selects a range. <code>1-5</code> selects pages 1 through 5. <code>5,3,1</code> selects those pages. <code>end</code> or <code>last</code> selects the last page. Works for both selection and cut placement.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>Does it work on password-protected PDFs?</h3>
+      <p>Files with a user password (the kind that requires a password to open) cannot be processed. Files with only an owner password (the kind that restricts printing or copying but opens without a password) usually work.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>Why are the output filenames truncated?</h3>
+      <p>Windows has a 260-character limit on full file paths. Some source filenames are long enough that adding "-part1" or "-edited" pushes them over the limit. Autonom truncates the base name to a safe length so the download always succeeds.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>Is there a file size limit?</h3>
+      <p>Browser memory is the limit. A 100 MB PDF processes comfortably on a modern laptop. A 500 MB PDF may fail. For very large PDFs, consider processing in batches or using a desktop application.</p>
+    </div>
+
+    <div class="pp-faq-item">
+      <h3>Can I use the output commercially?</h3>
+      <p>Yes. Whatever you produce with Autonom PDF Private is yours. No license restriction, no attribution requirement, no watermark applied by the tool.</p>
+    </div>
+
+  </section>
+
+</article>
