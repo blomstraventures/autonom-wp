@@ -1,0 +1,409 @@
+/* ==========================================================================
+   Autonom PDF Ready — v4.0 Scoped Styles
+   ========================================================================== */
+
+#autonom-pdf-ready,
+#autonom-pdf-ready-intro,
+#autonom-pdf-ready-seo {
+  --apf-bg:        #f8fafc;
+  --apf-card:      #ffffff;
+  --apf-text:      #0f172a;
+  --apf-muted:     #64748b;
+  --apf-line:      #e2e8f0;
+  --apf-accent:    #0f172a;
+  --apf-accent-h:  #020617;
+
+  --apf-good:      #059669;  --apf-good-bg: #ecfdf5;
+  --apf-warn:      #d97706;  --apf-warn-bg: #fffbeb;
+  --apf-bad:       #dc2626;  --apf-bad-bg:  #fef2f2;
+  --apf-info:      #2563eb;  --apf-info-bg: #eff6ff;
+
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--apf-text);
+  line-height: 1.55;
+  text-align: left !important;
+  box-sizing: border-box;
+}
+#autonom-pdf-ready *,
+#autonom-pdf-ready-intro *,
+#autonom-pdf-ready-seo * { box-sizing: border-box; }
+#autonom-pdf-ready .apf-hidden { display: none !important; }
+
+/* ---------- INTRO ---------- */
+#autonom-pdf-ready-intro { max-width: 960px; margin: 0 auto 24px; }
+#autonom-pdf-ready-intro .apf-brand {
+  font-size: 12px; font-weight: 800; letter-spacing: .22em;
+  color: var(--apf-muted); text-transform: uppercase;
+}
+#autonom-pdf-ready-intro h2 {
+  margin: 8px 0 10px !important; font-size: 1.8rem !important;
+  font-weight: 700 !important; letter-spacing: -0.025em;
+  line-height: 1.2 !important; color: var(--apf-text) !important;
+}
+#autonom-pdf-ready-intro .apf-lead {
+  margin: 0 0 16px !important; max-width: 72ch;
+  font-size: 1rem !important; color: var(--apf-muted) !important;
+  line-height: 1.6 !important;
+}
+#autonom-pdf-ready-intro .apf-trust {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--apf-good);
+  background: var(--apf-good-bg); border: 1px solid #d1fae5;
+  border-radius: 999px; padding: 6px 14px;
+}
+#autonom-pdf-ready-intro .apf-benefits {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px; margin: 20px 0 0;
+}
+#autonom-pdf-ready-intro .apf-benefit {
+  background: var(--apf-card); border: 1px solid var(--apf-line);
+  border-radius: 12px; padding: 14px 16px;
+}
+#autonom-pdf-ready-intro .apf-benefit strong {
+  display: block; font-size: .9rem; font-weight: 700; margin-bottom: 4px;
+}
+#autonom-pdf-ready-intro .apf-benefit p {
+  margin: 0 !important; font-size: .84rem !important;
+  color: var(--apf-muted) !important; line-height: 1.5 !important;
+}
+
+/* ---------- TOOL SHELL ---------- */
+#autonom-pdf-ready { max-width: 960px; margin: 0 auto 44px; }
+#autonom-pdf-ready .apf-card {
+  background: var(--apf-card); border: 1px solid var(--apf-line);
+  border-radius: 16px; padding: 32px; margin: 18px 0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.02);
+}
+
+/* ---------- DROPZONE ---------- */
+#autonom-pdf-ready .apf-drop {
+  text-align: center; padding: 64px 32px;
+  border: 2px dashed var(--apf-line); border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  transition: all 0.2s ease;
+}
+#autonom-pdf-ready .apf-drop.drag {
+  border-color: var(--apf-accent);
+  background: #f1f5f9; transform: scale(1.01);
+}
+#autonom-pdf-ready .apf-drop-icon {
+  width: 64px; height: 64px; background: var(--apf-accent);
+  color: #fff; border-radius: 16px; display: inline-grid; place-items: center;
+  font-weight: 800; font-size: 14px; margin-bottom: 20px;
+  box-shadow: 0 10px 25px -5px rgba(15,23,42,.2);
+}
+#autonom-pdf-ready .apf-drop h3 {
+  font-size: 1.5rem; font-weight: 700; margin: 0 0 8px;
+  color: var(--apf-text);
+}
+#autonom-pdf-ready .apf-drop p {
+  color: var(--apf-muted); margin: 0 0 24px; font-size: 1rem;
+}
+#autonom-pdf-ready .apf-drop small {
+  display: block; color: var(--apf-muted); margin-top: 16px; font-size: 12px;
+}
+
+/* ---------- BUTTONS ---------- */
+#autonom-pdf-ready button { font-family: inherit; cursor: pointer; transition: all .15s ease; }
+#autonom-pdf-ready .apf-primary {
+  background: var(--apf-accent); color: #fff; border: none;
+  border-radius: 10px; padding: 14px 28px; font-weight: 600;
+  font-size: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
+}
+#autonom-pdf-ready .apf-primary:hover { background: var(--apf-accent-h); transform: translateY(-1px); }
+#autonom-pdf-ready .apf-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+#autonom-pdf-ready .apf-ghost {
+  background: transparent; border: 1px solid var(--apf-line);
+  color: var(--apf-text); border-radius: 8px; padding: 10px 16px;
+  font-size: .9rem; font-weight: 500;
+}
+#autonom-pdf-ready .apf-ghost:hover { background: #f8fafc; border-color: #cbd5e1; }
+#autonom-pdf-ready .apf-wide { width: 100%; margin-top: 16px; }
+
+/* ---------- FILE ROW ---------- */
+#autonom-pdf-ready .apf-file-row { display: flex; align-items: center; gap: 16px; }
+#autonom-pdf-ready .apf-file-icon {
+  width: 48px; height: 48px; background: #f1f5f9; border-radius: 10px;
+  display: grid; place-items: center; font-weight: 800; font-size: 12px;
+  flex-shrink: 0;
+}
+#autonom-pdf-ready .apf-file-meta { flex: 1; min-width: 0; }
+#autonom-pdf-ready .apf-file-name {
+  font-weight: 700; font-size: 1rem; word-break: break-all;
+  color: var(--apf-text);
+}
+#autonom-pdf-ready .apf-file-sub {
+  color: var(--apf-muted); font-size: .85rem; margin-top: 2px;
+}
+
+/* ---------- PROFILE SELECTOR ---------- */
+#autonom-pdf-ready .apf-eyebrow {
+  font-size: 11px; font-weight: 800; letter-spacing: .1em;
+  color: var(--apf-muted); text-transform: uppercase;
+}
+#autonom-pdf-ready h3 {
+  margin: 8px 0 8px !important; font-size: 1.25rem !important;
+  font-weight: 700 !important; color: var(--apf-text) !important;
+}
+#autonom-pdf-ready .apf-muted { color: var(--apf-muted); font-size: .9rem; margin: 0; }
+#autonom-pdf-ready .apf-profile-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin: 24px 0 0;
+}
+#autonom-pdf-ready .apf-profile {
+  text-align: left; background: #fff;
+  border: 2px solid var(--apf-line); border-radius: 12px;
+  padding: 16px; transition: all .2s;
+}
+#autonom-pdf-ready .apf-profile:hover { border-color: #94a3b8; }
+#autonom-pdf-ready .apf-profile.active {
+  border-color: var(--apf-accent); background: #f8fafc;
+  box-shadow: 0 0 0 3px rgba(15,23,42,.08);
+}
+#autonom-pdf-ready .apf-profile b { display: block; font-size: .95rem; margin-bottom: 4px; }
+#autonom-pdf-ready .apf-profile span {
+  display: block; font-size: .8rem; color: var(--apf-muted); line-height: 1.4;
+}
+
+/* ---------- PROGRESS ---------- */
+#autonom-pdf-ready .apf-bar {
+  height: 8px; background: #f1f5f9; border-radius: 999px;
+  overflow: hidden; margin: 16px 0;
+}
+#autonom-pdf-ready .apf-bar-fill {
+  height: 100%; width: 0; background: #0f172a;
+  transition: width .3s ease;
+}
+
+/* ---------- RESULTS HEAD ---------- */
+#autonom-pdf-ready .apf-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 20px; margin-bottom: 24px; padding-bottom: 24px;
+  border-bottom: 1px solid var(--apf-line);
+}
+#autonom-pdf-ready .apf-verdict {
+  font-size: 1.75rem !important; font-weight: 800 !important;
+  letter-spacing: -0.02em; margin: 0 0 4px !important;
+}
+#autonom-pdf-ready .apf-verdict.ready { color: var(--apf-good); }
+#autonom-pdf-ready .apf-verdict.review { color: var(--apf-warn); }
+#autonom-pdf-ready .apf-verdict.not-ready { color: var(--apf-bad); }
+#autonom-pdf-ready .apf-score-ring {
+  width: 90px; height: 90px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 800; font-size: 1.5rem;
+  border: 4px solid currentColor; flex-shrink: 0;
+}
+#autonom-pdf-ready .apf-score-ring.good { color: var(--apf-good); background: var(--apf-good-bg); }
+#autonom-pdf-ready .apf-score-ring.warn { color: var(--apf-warn); background: var(--apf-warn-bg); }
+#autonom-pdf-ready .apf-score-ring.bad  { color: var(--apf-bad);  background: var(--apf-bad-bg); }
+
+/* ---------- STATS ---------- */
+#autonom-pdf-ready .apf-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 28px;
+}
+#autonom-pdf-ready .apf-stat {
+  text-align: center; padding: 16px 8px;
+  border-radius: 10px; background: #f8fafc;
+  border: 1px solid var(--apf-line);
+}
+#autonom-pdf-ready .apf-stat b {
+  font-size: 1.5rem; display: block; line-height: 1; margin-bottom: 6px;
+}
+#autonom-pdf-ready .apf-stat.pass b { color: var(--apf-good); }
+#autonom-pdf-ready .apf-stat.warn b { color: var(--apf-warn); }
+#autonom-pdf-ready .apf-stat.fail b { color: var(--apf-bad); }
+#autonom-pdf-ready .apf-stat.info b { color: var(--apf-info); }
+#autonom-pdf-ready .apf-stat span {
+  font-size: .75rem; font-weight: 700; color: var(--apf-muted);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+
+/* ---------- ACTIONS ---------- */
+#autonom-pdf-ready .apf-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px;
+}
+
+/* ---------- CATEGORIES + CHECKS ---------- */
+#autonom-pdf-ready .apf-cat { margin-top: 24px; }
+#autonom-pdf-ready .apf-cat-head {
+  font-size: 11px; font-weight: 800; letter-spacing: .1em;
+  color: var(--apf-muted); text-transform: uppercase;
+  padding-bottom: 8px; border-bottom: 1px solid var(--apf-line);
+  margin-bottom: 12px;
+}
+#autonom-pdf-ready .apf-check {
+  border: 1px solid var(--apf-line); border-radius: 12px;
+  padding: 18px; margin-bottom: 12px;
+  display: flex; gap: 16px; align-items: flex-start;
+  transition: background .15s;
+}
+#autonom-pdf-ready .apf-check:hover { background: #fafbfc; }
+#autonom-pdf-ready .apf-check-body { flex: 1; min-width: 0; }
+#autonom-pdf-ready .apf-name {
+  font-weight: 700; font-size: .95rem; margin-bottom: 4px;
+  color: var(--apf-text);
+}
+#autonom-pdf-ready .apf-detail {
+  font-size: .9rem; color: var(--apf-muted); margin-bottom: 8px;
+  line-height: 1.55; word-wrap: break-word;
+}
+
+/* ---------- FIX BLOCK (the high-value part) ---------- */
+#autonom-pdf-ready .apf-fix {
+  font-size: .85rem; color: #1e293b;
+  background: #f0f9ff; border-left: 3px solid var(--apf-info);
+  padding: 10px 14px; border-radius: 0 8px 8px 0;
+  margin-top: 8px; line-height: 1.5;
+}
+#autonom-pdf-ready .apf-fix b {
+  color: var(--apf-info); display: block; margin-bottom: 2px;
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+}
+
+/* ---------- BADGES ---------- */
+#autonom-pdf-ready .apf-badge {
+  font-size: .7rem; font-weight: 800; padding: 4px 10px;
+  border-radius: 999px; text-transform: uppercase;
+  letter-spacing: .05em; flex-shrink: 0; margin-top: 2px;
+}
+#autonom-pdf-ready .apf-badge.pass { background: var(--apf-good-bg); color: var(--apf-good); }
+#autonom-pdf-ready .apf-badge.warn { background: var(--apf-warn-bg); color: var(--apf-warn); }
+#autonom-pdf-ready .apf-badge.fail { background: var(--apf-bad-bg);  color: var(--apf-bad);  }
+#autonom-pdf-ready .apf-badge.info { background: var(--apf-info-bg); color: var(--apf-info); }
+
+/* ---------- TECHNICAL DETAILS ---------- */
+#autonom-pdf-ready details {
+  margin-top: 26px; border-top: 1px solid var(--apf-line);
+  padding-top: 18px;
+}
+#autonom-pdf-ready summary {
+  cursor: pointer; font-weight: 600; font-size: 13.5px;
+}
+#autonom-pdf-ready pre {
+  white-space: pre-wrap; word-break: break-word;
+  font-size: 11.5px; color: var(--apf-muted);
+  background: #f7f8fa; border-radius: 10px; padding: 14px;
+  margin-top: 12px; max-height: 420px; overflow: auto;
+  line-height: 1.55;
+}
+
+/* ---------- PRO UPSELL ---------- */
+#autonom-pdf-ready .apf-pro-upsell {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #fff; border-radius: 16px; padding: 24px;
+  margin-top: 24px; display: flex; align-items: center;
+  justify-content: space-between; gap: 20px;
+}
+#autonom-pdf-ready .apf-pro-upsell h4 {
+  margin: 0 0 6px !important; font-size: 1.1rem !important;
+  color: #fff !important; font-weight: 700 !important;
+}
+#autonom-pdf-ready .apf-pro-upsell p {
+  margin: 0 !important; font-size: .9rem !important;
+  color: #94a3b8 !important;
+}
+#autonom-pdf-ready .apf-pro-btn {
+  background: #fff; color: #0f172a; border: none;
+  border-radius: 8px; padding: 12px 20px;
+  font-weight: 700; white-space: nowrap;
+}
+#autonom-pdf-ready .apf-pro-btn:hover { background: #f1f5f9; }
+
+/* ---------- FOOTER ---------- */
+#autonom-pdf-ready footer.apf-footer {
+  margin-top: 32px; padding-top: 16px;
+  border-top: 1px solid var(--apf-line);
+  display: flex; justify-content: space-between;
+  color: var(--apf-muted); font-size: .8rem;
+  flex-wrap: wrap; gap: 8px;
+}
+
+/* ---------- SEO ---------- */
+#autonom-pdf-ready-seo {
+  max-width: 960px; margin: 0 auto; padding: 44px 0 0;
+  border-top: 1px solid var(--apf-line);
+}
+#autonom-pdf-ready-seo h2 {
+  margin: 40px 0 16px !important; padding: 0 0 10px !important;
+  border: 0 !important; border-bottom: 1px solid var(--apf-line) !important;
+  font-size: 1.45rem !important; font-weight: 700 !important;
+  letter-spacing: -0.01em; line-height: 1.3 !important;
+  color: var(--apf-text) !important;
+}
+#autonom-pdf-ready-seo .apf-seo-block:first-child h2 { margin-top: 0 !important; }
+#autonom-pdf-ready-seo h3 {
+  margin: 0 0 8px !important; font-size: 1.05rem !important;
+  font-weight: 600 !important; color: #1f2937 !important;
+  line-height: 1.4 !important;
+}
+#autonom-pdf-ready-seo p {
+  margin-bottom: 16px !important; font-size: .975rem !important;
+  line-height: 1.75 !important; color: #374151 !important;
+}
+#autonom-pdf-ready-seo strong { color: #111827 !important; font-weight: 600 !important; }
+#autonom-pdf-ready-seo code {
+  background: #f3f4f6 !important; color: #1f2937 !important;
+  padding: 3px 8px !important; border-radius: 5px !important;
+  font-family: "Fira Code", Consolas, Monaco, monospace !important;
+  font-size: .85rem !important; border: 1px solid var(--apf-line) !important;
+  display: inline-block;
+}
+#autonom-pdf-ready-seo .apf-seo-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+  gap: 14px !important; margin: 20px 0 !important;
+}
+#autonom-pdf-ready-seo .apf-seo-card {
+  background: var(--apf-card) !important;
+  border: 1px solid var(--apf-line) !important;
+  border-radius: 10px !important; padding: 18px !important;
+}
+#autonom-pdf-ready-seo .apf-seo-card p {
+  margin-bottom: 0 !important; font-size: .92rem !important;
+  color: var(--apf-muted) !important;
+}
+#autonom-pdf-ready-seo ul.apf-list,
+#autonom-pdf-ready-seo ol.apf-steps {
+  margin: 16px 0 24px !important; padding-left: 24px !important;
+  list-style-position: outside !important;
+}
+#autonom-pdf-ready-seo ul.apf-list { list-style-type: disc !important; }
+#autonom-pdf-ready-seo ol.apf-steps { list-style-type: decimal !important; }
+#autonom-pdf-ready-seo ul.apf-list li,
+#autonom-pdf-ready-seo ol.apf-steps li {
+  margin-bottom: 12px !important; font-size: .95rem !important;
+  color: #374151 !important; padding-left: 6px !important;
+  line-height: 1.65 !important;
+}
+#autonom-pdf-ready-seo ul.apf-list li::marker,
+#autonom-pdf-ready-seo ol.apf-steps li::marker {
+  color: var(--apf-accent) !important; font-weight: bold !important;
+}
+#autonom-pdf-ready-seo .apf-faq-item {
+  background: var(--apf-card) !important;
+  border: 1px solid var(--apf-line) !important;
+  border-radius: 10px !important; padding: 18px !important;
+  margin-bottom: 14px !important;
+}
+#autonom-pdf-ready-seo .apf-faq-item h3 {
+  margin-bottom: 8px !important; color: #111827 !important;
+}
+#autonom-pdf-ready-seo .apf-faq-item p {
+  margin-bottom: 0 !important; font-size: .92rem !important;
+  color: var(--apf-muted) !important;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 700px) {
+  #autonom-pdf-ready-intro h2 { font-size: 1.4rem !important; }
+  #autonom-pdf-ready .apf-stats { grid-template-columns: repeat(2, 1fr); }
+  #autonom-pdf-ready .apf-head { flex-direction: column; align-items: flex-start; gap: 16px; }
+  #autonom-pdf-ready .apf-score-ring { align-self: flex-start; }
+  #autonom-pdf-ready .apf-pro-upsell { flex-direction: column; text-align: center; }
+  #autonom-pdf-ready-seo h2 { font-size: 1.25rem !important; }
+}
+@media (max-width: 460px) {
+  #autonom-pdf-ready .apf-profile-grid,
+  #autonom-pdf-ready .apf-stats { grid-template-columns: 1fr; }
+}
