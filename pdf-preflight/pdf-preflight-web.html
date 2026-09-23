@@ -1,0 +1,137 @@
+<!-- Autonom PDF Preflight — Intro (above tool) -->
+<section id="autonom-pdf-preflight-intro">
+  <div class="apf-brand">AUTONOM</div>
+  <h2>PDF Preflight</h2>
+  <p class="apf-lead">
+    Upload a PDF. Find the problems that will get it rejected by a printer, an
+    academic portal, or Amazon KDP — before you send it.
+  </p>
+  <div class="apf-trust">🔒 Local-first · Your PDF never leaves your browser</div>
+
+  <div class="apf-benefits">
+    <div class="apf-benefit">
+      <strong>Honest verdicts</strong>
+      <p>Every check is PASS, WARNING, FAIL, or INFO. We never mark "couldn't test" as a pass.</p>
+    </div>
+    <div class="apf-benefit">
+      <strong>Purpose-aware rules</strong>
+      <p>Print, KDP, academic, digital and general profiles apply different, source-grounded thresholds.</p>
+    </div>
+    <div class="apf-benefit">
+      <strong>Actionable fixes</strong>
+      <p>Where a check fails, we tell you exactly what to change before re-exporting.</p>
+    </div>
+    <div class="apf-benefit">
+      <strong>Downloadable reports</strong>
+      <p>Export a JSON or text preflight report you can archive or send to a colleague.</p>
+    </div>
+  </div>
+</section>
+
+[autonom_pdf_ready]
+
+<!-- Autonom PDF Preflight — SEO & Guide (below tool) -->
+<article id="autonom-pdf-preflight-seo">
+
+  <section class="apf-seo-block">
+    <h2>Why preflight a PDF before you submit it?</h2>
+    <p>
+      Most PDFs that get rejected are not broken — they are <strong>unfit for a specific
+      destination</strong>. A layout that looks perfect on screen can fail commercial print
+      because fonts were not embedded, colors are RGB instead of CMYK, or the file has no
+      BleedBox. A paper submission can be rejected because page sizes differ across the
+      document. A KDP paperback can be refused because interior margins fall below Amazon's
+      current minimum for the page count.
+    </p>
+    <p>
+      Preflight is the practice of catching those failures <strong>before</strong> the file
+      leaves your machine. Autonom PDF Preflight inspects your PDF locally in the browser,
+      applying the rule set that matches what you are preparing it for.
+    </p>
+  </section>
+
+  <section class="apf-seo-block">
+    <h2>What Autonom PDF Preflight checks</h2>
+    <div class="apf-seo-grid">
+      <div class="apf-seo-card">
+        <h3>Document &amp; metadata</h3>
+        <p>PDF version, encryption, file size, linearization, title, author, subject, keywords, creator, producer, dates, language, and XMP presence.</p>
+      </div>
+      <div class="apf-seo-card">
+        <h3>Pages &amp; geometry</h3>
+        <p>Page count, page-size consistency, orientation consistency, non-zero rotation, blank-page detection, CropBox, BleedBox and TrimBox presence.</p>
+      </div>
+      <div class="apf-seo-card">
+        <h3>Fonts</h3>
+        <p>Referenced fonts, embedding heuristic from font-file streams, and subsetting tags. Non-embedded fonts are the #1 cause of print rejection.</p>
+      </div>
+      <div class="apf-seo-card">
+        <h3>Images</h3>
+        <p>Count of image XObjects across the document, with an honest INFO note where effective DPI is not measured by this version.</p>
+      </div>
+      <div class="apf-seo-card">
+        <h3>Color &amp; transparency</h3>
+        <p>RGB / CMYK / Gray operator detection, plus a graphics-state signal for possible transparency that offset printers may need flattened.</p>
+      </div>
+      <div class="apf-seo-card">
+        <h3>Structure &amp; accessibility</h3>
+        <p>Tagged PDF / MarkInfo, structure tree, outline, annotations, and interactive form fields.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="apf-seo-block">
+    <h2>Purpose-specific rulesets</h2>
+    <ul class="apf-list">
+      <li><strong>General</strong> — core PDF health plus scanned/image-only document detection with an OCR suggestion.</li>
+      <li><strong>Print</strong> — BleedBox and TrimBox presence, font embedding, CMYK expectation, and a 300 DPI requirement note.</li>
+      <li><strong>KDP</strong> — trim-size check, interior margin note, font embedding, and minimum page count.</li>
+      <li><strong>Academic</strong> — common journal file-size caps, font embedding, and tagging recommendation.</li>
+      <li><strong>Digital</strong> — Fast Web View (linearization) and file-size note for email and browser delivery.</li>
+    </ul>
+  </section>
+
+  <section class="apf-seo-block">
+    <h2>How to run a preflight in 3 steps</h2>
+    <ol class="apf-steps">
+      <li><strong>Upload the PDF</strong> — drag it onto the drop zone or choose a file from your device. Nothing is uploaded to a server.</li>
+      <li><strong>Choose the destination</strong> — pick the profile that matches where the file is going: Print, KDP, Academic, Digital, or General.</li>
+      <li><strong>Review the report</strong> — pass, warn, fail, and info results are grouped by category, with a fix suggestion wherever one applies. Download the report as JSON or text for your records.</li>
+    </ol>
+  </section>
+
+  <section class="apf-seo-block">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="apf-faq-item">
+      <h3>Is my PDF uploaded to any server?</h3>
+      <p>No. Autonom PDF Preflight runs entirely in your browser. The PDF bytes are parsed by PDF.js locally, and no content, filename, or metadata is ever transmitted.</p>
+    </div>
+
+    <div class="apf-faq-item">
+      <h3>Why do some checks say INFO instead of PASS?</h3>
+      <p>Because some things cannot be reliably determined by a browser without additional measurement. Effective image DPI, for example, requires per-image transform matrices we do not yet extract. Rather than falsely pass a check we cannot perform, we mark it INFO with an explanation. This is a deliberate design decision — a passed check should mean something.</p>
+    </div>
+
+    <div class="apf-faq-item">
+      <h3>Does a warning mean my PDF will be rejected?</h3>
+      <p>Not necessarily. A warning is a flag for something a human should confirm — mixed orientations, an unembedded font, RGB-only color in a print profile. Many warnings can be ignored if you know the destination tolerates them. Fails are stronger: a supported rule was checked and did not pass.</p>
+    </div>
+
+    <div class="apf-faq-item">
+      <h3>Can I check a password-protected PDF?</h3>
+      <p>Not fully. Autonom detects encryption and reports it as a warning, but the interior of an encrypted PDF cannot be inspected without the password. Remove encryption before preflighting if the recipient does not need it.</p>
+    </div>
+
+    <div class="apf-faq-item">
+      <h3>Do you support PDF/A or PDF/X validation?</h3>
+      <p>Not yet. Conformance to those ISO standards requires both a rule set and a validation profile. This is on the roadmap. In the meantime, the report will not claim PDF/A or PDF/X compliance you cannot verify.</p>
+    </div>
+
+    <div class="apf-faq-item">
+      <h3>Can I use the report as evidence of compliance?</h3>
+      <p>No. The report describes what Autonom PDF Preflight measured. It is intended as a preflight aid, not a substitute for a printer's, publisher's, or institution's own validation toolchain.</p>
+    </div>
+  </section>
+
+</article>
