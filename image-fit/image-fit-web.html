@@ -1,0 +1,191 @@
+<!-- Autonom Image Fit — Intro -->
+<section id="autonom-image-fit-intro">
+  <div class="if-brand">Autonom · Image Fit</div>
+  <h1>Make an image meet <em>exactly</em> what the destination demands.</h1>
+  <p class="if-lead">
+    Upload a photo or graphic. Tell Autonom the constraint — <strong>under 100 KB</strong>,
+    <strong>exactly 1080 × 1080</strong>, <strong>the dimensions Open Graph requires</strong>,
+    or <strong>US Passport spec</strong>. Get a file that fits, without distortion and
+    without uploading anything to a server.
+  </p>
+  <span class="if-pill">Nothing leaves your device</span>
+</section>
+
+[autonom_image_fit]
+
+<!-- Autonom Image Fit — SEO & Guide -->
+<article id="autonom-image-fit-seo">
+
+  <section class="if-seo-block">
+    <h2>Why exact-size image tools get it wrong</h2>
+    <p>
+      Most online image tools give you a quality slider and let you guess. You drop the
+      slider to 60, save, check the file size, upload, get rejected, drop it to 40, save,
+      check again. Ten minutes later you have a picture that looks like a fax and a
+      deadline you have already missed.
+    </p>
+    <p>
+      Autonom Image Fit flips the workflow. <strong>You tell it the constraint first</strong> —
+      "under 200 KB", "exactly 1080 × 1080", "US Passport" — and it works backwards.
+      For a file size target, it binary-searches the JPEG or WebP quality to find the
+      highest value that still comes in under your limit. If quality alone cannot get
+      there, it downscales by 15% and tries again. Whatever it took, the result is a file
+      that fits, and you can see exactly what it did.
+    </p>
+  </section>
+
+  <section class="if-seo-block">
+    <h2>What it does</h2>
+    <div class="if-seo-grid">
+      <div class="if-seo-card">
+        <h3>Under a file size</h3>
+        <p>Enter a target — 50 KB, 100 KB, 200 KB, 500 KB, 1 MB, or a custom value. The tool finds the highest quality that lands under it.</p>
+      </div>
+      <div class="if-seo-card">
+        <h3>Exact dimensions</h3>
+        <p>Set a width and height, pick a fit mode, and get a genuinely exact-sized image. The green rectangle shows you what will remain before you commit.</p>
+      </div>
+      <div class="if-seo-card">
+        <h3>Platform presets</h3>
+        <p>Common destinations — Open Graph, LinkedIn cover, Instagram, YouTube thumbnail, X header — with real dimensions baked in.</p>
+      </div>
+      <div class="if-seo-card">
+        <h3>ID and government photos</h3>
+        <p>US Passport, US Visa, UK Passport, Schengen Visa, EU ID, India Passport, China Visa, Canada Passport, and more — grouped by photo format.</p>
+      </div>
+      <div class="if-seo-card">
+        <h3>Three fill styles</h3>
+        <p>When shapes differ: blurred backdrop, edge extend, or a solid colour. Every option keeps the full image visible — no distortion.</p>
+      </div>
+      <div class="if-seo-card">
+        <h3>Nothing uploaded</h3>
+        <p>Every operation runs on your device using the browser's own Canvas API. Verify in DevTools — you will see zero file data leaving.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="if-seo-block">
+    <h2>Three ways to fill empty space when the shapes do not match</h2>
+    <p>
+      When your image and the target have different aspect ratios, one of three things
+      must happen: pixels get cropped, empty space appears, or the image is distorted.
+      Autonom never distorts. For the "empty space" case, you have three fill styles —
+      and each one is right for a different kind of image.
+    </p>
+    <ul class="if-list">
+      <li><strong>Blurred backdrop.</strong> The empty space is filled with a blurred, enlarged copy of the image itself. This is what Instagram does with non-square photos and what YouTube does with 4:3 video in a 16:9 player. Adjustable strength.</li>
+      <li><strong>Edge extend.</strong> Autonom samples the outermost pixels of your image and stretches them outward to fill the frame. Works best on images with soft or uniform edges — skies, walls, gradients.</li>
+      <li><strong>Solid colour.</strong> Fill the empty space with a colour you pick. This is what passport and ID portals expect — usually white or a specific background colour.</li>
+    </ul>
+  </section>
+
+  <section class="if-seo-block">
+    <h2>About upscaling — the honest version</h2>
+    <p>
+      If your source image is smaller than the target dimensions, Autonom will scale it up
+      smoothly and notify you. This is genuine — the pixels really do exist in the output.
+      What we cannot do is invent detail that was never in the original.
+    </p>
+    <p>
+      A 400 × 400 photo scaled to 1600 × 1600 is technically 1600 × 1600, but it will look
+      soft compared to a photo originally shot at that size. This is a limitation of
+      photography, not of software. If a portal demands a large ID photo, the only way to
+      get sharp results is to start with a large source photo.
+    </p>
+  </section>
+
+  <section class="if-seo-block">
+    <h2>ID and government photos — grouped by format</h2>
+    <p>
+      Most of the world's ID photo specifications reduce to the same two or three physical
+      sizes. Instead of a flat list of countries, Autonom groups them by their actual
+      photo format — because what matters is the pixel dimensions, not which country
+      issued the requirement.
+    </p>
+    <ul class="if-list">
+      <li><strong>2 × 2 inch (51 × 51 mm)</strong> — 600 × 600 px @ 300 dpi. US Passport, US Visa, US Green Card, India Passport, India Visa.</li>
+      <li><strong>35 × 45 mm</strong> — 413 × 531 px @ 300 dpi. UK Passport, UK Driving Licence, Schengen Visa, EU Passport / ID, Australia Passport, Japan Passport.</li>
+      <li><strong>33 × 48 mm</strong> — 390 × 567 px @ 300 dpi. China Visa, China Passport.</li>
+      <li><strong>50 × 70 mm</strong> — 591 × 827 px @ 300 dpi. Canada Passport.</li>
+      <li><strong>Stamp size (20 × 25 mm)</strong> — 236 × 295 px @ 300 dpi. Common in India for forms and applications where a smaller photo is requested.</li>
+    </ul>
+    <p>
+      Each preset applies its own maximum file size where the portal enforces one — 240 KB
+      for US documents, 300 KB for India Passport, 1 MB for India Visa. Everything is
+      produced at 300 dpi equivalent, which is what these portals expect.
+    </p>
+  </section>
+
+  <section class="if-seo-block">
+    <h2>Use cases this was built for</h2>
+    <ul class="if-list">
+      <li><strong>Government and visa portals</strong> — "photo must be under 100 KB" is a hard rule. Autonom lands you under it without quality collapse.</li>
+      <li><strong>Job applications</strong> — many HR systems reject profile photos above a certain size without explaining why.</li>
+      <li><strong>University uploads</strong> — thesis portals and student systems often cap images at seemingly arbitrary byte counts.</li>
+      <li><strong>Marketplace listings</strong> — Etsy, Amazon, and others have size and dimension rules that trip up first-time sellers.</li>
+      <li><strong>Website and social assets</strong> — Open Graph cards, article heroes, and email headers need exact dimensions and file-size limits.</li>
+      <li><strong>Client deliveries</strong> — when you cannot upload that NDA-protected product shot to a random online compressor.</li>
+    </ul>
+  </section>
+
+  <section class="if-seo-block">
+    <h2>How to use it in 4 steps</h2>
+    <ol class="if-steps">
+      <li><strong>Drop an image</strong> — drag it, paste it from your clipboard, or click to browse. JPG, PNG, WebP, GIF, BMP, or SVG.</li>
+      <li><strong>Pick the constraint</strong> — under a file size, exact dimensions, a platform preset, or an ID / document preset.</li>
+      <li><strong>Adjust fit or fill</strong> — Cover crops (choose the focal point with the green rectangle); Contain keeps everything and fills with blur, edge extend, or a solid colour.</li>
+      <li><strong>Download the result</strong> — one click. The result panel shows the original and output side by side, with dimensions, file size, quality used, and the change percentage.</li>
+    </ol>
+  </section>
+
+  <section class="if-seo-block">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="if-faq-item">
+      <h3>Is my image uploaded to a server?</h3>
+      <p>No. Every operation — reading the file, resizing, compression, format conversion, blur, edge extend — happens on your own device using the browser's Canvas API. You can open DevTools, watch the network tab, and confirm zero outbound traffic containing image data.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>Why does the result sometimes say "Still over target"?</h3>
+      <p>Because some constraints are physically impossible without downscaling. A 4000 × 3000 photo cannot fit under 50 KB at full quality — no tool can do that. Enable "Allow downscaling" and Autonom will reduce the pixel dimensions until the target is reachable.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>What is the difference between Cover and Contain?</h3>
+      <p>Cover scales the image to fill the target frame and crops the overflow. Everything in the frame is image. Contain keeps the entire image visible, and if the shapes differ, the empty areas are filled with your chosen fill style. Cover when the subject matters more than the edges. Contain when the whole composition matters.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>What is "Edge extend"?</h3>
+      <p>Autonom samples the outermost pixels of your image and stretches them outward into the empty areas. Works best on images with soft or uniform edges — skies, walls, gradients, solid backgrounds. It does not work well on busy images where the edge is chaotic.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>What does the green crop rectangle show?</h3>
+      <p>It shows exactly what will remain in the result when Cover mode is active. Move your focal point by clicking — the rectangle follows. If no placement looks right, the shapes genuinely do not match and you should switch to Contain with a fill style.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>Why did my file get bigger instead of smaller?</h3>
+      <p>Because you upscaled. If your source is 481 × 835 and you asked for 1080 × 1920, the output has more pixels — more data — and the file grows. The stat card labels this honestly as "Increase" instead of pretending it is a reduction.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>Can Autonom guarantee my ID photo will be accepted?</h3>
+      <p>No, and no tool can. Autonom can enforce the exact pixel dimensions and file-size cap those portals require. It cannot verify head position, background colour, expression, absence of glasses or headwear, or the dozens of other requirements each country specifies. Always check the official source.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>Which format should I pick?</h3>
+      <p>JPG for photos and anything where the destination does not care. PNG when transparency matters or the image contains sharp graphics, logos, or screenshots. WebP when the destination accepts it — usually 25–35% smaller than JPG at the same visual quality.</p>
+    </div>
+
+    <div class="if-faq-item">
+      <h3>Can I process images on mobile?</h3>
+      <p>Yes. The tool works on modern mobile browsers. Large images may take a moment to process on low-memory devices, but the flow is identical.</p>
+    </div>
+
+  </section>
+
+</article>
