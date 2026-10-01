@@ -1,63 +1,202 @@
 <section class="asg-page-intro">
-  <h1>Shopify CSV Import Safety Check</h1>
+  <h1>Shopify CSV Import Checker — Scan Before You Import</h1>
   <p>
-    Before you import a product CSV into Shopify, check it with Autonom. We scan for the
-    destructive changes Shopify's own documentation warns about — blank values in included
-    columns, duplicate handles, orphaned variants, and malformed HTML — and show you
-    exactly what would change in your store.
+    A CSV import is the fastest way to update thousands of products in Shopify.
+    It is also the fastest way to destroy them.
   </p>
-  <p>Your file is processed entirely in your browser. Nothing is uploaded. No account required.</p>
+  <p>
+    Autonom Shopify Guard is a free, browser-based preflight checker that scans
+    your product CSV for the exact issues that silently break Shopify imports —
+    blank price cells that clear live prices, duplicate handles that merge
+    products, orphaned variants that get dropped. It runs entirely in your
+    browser. Your file is never uploaded.
+  </p>
 </section>
 
 [autonom_shopify_guard]
 
 <section class="asg-page-content">
-  <h2>Why Shopify CSVs are dangerous</h2>
+  <h2>Why Shopify CSV imports break live stores</h2>
   <p>
-    Shopify's CSV importer is designed to update existing products. That's what makes it useful.
-    It's also what makes it dangerous. A CSV can pass Shopify's syntax validation and still
-    silently overwrite your live product data.
+    Shopify's built-in CSV importer validates structure. It confirms that your
+    file has the right headers and that each row has the right number of
+    columns. What it does not do is warn you when a syntactically valid file
+    would silently change or delete live product data.
+  </p>
+  <p>
+    The Shopify documentation warns about this. If you include a column in your
+    CSV, Shopify treats every cell in that column — including blank cells — as
+    an instruction. A blank cell in an included column is not "no change."
+    It is "clear this field."
+  </p>
+  <p>
+    This single design decision is responsible for most of the worst CSV import
+    disasters merchants report. Prices disappear. Descriptions vanish. Variants
+    get deleted. And the merchant only discovers it days later when a customer
+    complains.
   </p>
 
-  <h3>Three ways a valid CSV can damage your store</h3>
+  <h3>The three failure modes merchants report most often</h3>
 
   <div class="asg-page-card">
-    <h4>1. Blank values in included columns</h4>
-    <p>
-      If you include a column like "Variant Price" but leave its cells empty, Shopify treats
-      the blank cells as intentional overwrites. Any existing products with matching handles
-      may have their prices cleared.
-    </p>
+    <h4>1. Blank values in included columns clear live data</h4>
+    <p>If you include a <code>Variant Price</code> column but leave cells empty, Shopify treats the blanks as intentional overwrites. Existing products with matching handles may have their prices cleared.</p>
     <p><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">See Shopify documentation →</a></p>
   </div>
 
   <div class="asg-page-card">
-    <h4>2. Matching handles update matching columns</h4>
-    <p>
-      Shopify matches imported rows to existing products by the Handle column. If a row's
-      handle matches an existing product, Shopify will replace values in every column
-      included in the file.
-    </p>
+    <h4>2. Matching handles overwrite matching columns</h4>
+    <p>Shopify matches imported rows to existing products by the <code>Handle</code> column. If a row's handle matches an existing product, Shopify replaces values in every column included in the file.</p>
     <p><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">See Shopify documentation →</a></p>
   </div>
 
   <div class="asg-page-card">
-    <h4>3. Missing variant columns can delete variants</h4>
-    <p>
-      If a product has multiple variants in your store but the CSV only includes one variant
-      row for that handle, Shopify may delete the missing variants.
-    </p>
+    <h4>3. Missing variant data silently deletes variants</h4>
+    <p>If a product has multiple variants in your store but the CSV only includes one variant row for that handle, Shopify may delete the missing variants.</p>
     <p><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">See Shopify documentation →</a></p>
   </div>
+</section>
 
+<section class="asg-page-content">
+  <h2>What Autonom Shopify Guard checks</h2>
+  <p>Autonom runs more than thirty validation rules. Each issue falls into one of three categories: <strong>critical</strong> (will break the import or damage live data), <strong>warning</strong> (degrades quality), or <strong>info</strong> (context).</p>
+
+  <h3>Structure, identity, and handles</h3>
+  <ul>
+    <li>Missing or duplicate column headers</li>
+    <li>Unknown columns Shopify will ignore</li>
+    <li>Missing handles in update mode</li>
+    <li>Duplicate handles across different products</li>
+    <li>Handles with uppercase, spaces, underscores, or accents</li>
+  </ul>
+
+  <h3>Variants</h3>
+  <ul>
+    <li>Variant rows without a parent handle</li>
+    <li>Duplicate option combinations</li>
+    <li>Incomplete option pairs</li>
+    <li>Inconsistent option names across the same product</li>
+    <li>Single-variant products with multiple images but no Option1 declaration</li>
+  </ul>
+
+  <h3>Prices, inventory, and SKUs</h3>
+  <ul>
+    <li>Non-numeric, negative, or currency-symbol prices</li>
+    <li>European comma-decimal prices</li>
+    <li>Compare-at price lower than price</li>
+    <li>Non-integer or negative inventory</li>
+    <li>Inventory tracker mismatch</li>
+    <li>Duplicate SKUs, whitespace in SKUs</li>
+  </ul>
+
+  <h3>Content and encoding</h3>
+  <ul>
+    <li>UTF-8 byte-order marks</li>
+    <li>Non-UTF-8 encoding</li>
+    <li>Smart quotes, em-dashes, ellipses from Word</li>
+    <li>Unclosed HTML tags and dangerous tags</li>
+    <li>Non-standard boolean values</li>
+    <li>Product Category format mismatches</li>
+  </ul>
+
+  <h3>Images</h3>
+  <ul>
+    <li>HTTP image URLs</li>
+    <li>Private CDN or localhost URLs</li>
+    <li>URLs without image extensions</li>
+    <li>Duplicate image rows</li>
+    <li>Image rows with stray variant data</li>
+  </ul>
+
+  <h3>File-level</h3>
+  <ul>
+    <li>Semicolon or tab delimiters instead of commas</li>
+    <li>Duplicate identical rows</li>
+    <li>Files approaching or exceeding Shopify's 15 MB limit (with automatic splitting)</li>
+  </ul>
+</section>
+
+<section class="asg-page-content">
+  <h2>What Autonom fixes, flags, and refuses to touch</h2>
+
+  <h3>Safe automatic fixes</h3>
+  <ul>
+    <li>UTF-8 byte-order mark removal</li>
+    <li>Encoding conversion to UTF-8</li>
+    <li>Smart quote replacement</li>
+    <li>Whitespace trimming</li>
+    <li>Currency symbol stripping</li>
+    <li>Boolean format normalization</li>
+    <li>Handle normalization</li>
+    <li>Duplicate image row removal</li>
+  </ul>
+
+  <h3>Review-required fixes</h3>
+  <ul>
+    <li>Generating handles from product titles</li>
+    <li>Upgrading HTTP image URLs to HTTPS</li>
+    <li>Repairing unclosed HTML tags</li>
+    <li>Converting comma decimals to dot decimals</li>
+    <li>Clearing stray variant data from image rows</li>
+    <li>Setting Option1 for single-variant products with images</li>
+    <li>Defaulting missing inventory quantities to 0</li>
+    <li>Suffixing duplicate SKUs</li>
+    <li>Removing a column where 30%+ of cells are blank</li>
+    <li>Splitting oversized files into importable parts</li>
+    <li>Converting semicolon or tab delimiters to commas</li>
+  </ul>
+
+  <h3>What Autonom will never change</h3>
+  <ul>
+    <li>Missing product titles</li>
+    <li>Missing handles in update mode</li>
+    <li>Duplicate handles with different titles</li>
+    <li>Orphaned variant rows</li>
+    <li>Non-numeric prices</li>
+    <li>Negative prices or inventory</li>
+    <li>Invalid status values</li>
+    <li>Private CDN image URLs</li>
+    <li>Dangerous HTML tags</li>
+  </ul>
+</section>
+
+<section class="asg-page-content">
+  <h2>Your CSV never leaves your browser</h2>
+  <p>Autonom processes everything locally using the browser's <code>FileReader</code> API. Your file is parsed in memory, validated on your device, and packaged into the output ZIP without any network requests.</p>
+  <p>You can verify this yourself. Open DevTools, watch the Network tab during a scan, and you will see zero outbound requests for your CSV.</p>
+</section>
+
+<section class="asg-page-content">
+  <h2>How to check your Shopify CSV in four steps</h2>
+  <h3>1. Export or prepare your CSV</h3>
+  <p>Use a supplier-provided CSV, a Shopify export, or a hand-edited spreadsheet saved as CSV.</p>
+  <h3>2. Drop the file into Autonom</h3>
+  <p>Autonom detects whether your file is for new products or updates. You can override the detection.</p>
+  <h3>3. Review the readiness report</h3>
+  <p>Every issue is grouped by severity. Each one tells you what is wrong, why it matters, which rows are affected, and what you can do.</p>
+  <h3>4. Download the corrected files</h3>
+  <p>You get a ZIP containing your corrected CSV (or split parts), a change log, a readiness report, and an import checklist. Autonom never touches your Shopify store.</p>
+</section>
+
+<section class="asg-page-content">
   <h2>Frequently asked questions</h2>
-
   <div class="asg-page-faq">
-    <details><summary>Is my file uploaded to Autonom?</summary><p>No. Shopify Guard processes your CSV entirely in your browser using JavaScript. Your file contents are never transmitted to Autonom's servers.</p></details>
-    <details><summary>Is this free?</summary><p>Yes, the readiness report is fully free. You can see every issue we detect, download the report, and share it.</p></details>
-    <details><summary>How does Autonom know if I'm adding or updating products?</summary><p>Autonom inspects the columns in your file. Shopify exports typically include columns like Status, Published, and Image Position — when we see those, we suggest "Updating existing products." You can always override our suggestion.</p></details>
-    <details><summary>Can Autonom guarantee my import will succeed?</summary><p>No. Autonom does not know your store's current data, and we do not connect to your Shopify store. We check what we can check and tell you what we can't.</p></details>
-    <details><summary>What file types are supported?</summary><p>CSV files only (Shopify product export format). Maximum size is 50MB.</p></details>
-    <details><summary>Will Autonom automatically change my data?</summary><p>No. Autonom never modifies your store. It only generates a corrected CSV file that you choose to import or discard.</p></details>
+    <details><summary>Is my Shopify CSV uploaded to Autonom?</summary><p>No. Autonom processes your CSV entirely in your browser. Your file contents are never transmitted to Autonom's servers.</p></details>
+    <details><summary>Is this tool free?</summary><p>Yes. The readiness report, the corrected CSV, and all repairs are free. No account required. No watermark.</p></details>
+    <details><summary>How does Autonom know if I'm adding new products or updating existing ones?</summary><p>Autonom inspects the columns in your file. Shopify exports typically include <code>Status</code>, <code>Published</code>, and <code>Image Position</code>. When those appear, we suggest update mode. You can override.</p></details>
+    <details><summary>Can Autonom guarantee my import will succeed?</summary><p>No. Autonom does not know your store's current data and does not connect to your Shopify store. We check what we can check and tell you what we cannot.</p></details>
+    <details><summary>What happens if my file is over 15 MB?</summary><p>Autonom detects the size, flags it as critical, and can split the file into multiple parts — each under the limit. Products stay whole: all variant rows of the same Handle stay in the same part.</p></details>
+    <details><summary>What if my file uses semicolons instead of commas?</summary><p>Autonom detects the delimiter and offers a one-click conversion to comma-separated values. This is common with European Excel exports.</p></details>
+    <details><summary>What is a destructive blank?</summary><p>A blank cell in a column you have included. Shopify treats blank cells in included columns as intentional overwrites. If the row matches an existing product, the field will be cleared.</p></details>
+    <details><summary>Does Autonom modify my Shopify store?</summary><p>No. Autonom never connects to your Shopify store. It generates a corrected file. You choose whether to import it.</p></details>
+    <details><summary>What file types are supported?</summary><p>CSV files in Shopify's product export format. Up to 50 MB.</p></details>
+    <details><summary>Can I use this on my phone?</summary><p>Yes. Autonom works in all modern mobile browsers. The report is easier to read on a larger screen.</p></details>
+    <details><summary>How is this different from Shopify's built-in preview?</summary><p>Shopify's preview runs after you click import. Autonom runs before, on your local machine, with a broader set of checks — including destructive blanks, variant inconsistencies, and file size handling.</p></details>
+    <details><summary>Will Autonom fix my file or just tell me what's wrong?</summary><p>Both. Safe fixes are applied automatically. Review-required fixes need your approval. Issues that would require inventing data are flagged for you to fix in the source.</p></details>
   </div>
+</section>
+
+<section class="asg-page-content">
+  <h2>About Autonom</h2>
+  <p>Autonom builds readiness tools for digital assets that need to be handed to a specific destination. Shopify Guard is our first product. Every Autonom tool runs locally. Your file is yours.</p>
 </section>
