@@ -1,0 +1,63 @@
+<section class="asg-page-intro">
+  <h1>Shopify CSV Import Safety Check</h1>
+  <p>
+    Before you import a product CSV into Shopify, check it with Autonom. We scan for the
+    destructive changes Shopify's own documentation warns about — blank values in included
+    columns, duplicate handles, orphaned variants, and malformed HTML — and show you
+    exactly what would change in your store.
+  </p>
+  <p>Your file is processed entirely in your browser. Nothing is uploaded. No account required.</p>
+</section>
+
+[autonom_shopify_guard]
+
+<section class="asg-page-content">
+  <h2>Why Shopify CSVs are dangerous</h2>
+  <p>
+    Shopify's CSV importer is designed to update existing products. That's what makes it useful.
+    It's also what makes it dangerous. A CSV can pass Shopify's syntax validation and still
+    silently overwrite your live product data.
+  </p>
+
+  <h3>Three ways a valid CSV can damage your store</h3>
+
+  <div class="asg-page-card">
+    <h4>1. Blank values in included columns</h4>
+    <p>
+      If you include a column like "Variant Price" but leave its cells empty, Shopify treats
+      the blank cells as intentional overwrites. Any existing products with matching handles
+      may have their prices cleared.
+    </p>
+    <p><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">See Shopify documentation →</a></p>
+  </div>
+
+  <div class="asg-page-card">
+    <h4>2. Matching handles update matching columns</h4>
+    <p>
+      Shopify matches imported rows to existing products by the Handle column. If a row's
+      handle matches an existing product, Shopify will replace values in every column
+      included in the file.
+    </p>
+    <p><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">See Shopify documentation →</a></p>
+  </div>
+
+  <div class="asg-page-card">
+    <h4>3. Missing variant columns can delete variants</h4>
+    <p>
+      If a product has multiple variants in your store but the CSV only includes one variant
+      row for that handle, Shopify may delete the missing variants.
+    </p>
+    <p><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">See Shopify documentation →</a></p>
+  </div>
+
+  <h2>Frequently asked questions</h2>
+
+  <div class="asg-page-faq">
+    <details><summary>Is my file uploaded to Autonom?</summary><p>No. Shopify Guard processes your CSV entirely in your browser using JavaScript. Your file contents are never transmitted to Autonom's servers. You can verify this in your browser's DevTools Network tab during a scan.</p></details>
+    <details><summary>Is this free?</summary><p>Yes, the readiness report is fully free. You can see every issue we detect, download the report, and share it. There is no paywall on the diagnostic itself.</p></details>
+    <details><summary>Can Autonom guarantee my import will succeed?</summary><p>No. Autonom does not know your store's current data, and we do not connect to your Shopify store. We check what we can check and tell you what we can't.</p></details>
+    <details><summary>Does Autonom connect to my Shopify store?</summary><p>No. Autonom never connects to your Shopify store. We only read the CSV file you provide.</p></details>
+    <details><summary>What file types are supported?</summary><p>CSV files only (Shopify product export format). Maximum size is 50MB.</p></details>
+    <details><summary>Will Autonom automatically change my data?</summary><p>No. Autonom never modifies your store. It only generates a corrected CSV file that you choose to import or discard. Within that corrected file, we clearly separate safe automatic fixes from review-required changes from things we refuse to touch — and the export screen lists any issues that remain for you to resolve.</p></details>
+  </div>
+</section>
