@@ -1,18 +1,19 @@
 /**
  * Autonom Shopify Guard — Shortcode & Asset Loader
- * Version: 1.3.0
+ * Version: 1.6.0
  * Usage: [autonom_shopify_guard]
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'AUTONOM_SHOPIFY_GUARD_VERSION', '1.3.0' );
+define( 'AUTONOM_SHOPIFY_GUARD_VERSION', '1.6.0' );
 define( 'AUTONOM_SHOPIFY_GUARD_URL', content_url( '/uploads/autonom/shopify-guard' ) );
 
 function autonom_shopify_guard_register_assets() {
     wp_register_style( 'autonom-shopify-guard', AUTONOM_SHOPIFY_GUARD_URL . '/shopify-guard.css', array(), AUTONOM_SHOPIFY_GUARD_VERSION );
     wp_register_script( 'papaparse', 'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js', array(), '5.4.1', true );
-    wp_register_script( 'autonom-shopify-guard', AUTONOM_SHOPIFY_GUARD_URL . '/shopify-guard.js', array( 'papaparse' ), AUTONOM_SHOPIFY_GUARD_VERSION, true );
+    wp_register_script( 'jszip', 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', array(), '3.10.1', true );
+    wp_register_script( 'autonom-shopify-guard', AUTONOM_SHOPIFY_GUARD_URL . '/shopify-guard.js', array( 'papaparse', 'jszip' ), AUTONOM_SHOPIFY_GUARD_VERSION, true );
 }
 add_action( 'wp_enqueue_scripts', 'autonom_shopify_guard_register_assets' );
 
@@ -21,13 +22,13 @@ function autonom_shopify_guard_shortcode( $atts ) {
 
     wp_enqueue_style( 'autonom-shopify-guard' );
     wp_enqueue_script( 'papaparse' );
+    wp_enqueue_script( 'jszip' );
     wp_enqueue_script( 'autonom-shopify-guard' );
 
     ob_start();
     ?>
     <div id="autonom-shopify-guard" class="asg-root" data-state="idle">
 
-        <!-- ==================== STICKY TOP BAR ==================== -->
         <div class="asg-topbar">
             <div class="asg-topbar-inner">
                 <div class="asg-brand">
@@ -56,7 +57,6 @@ function autonom_shopify_guard_shortcode( $atts ) {
                 </div>
             </div>
 
-            <!-- Privacy drawer -->
             <div class="asg-privacy-drawer" id="asg-privacy-panel" hidden>
                 <div class="asg-privacy-drawer-inner">
                     <h4>Local processing</h4>
@@ -77,7 +77,6 @@ function autonom_shopify_guard_shortcode( $atts ) {
             </div>
         </div>
 
-        <!-- ==================== SCREEN 1: LANDING ==================== -->
         <section class="asg-screen" data-screen="landing" data-step="1">
             <div class="asg-screen-inner">
                 <div class="asg-hero">
@@ -116,6 +115,8 @@ function autonom_shopify_guard_shortcode( $atts ) {
                             <li><span class="asg-dot asg-dot-critical"></span> Broken variant relationships</li>
                             <li><span class="asg-dot asg-dot-warning"></span> Malformed HTML descriptions</li>
                             <li><span class="asg-dot asg-dot-warning"></span> Image URL and encoding issues</li>
+                            <li><span class="asg-dot asg-dot-warning"></span> Variant column consistency</li>
+                            <li><span class="asg-dot asg-dot-warning"></span> Inventory tracker and boolean formats</li>
                         </ul>
                     </div>
                     <div class="asg-landing-card">
@@ -131,13 +132,23 @@ function autonom_shopify_guard_shortcode( $atts ) {
             </div>
         </section>
 
-        <!-- ==================== SCREEN 2: SETUP ==================== -->
         <section class="asg-screen" data-screen="setup" data-step="2" hidden>
             <div class="asg-screen-inner">
                 <h2 class="asg-screen-title">What are you doing with this CSV?</h2>
-                <p class="asg-screen-sub">This determines which safety checks Autonom runs.</p>
+                <p class="asg-screen-sub">Autonom detected the mode from your file. You can change it if needed.</p>
 
-                <div class="asg-mode-grid">
+                <div class="asg-detect-banner" id="asg-detect-banner" hidden>
+                    <div class="asg-detect-icon" id="asg-detect-icon">🤖</div>
+                    <div class="asg-detect-body">
+                        <div class="asg-detect-line" id="asg-detect-line">—</div>
+                        <div class="asg-detect-sub" id="asg-detect-sub">—</div>
+                    </div>
+                    <button type="button" class="asg-btn asg-btn-ghost asg-detect-override" id="asg-detect-override">
+                        Change
+                    </button>
+                </div>
+
+                <div class="asg-mode-grid" id="asg-mode-grid">
                     <button type="button" class="asg-mode-card" data-mode="new_products">
                         <span class="asg-mode-icon">🆕</span>
                         <span class="asg-mode-title">Adding new products</span>
@@ -161,10 +172,18 @@ function autonom_shopify_guard_shortcode( $atts ) {
                         ✕
                     </button>
                 </div>
+
+                <div class="asg-file-sample" id="asg-file-sample" hidden>
+                    <div class="asg-file-sample-head">
+                        <strong>Preview — first rows of your file</strong>
+                        <button type="button" class="asg-link-btn" id="asg-toggle-sample">Hide preview</button>
+                    </div>
+                    <div class="asg-file-sample-table" id="asg-file-sample-table"></div>
+                    <p class="asg-file-sample-note">This preview helps confirm you uploaded the right file. Autonom will not modify your original file.</p>
+                </div>
             </div>
         </section>
 
-        <!-- ==================== SCREEN 3: SCANNING ==================== -->
         <section class="asg-screen" data-screen="scanning" data-step="3" hidden>
             <div class="asg-screen-inner asg-screen-narrow">
                 <h2 class="asg-screen-title">Checking your CSV</h2>
@@ -186,7 +205,6 @@ function autonom_shopify_guard_shortcode( $atts ) {
             </div>
         </section>
 
-        <!-- ==================== SCREEN 4: REPORT ==================== -->
         <section class="asg-screen" data-screen="report" data-step="4" hidden>
             <div class="asg-screen-inner">
                 <div class="asg-verdict" id="asg-verdict">
@@ -250,7 +268,6 @@ function autonom_shopify_guard_shortcode( $atts ) {
             </div>
         </section>
 
-        <!-- ==================== SCREEN 5: REPAIR ==================== -->
         <section class="asg-screen" data-screen="repair" data-step="5" hidden>
             <div class="asg-screen-inner">
                 <h2 class="asg-screen-title">What Autonom can fix</h2>
@@ -285,13 +302,23 @@ function autonom_shopify_guard_shortcode( $atts ) {
             </div>
         </section>
 
-        <!-- ==================== SCREEN 6: EXPORT ==================== -->
         <section class="asg-screen" data-screen="export" data-step="6" hidden>
             <div class="asg-screen-inner">
                 <div class="asg-export-hero">
                     <div class="asg-export-check" id="asg-export-check">✓</div>
                     <h2 class="asg-screen-title" id="asg-export-title">Your corrected CSV is ready</h2>
                     <p class="asg-screen-sub" id="asg-export-summary">—</p>
+                </div>
+
+                <div class="asg-diff-section" id="asg-diff-section" hidden>
+                    <button type="button" class="asg-diff-header" id="asg-diff-toggle" aria-expanded="false">
+                        <span class="asg-diff-header-label">
+                            <span class="asg-diff-header-arrow">▸</span>
+                            See exactly what changed
+                        </span>
+                        <span class="asg-diff-header-count" id="asg-diff-count">0 changes</span>
+                    </button>
+                    <div class="asg-diff-list" id="asg-diff-list" hidden></div>
                 </div>
 
                 <div class="asg-export-files">
@@ -318,6 +345,10 @@ function autonom_shopify_guard_shortcode( $atts ) {
                     </div>
                 </div>
 
+                <div class="asg-export-actions-note">
+                    <p><strong>All three files come in one ZIP download.</strong> Unzip to find the corrected CSV, the change log, and the report.</p>
+                </div>
+
                 <div class="asg-export-advice">
                     <h3>Before you import</h3>
                     <ol>
@@ -333,7 +364,6 @@ function autonom_shopify_guard_shortcode( $atts ) {
             </div>
         </section>
 
-        <!-- ==================== STICKY BOTTOM ACTION BAR ==================== -->
         <div class="asg-actionbar" id="asg-actionbar" hidden>
             <div class="asg-actionbar-inner">
                 <button type="button" class="asg-btn asg-btn-ghost" id="asg-actionbar-back" hidden>← Back</button>
