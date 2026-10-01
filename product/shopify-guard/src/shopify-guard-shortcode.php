@@ -1,19 +1,17 @@
 /**
  * Autonom Shopify Guard — Shortcode & Asset Loader
- * Version: 1.6.0
+ * Version: 1.8.2
  * Usage: [autonom_shopify_guard]
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'AUTONOM_SHOPIFY_GUARD_VERSION', '1.6.0' );
+define( 'AUTONOM_SHOPIFY_GUARD_VERSION', '1.8.2' );
 define( 'AUTONOM_SHOPIFY_GUARD_URL', content_url( '/uploads/autonom/shopify-guard' ) );
 
 function autonom_shopify_guard_register_assets() {
     wp_register_style( 'autonom-shopify-guard', AUTONOM_SHOPIFY_GUARD_URL . '/shopify-guard.css', array(), AUTONOM_SHOPIFY_GUARD_VERSION );
-    wp_register_script( 'papaparse', 'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js', array(), '5.4.1', true );
-    wp_register_script( 'jszip', 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', array(), '3.10.1', true );
-    wp_register_script( 'autonom-shopify-guard', AUTONOM_SHOPIFY_GUARD_URL . '/shopify-guard.js', array( 'papaparse', 'jszip' ), AUTONOM_SHOPIFY_GUARD_VERSION, true );
+    wp_register_script( 'autonom-shopify-guard', AUTONOM_SHOPIFY_GUARD_URL . '/shopify-guard.js', array(), AUTONOM_SHOPIFY_GUARD_VERSION, true );
 }
 add_action( 'wp_enqueue_scripts', 'autonom_shopify_guard_register_assets' );
 
@@ -21,8 +19,6 @@ function autonom_shopify_guard_shortcode( $atts ) {
     if ( is_feed() || is_admin() ) { return ''; }
 
     wp_enqueue_style( 'autonom-shopify-guard' );
-    wp_enqueue_script( 'papaparse' );
-    wp_enqueue_script( 'jszip' );
     wp_enqueue_script( 'autonom-shopify-guard' );
 
     ob_start();
@@ -116,7 +112,7 @@ function autonom_shopify_guard_shortcode( $atts ) {
                             <li><span class="asg-dot asg-dot-warning"></span> Malformed HTML descriptions</li>
                             <li><span class="asg-dot asg-dot-warning"></span> Image URL and encoding issues</li>
                             <li><span class="asg-dot asg-dot-warning"></span> Variant column consistency</li>
-                            <li><span class="asg-dot asg-dot-warning"></span> Inventory tracker and boolean formats</li>
+                            <li><span class="asg-dot asg-dot-warning"></span> Semicolon delimiters and file size limits</li>
                         </ul>
                     </div>
                     <div class="asg-landing-card">
@@ -128,6 +124,17 @@ function autonom_shopify_guard_shortcode( $atts ) {
                         </ul>
                         <p class="asg-landing-footnote">We check what we can check. We tell you what we can't.</p>
                     </div>
+                </div>
+
+                <div class="asg-pro-teaser">
+                    <div class="asg-pro-teaser-icon">⚡</div>
+                    <div class="asg-pro-teaser-body">
+                        <h3>Managing a large catalog or multiple suppliers?</h3>
+                        <p>Autonom Pro will add batch processing, supplier column mapping, and a CSV history log so you can track what changed between imports. Everything you see today stays free.</p>
+                    </div>
+                    <button type="button" class="asg-btn asg-btn-ghost asg-pro-teaser-cta" disabled>
+                        Pro Access — Coming Soon
+                    </button>
                 </div>
             </div>
         </section>
@@ -159,6 +166,17 @@ function autonom_shopify_guard_shortcode( $atts ) {
                         <span class="asg-mode-title">Updating existing products</span>
                         <span class="asg-mode-desc">Changing products that already exist in your store.</span>
                         <span class="asg-mode-flag">Additional safety checks applied</span>
+                    </button>
+                </div>
+
+                <div class="asg-delim-banner" id="asg-delim-banner" hidden>
+                    <div class="asg-delim-icon">⚠️</div>
+                    <div class="asg-delim-body">
+                        <div class="asg-delim-line" id="asg-delim-line">—</div>
+                        <div class="asg-delim-sub" id="asg-delim-sub">—</div>
+                    </div>
+                    <button type="button" class="asg-btn asg-btn-primary asg-delim-convert" id="asg-delim-convert">
+                        Convert to comma
                     </button>
                 </div>
 
@@ -283,10 +301,17 @@ function autonom_shopify_guard_shortcode( $atts ) {
                 </div>
 
                 <div class="asg-repair-group" id="asg-repair-review" hidden>
-                    <h3 class="asg-repair-group-title">
-                        <span class="asg-badge asg-badge-review">Review</span>
-                        Fixes that need your approval
-                    </h3>
+                    <div class="asg-repair-group-head">
+                        <h3 class="asg-repair-group-title">
+                            <span class="asg-badge asg-badge-review">Review</span>
+                            Fixes that need your approval
+                        </h3>
+                        <div class="asg-repair-bulk">
+                            <button type="button" class="asg-link-btn" id="asg-repair-select-all">Select all</button>
+                            <span class="asg-repair-bulk-sep">·</span>
+                            <button type="button" class="asg-link-btn" id="asg-repair-deselect-all">Deselect all</button>
+                        </div>
+                    </div>
                     <p class="asg-repair-group-note">Autonom will not apply these without your confirmation.</p>
                     <ul class="asg-repair-list" id="asg-repair-review-list"></ul>
                 </div>
@@ -311,13 +336,17 @@ function autonom_shopify_guard_shortcode( $atts ) {
                 </div>
 
                 <div class="asg-diff-section" id="asg-diff-section" hidden>
-                    <button type="button" class="asg-diff-header" id="asg-diff-toggle" aria-expanded="false">
+                    <div class="asg-diff-header" id="asg-diff-toggle" role="button" tabindex="0" aria-expanded="false">
                         <span class="asg-diff-header-label">
                             <span class="asg-diff-header-arrow">▸</span>
                             See exactly what changed
                         </span>
                         <span class="asg-diff-header-count" id="asg-diff-count">0 changes</span>
-                    </button>
+                    </div>
+                    <div class="asg-diff-view-toggle" id="asg-diff-view-toggle" hidden>
+                        <button type="button" class="asg-diff-view-btn is-active" data-view="detailed">Detailed</button>
+                        <button type="button" class="asg-diff-view-btn" data-view="compact">Compact</button>
+                    </div>
                     <div class="asg-diff-list" id="asg-diff-list" hidden></div>
                 </div>
 
@@ -346,17 +375,12 @@ function autonom_shopify_guard_shortcode( $atts ) {
                 </div>
 
                 <div class="asg-export-actions-note">
-                    <p><strong>All three files come in one ZIP download.</strong> Unzip to find the corrected CSV, the change log, and the report.</p>
+                    <p><strong>All files come in one ZIP download.</strong> Unzip to find the corrected CSV, the change log, and the report.</p>
                 </div>
 
                 <div class="asg-export-advice">
                     <h3>Before you import</h3>
-                    <ol>
-                        <li>Keep a current Shopify export as a backup.</li>
-                        <li>Resolve any critical issues still remaining in the report.</li>
-                        <li>Test-import 2–5 products first.</li>
-                        <li>Only then run the full import.</li>
-                    </ol>
+                    <ul class="asg-export-checklist" id="asg-export-checklist"></ul>
                     <p class="asg-export-disclaimer">
                         Autonom does not know your store's current data. A passing report does not guarantee Shopify will accept the import.
                     </p>
