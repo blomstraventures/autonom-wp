@@ -1,5 +1,5 @@
 /* ============================================================================
-   AUTONOM SHOPIFY GUARD — Client-side engine v1.7.3 (FINAL)
+   AUTONOM SHOPIFY GUARD — Client-side engine v1.8.2
    All processing is local. No file contents are transmitted.
    ========================================================================= */
 
@@ -41,6 +41,7 @@
   const SHOPIFY_DOC_URL = 'https://help.shopify.com/en/manual/products/import-export/using-csv';
   const FILE_SIZE_WARNING_BYTES = 12 * 1024 * 1024;
   const FILE_SIZE_LIMIT_BYTES = 15 * 1024 * 1024;
+  const SPLIT_TARGET_BYTES = 14 * 1024 * 1024;
   const BLANK_COLUMN_REMOVAL_THRESHOLD = 0.3;
 
   const CURRENCY_SYMBOLS = /[$€£¥₹₽₩₪₺₴₦₱₡₲₵₸₼₾₿]/;
@@ -49,14 +50,68 @@
   const PRIVATE_CDN_PATTERN = /(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.|10\.\d+\.|172\.(1[6-9]|2\d|3[01])\.|\.local\b|\.internal\b|\.lan\b|\.test\b)/i;
   const VARIANT_OPTION_COLUMNS = ['Option1 Name', 'Option1 Value', 'Option2 Name', 'Option2 Value', 'Option3 Name', 'Option3 Value'];
 
+  const ISSUE_GUIDES = {
+    TITLE_MISSING: { what: 'A product row has no Title.', why: 'Shopify requires a Title to create or update a product. Without it, the row is rejected.', action: 'Add a Title to the first row of each product.' },
+    HANDLE_MISSING_UPDATE: { what: 'Rows have no handle, so Shopify cannot match them to existing products.', why: 'Shopify matches rows by Handle in update mode. Without one, the row may create a new product.', action: 'Add the handle column and verify each row.' },
+    HANDLE_DUPLICATE_IN_FILE: { what: 'The same handle appears on multiple rows with different titles.', why: 'Shopify may merge these into one product, overwriting fields unpredictably.', action: 'If they are variants, use the same Title. If different products, use unique handles.' },
+    SKU_DUPLICATE_IN_FILE: { what: 'The same SKU appears on rows for different products.', why: 'Shopify may merge the products, or the import may fail.', action: 'Assign a unique SKU to each product and variant.' },
+    VARIANT_ORPHANED: { what: 'A row has variant data but no Handle.', why: 'Shopify cannot attach this variant to a product.', action: 'Copy the parent product\'s Handle into the missing cells.' },
+    VARIANT_OPTION_NAME_INCONSISTENT: { what: 'Variant rows for the same product use different option names.', why: 'Shopify cannot resolve variant relationships.', action: 'Use the same option name for every variant row of the same product.' },
+    VARIANT_DUPLICATE_OPTION_COMBINATION: { what: 'The same option combination appears on multiple rows of the same product.', why: 'Shopify treats each combination as a unique variant. Duplicates cause it to silently drop one.', action: 'Remove the duplicate row, or change its option values so each combination is unique.' },
+    VARIANT_PARTIAL_COLLAPSE: { what: 'A row has an option name without a value, or a value without a name.', why: 'Shopify needs both. An incomplete option pair can collapse the product.', action: 'Fill in both the Name and Value.' },
+    VARIANT_COLUMN_INCONSISTENCY: { what: 'Some variant rows fill an option column while others leave it blank.', why: 'Shopify expects every variant row of a product to fill the same option columns.', action: 'Fill the same option columns on every variant row.' },
+    IMAGE_ROW_VARIANT_DATA: { what: 'Image-only rows contain variant data.', why: 'Shopify expects image rows to have only Handle and Image Src.', action: 'Autonom can clear all columns except Handle and Image Src on these rows.' },
+    SINGLE_VARIANT_MULTIPLE_IMAGES: { what: 'A single-variant product has multiple images but no Option1 declaration.', why: 'Shopify needs Option1 Name="Title" and Option1 Value="Default Title" on the parent row.', action: 'Autonom can set the Title option on the parent row.' },
+    COMPARE_AT_PRICE_LOWER_THAN_PRICE: { what: 'A product\'s Compare At Price is lower than or equal to its Price.', why: 'Shopify rejects this or shows an incorrect sale badge.', action: 'Set the Compare At Price higher than the Price, or clear it.' },
+    DESTRUCTIVE_BLANK_INCLUDED_COLUMN: { what: 'An included column has blank cells.', why: 'Shopify treats blank cells in included columns as intentional overwrites.', action: 'Either remove the column, or fill in the blank cells.' },
+    DESTRUCTIVE_BLANK_ALL_ROWS: { what: 'An included column is entirely blank.', why: 'This column has no effect.', action: 'Autonom can remove this column.' },
+    HANDLE_FORMAT_INVALID: { what: 'A handle uses characters Shopify doesn\'t accept.', why: 'Non-standard handles may cause URL issues.', action: 'Autonom can normalize the handle.' },
+    HANDLE_MISSING_NEW: { what: 'New-product rows have no handle.', why: 'Shopify needs a handle to create the product URL.', action: 'Autonom can generate handles from the product titles.' },
+    DUPLICATE_IMAGE_ROWS: { what: 'An image row repeats an image URL already used for the same product.', why: 'Shopify may attach the image multiple times, or reject the row.', action: 'Autonom can remove the duplicate rows.' },
+    INVENTORY_QTY_MISSING_WITH_TRACKER: { what: 'A row has an inventory tracker but no quantity.', why: 'Shopify requires a quantity when a tracker is set.', action: 'Autonom can set the missing quantity to 0.' },
+    INVENTORY_TRACKER_MISSING: { what: 'A row has an inventory quantity but no tracker.', why: 'Shopify silently ignores inventory updates when no tracker is specified.', action: 'Set Variant Inventory Tracker to "shopify".' },
+    BOOLEAN_FORMAT: { what: 'Boolean columns use non-standard values.', why: 'Shopify expects exactly TRUE or FALSE.', action: 'Autonom can normalize these to TRUE or FALSE.' },
+    PRODUCT_CATEGORY_FORMAT: { what: 'Product Category values don\'t match Shopify\'s taxonomy format.', why: 'Shopify expects a full breadcrumb or a category ID.', action: 'Use Shopify\'s category picker and export one product to see the format.' },
+    PRICE_CURRENCY_SYMBOL: { what: 'Price cells contain currency symbols.', why: 'Shopify expects a plain number.', action: 'Autonom can strip currency symbols.' },
+    PRICE_DECIMAL_COMMA: { what: 'Prices use a comma as the decimal separator.', why: 'Shopify expects a dot.', action: 'Autonom can convert comma decimals to dots.' },
+    PRICE_NON_NUMERIC: { what: 'Price cells could not be parsed as numbers.', why: 'Shopify rejects or ignores rows with unparseable prices.', action: 'Enter a plain numeric value (e.g. 19.99).' },
+    PRICE_NEGATIVE: { what: 'Price cells are negative.', why: 'Shopify may reject the row.', action: 'Confirm the value is intentional, or correct it.' },
+    INVENTORY_NON_INTEGER: { what: 'Inventory values are not whole numbers.', why: 'Shopify expects integers.', action: 'Enter a whole number.' },
+    INVENTORY_NEGATIVE: { what: 'Inventory values are negative.', why: 'Shopify may reject or misinterpret them.', action: 'Confirm the value is intentional, or correct it.' },
+    HTML_UNCLOSED_TAG: { what: 'Descriptions contain unclosed HTML tags.', why: 'Unclosed tags may break the storefront layout.', action: 'Autonom can attempt to repair the tags.' },
+    HTML_DANGEROUS_ATTRIBUTE: { what: 'Descriptions contain tags that can execute code.', why: 'Shopify may block the row.', action: 'Remove the tag.' },
+    IMAGE_URL_NOT_HTTPS: { what: 'Image URLs use http://.', why: 'Shopify requires HTTPS for product images.', action: 'Autonom can upgrade to https://.' },
+    IMAGE_URL_NO_EXTENSION: { what: 'Image URLs don\'t end in an image extension.', why: 'Shopify may not be able to download the image.', action: 'Use direct URLs ending in .jpg, .png, .webp, or .gif.' },
+    IMAGE_URL_PRIVATE_CDN: { what: 'Image URLs point to localhost or a private IP.', why: 'Shopify can\'t reach these URLs from its servers.', action: 'Host the images on a public CDN.' },
+    IMAGE_URL_MALFORMED: { what: 'Image URLs could not be parsed.', why: 'Shopify can\'t download malformed URLs.', action: 'Verify the URL starts with https:// and is complete.' },
+    STATUS_INVALID_VALUE: { what: 'Status values are not "active", "draft", or "archived".', why: 'Shopify may reject the row.', action: 'Use one of the three valid status values.' },
+    ENCODING_BOM_PRESENT: { what: 'The file starts with a hidden byte-order mark.', why: 'Shopify may read the first column header incorrectly.', action: 'Autonom can strip the BOM.' },
+    ENCODING_NOT_UTF8: { what: 'The file uses a non-UTF-8 encoding.', why: 'Special characters may display incorrectly.', action: 'Autonom can convert the file to UTF-8.' },
+    SMART_QUOTES_DETECTED: { what: 'The file contains curly quotes, en-dashes, or ellipses.', why: 'Shopify expects straight quotes.', action: 'Autonom can convert them to straight quotes.' },
+    CELL_WHITESPACE: { what: 'Text cells have leading or trailing spaces.', why: 'Hidden spaces create duplicate tags and broken URLs.', action: 'Autonom can trim whitespace.' },
+    SKU_WHITESPACE: { what: 'SKUs contain hidden spaces.', why: 'Whitespace breaks matching against existing records.', action: 'Autonom can trim SKUs.' },
+    HEADER_REQUIRED_MISSING: { what: 'A column Shopify requires is missing.', why: 'Shopify will reject the import entirely.', action: 'Add the missing column and re-export.' },
+    HEADER_DUPLICATE: { what: 'The same column header appears more than once.', why: 'Shopify uses only one of the duplicates.', action: 'Remove the duplicate column.' },
+    HEADER_UNKNOWN_COLUMN: { what: 'The file has a column outside Shopify\'s schema.', why: 'Shopify will ignore the column.', action: 'Verify the column is intentional, or remove it.' },
+    FILE_SIZE_APPROACHING_LIMIT: { what: 'The file is approaching Shopify\'s 15 MB limit.', why: 'Files over 15 MB are rejected.', action: 'Consider splitting the file.' },
+    FILE_SIZE_OVER_LIMIT: { what: 'The file exceeds Shopify\'s 15 MB limit.', why: 'The import will fail before Shopify reads any rows.', action: 'Autonom can split the file into multiple parts.' },
+    ROW_ORDER_WARNING: { what: 'Variant rows for the same product are scattered.', why: 'Image and option association may be affected.', action: 'Sort the file by Handle before importing.' },
+    FIELD_COUNT_MISMATCH: { what: 'Some rows have a different number of columns than the header.', why: 'Unquoted commas in Tags or Body HTML may have shifted data.', action: 'Re-export the file with proper quoting.' },
+    DELIMITER_NOT_COMMA: { what: 'The file uses a delimiter other than comma.', why: 'Shopify expects comma-separated values.', action: 'Autonom can convert the file to comma-delimited.' },
+    DUPLICATE_IDENTICAL_ROWS: { what: 'Two or more rows are identical.', why: 'This usually indicates an accidental duplicate paste.', action: 'Autonom can remove the duplicate rows.' }
+  };
+
   const state = {
     file: null, fileName: '', fileSize: 0, fileText: '',
     hasBOM: false, detectedEncoding: 'UTF-8',
+    detectedDelimiter: ',',
     headers: [], rows: [], mode: null,
     detectedMode: null, detectedConfidence: null, detectedReason: '',
     result: null, repairs: null, acceptedRepairs: {},
     correctedCSV: null, changeLog: null, appliedCodes: null,
+    splitParts: null,
     showRowContext: {},
+    diffViewMode: 'detailed',
     parseFieldMismatches: 0,
     networkStats: { files: 0, bytes: 0, requests: 0 }
   };
@@ -78,16 +133,10 @@
 
   function toHandle(t) {
     return String(t || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[ß]/g, 'ss')
-      .replace(/[æ]/g, 'ae')
-      .replace(/[ø]/g, 'o')
-      .replace(/[đ]/g, 'd')
-      .replace(/[ł]/g, 'l')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/-+/g, '-')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[ß]/g, 'ss').replace(/[æ]/g, 'ae').replace(/[ø]/g, 'o')
+      .replace(/[đ]/g, 'd').replace(/[ł]/g, 'l')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
   }
 
@@ -196,6 +245,50 @@
     return sku;
   }
 
+  /* ---------------- Delimiter detection ---------------- */
+  function detectDelimiter(text) {
+    const sample = text.split(/\r?\n/).slice(0, 5).join('\n');
+    const counts = {
+      ',': (sample.match(/,/g) || []).length,
+      ';': (sample.match(/;/g) || []).length,
+      '\t': (sample.match(/\t/g) || []).length,
+      '|': (sample.match(/\|/g) || []).length
+    };
+    let best = ',', max = 0;
+    Object.keys(counts).forEach(d => {
+      if (counts[d] > max) { max = counts[d]; best = d; }
+    });
+    return best;
+  }
+
+  function convertDelimiter(text, from, to) {
+    const rows = [];
+    let cur = '', row = [], inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = false;
+        } else cur += c;
+      } else {
+        if (c === '"') { inQuotes = true; cur += c; }
+        else if (c === from) { row.push(cur); cur = ''; }
+        else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+        else if (c === '\r') { /* skip */ }
+        else cur += c;
+      }
+    }
+    if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+
+    const escape = val => {
+      const s = val == null ? '' : String(val);
+      if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+    return rows.map(r => r.map(escape).join(to)).join('\n');
+  }
+
   /* ---------------- Row classification ---------------- */
   function classifyRows() {
     const byHandle = {};
@@ -213,8 +306,7 @@
     Object.keys(byHandle).forEach(h => {
       const indices = byHandle[h];
       let primarySet = false;
-
-      indices.forEach((idx) => {
+      indices.forEach(idx => {
         const row = state.rows[idx];
         const hasSku = !isBlank(row['Variant SKU']);
         const hasPrice = !isBlank(row['Variant Price']);
@@ -250,7 +342,6 @@
     });
 
     const products = {};
-
     Object.keys(byHandle).forEach(h => {
       const entries = byHandle[h];
       const variantIdxs = [];
@@ -264,11 +355,8 @@
         const hasTitle = !isBlank(r['Title']);
         const hasImage = !isBlank(r['Image Src']);
 
-        if (hasSku || hasPrice || hasOptionValue) {
-          variantIdxs.push(e.idx);
-        } else if (hasImage && !hasTitle) {
-          imageIdxs.push(e.idx);
-        }
+        if (hasSku || hasPrice || hasOptionValue) variantIdxs.push(e.idx);
+        else if (hasImage && !hasTitle) imageIdxs.push(e.idx);
       });
 
       if (imageIdxs.length > 0) {
@@ -279,7 +367,6 @@
         };
       }
     });
-
     return products;
   }
 
@@ -295,19 +382,15 @@
         cols.forEach(c => {
           if (state.headers.indexOf(c) !== -1 && !isBlank(row[c])) dirty.push(c);
         });
-        if (dirty.length > 0) {
-          results.push({ handle: h, row: idx + 2, columns: dirty });
-        }
+        if (dirty.length > 0) results.push({ handle: h, row: idx + 2, columns: dirty });
       });
     });
-
     return results;
   }
 
   function singleVariantMultipleImages() {
     const products = detectImageRows();
     const results = [];
-
     Object.keys(products).forEach(h => {
       const p = products[h];
       if (p.variantIdxs.length !== 1) return;
@@ -316,7 +399,6 @@
         results.push({ handle: h, row: p.parentIdx + 2, imageCount: p.imageIdxs.length });
       }
     });
-
     return results;
   }
 
@@ -338,15 +420,38 @@
         const row = state.rows[e.idx];
         if (!isBlank(row['Variant SKU']) || !isBlank(row['Variant Price'])) return;
         if (!isBlank(row['Title'])) return;
-        if (seen[e.img]) {
-          dupes.push({ handle: h, row: e.idx + 2, duplicateOf: seen[e.img] + 2, url: e.img });
-        } else {
-          seen[e.img] = e.idx;
-        }
+        if (seen[e.img]) dupes.push({ handle: h, row: e.idx + 2, duplicateOf: seen[e.img] + 2, url: e.img });
+        else seen[e.img] = e.idx;
       });
     });
-
     return dupes;
+  }
+
+  function duplicateIdenticalRows() {
+    const sigs = {};
+    const results = [];
+    state.rows.forEach((row, i) => {
+      const parts = state.headers.map(h => String(row[h] == null ? '' : row[h]).trim()).join('\u0001');
+      if (parts.replace(/\u0001/g, '') === '') return;
+      if (!sigs[parts]) sigs[parts] = [];
+      sigs[parts].push(i);
+    });
+    Object.keys(sigs).forEach(sig => {
+      const idxs = sigs[sig];
+      if (idxs.length > 1) {
+        // Skip the first as original; report the rest
+        for (let k = 1; k < idxs.length; k++) {
+          const row = state.rows[idxs[k]];
+          results.push({
+            row: idxs[k] + 2,
+            handle: row['Handle'] || '(no handle)',
+            title: row['Title'] || '(no title)',
+            originalRow: idxs[0] + 2
+          });
+        }
+      }
+    });
+    return results;
   }
 
   function rowTypes_isImageRow(row) {
@@ -356,6 +461,76 @@
     if (!isBlank(row['Variant Price'])) return false;
     if (!isBlank(row['Option1 Value'])) return false;
     return true;
+  }
+
+  /* ---------------- Split ---------------- */
+  function splitRowsIntoChunks(rows, headers, targetBytes, baseName) {
+    const TARGET = targetBytes || SPLIT_TARGET_BYTES;
+
+    function renderChunk(subset) {
+      if (typeof Papa !== 'undefined' && Papa.unparse) {
+        return Papa.unparse({
+          fields: headers,
+          data: subset.map(r => headers.map(h => r[h] == null ? '' : r[h]))
+        }, { quotes: true });
+      }
+      const escape = val => {
+        const s = val == null ? '' : String(val);
+        if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      };
+      const lines = [headers.map(escape).join(',')];
+      subset.forEach(r => lines.push(headers.map(h => escape(r[h])).join(',')));
+      return lines.join('\n');
+    }
+
+    const groups = [];
+    const handleGroups = new Map();
+    rows.forEach((row, idx) => {
+      const h = row['Handle'];
+      if (isBlank(h)) { groups.push([idx]); return; }
+      if (!handleGroups.has(h)) {
+        const group = [];
+        handleGroups.set(h, group);
+        groups.push(group);
+      }
+      handleGroups.get(h).push(idx);
+    });
+
+    const headerLine = renderChunk([]);
+    const headerBytes = new Blob([headerLine]).size;
+
+    const chunks = [];
+    let currentIndices = [];
+    let currentBytes = headerBytes;
+    let oversizedSingleGroup = false;
+
+    groups.forEach(group => {
+      const groupRows = group.map(idx => rows[idx]);
+      const groupCsv = renderChunk(groupRows);
+      const groupBytes = new Blob([groupCsv]).size - headerBytes;
+
+      if (groupBytes > TARGET - headerBytes) oversizedSingleGroup = true;
+
+      if (currentBytes + groupBytes > TARGET && currentIndices.length > 0) {
+        chunks.push(currentIndices);
+        currentIndices = [];
+        currentBytes = headerBytes;
+      }
+
+      currentIndices.push(...group);
+      currentBytes += groupBytes;
+    });
+
+    if (currentIndices.length > 0) chunks.push(currentIndices);
+    if (chunks.length <= 1) return null;
+
+    const total = chunks.length;
+    return chunks.map((indices, i) => ({
+      name: baseName + '_part' + (i + 1) + 'of' + total + '.csv',
+      csv: renderChunk(indices.map(idx => rows[idx])),
+      rowCount: indices.length
+    }));
   }
 
   /* ---------------- Fallback parser ---------------- */
@@ -388,12 +563,36 @@
     return { fields, data };
   }
 
+  /* ---------------- Lazy loaders ---------------- */
+  function loadPapaParse() {
+    return new Promise((resolve, reject) => {
+      if (typeof window.Papa !== 'undefined') return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Could not load CSV parser.'));
+      document.head.appendChild(script);
+    });
+  }
+
+  function loadJSZip() {
+    return new Promise((resolve, reject) => {
+      if (typeof window.JSZip !== 'undefined') return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Could not load ZIP library.'));
+      document.head.appendChild(script);
+    });
+  }
+
   function parseWithPapa(text) {
     if (typeof Papa === 'undefined') return Promise.resolve(fallbackParseCSV(text));
     return new Promise(resolve => {
       Papa.parse(text, {
-        header: true,
-        skipEmptyLines: 'greedy',
+        header: true, skipEmptyLines: 'greedy',
         transformHeader: h => String(h).trim(),
         complete: r => resolve({ fields: r.meta.fields || [], data: r.data || [], errors: r.errors || [] }),
         error: () => resolve(fallbackParseCSV(text))
@@ -444,7 +643,7 @@
     } catch (e) { return { encoding: 'ISO-8859-1', hasBOM: false }; }
   }
 
-  /* ---------------- Mode auto-detection ---------------- */
+  /* ---------------- Mode detection ---------------- */
   function detectMode(headers, rows) {
     const lower = headers.map(h => h.toLowerCase());
     const has = col => lower.indexOf(col) !== -1;
@@ -497,6 +696,19 @@
     updateActionBar('setup');
   }
 
+  function renderDelimiterBanner() {
+    const banner = document.getElementById('asg-delim-banner');
+    if (!banner) return;
+    if (state.detectedDelimiter !== ',') {
+      const names = { ';': 'semicolon', '\t': 'tab', '|': 'pipe' };
+      banner.hidden = false;
+      document.getElementById('asg-delim-line').textContent = 'This file uses ' + (names[state.detectedDelimiter] || state.detectedDelimiter) + '-separated values';
+      document.getElementById('asg-delim-sub').textContent = 'Shopify requires commas. Autonom can convert the file before scanning.';
+    } else {
+      banner.hidden = true;
+    }
+  }
+
   /* ---------------- File handling ---------------- */
   function handleFile(file) {
     if (!file) return;
@@ -518,7 +730,12 @@
       else text = new TextDecoder('utf-8').decode(buf);
       if (state.hasBOM && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
       state.fileText = text;
-      const parsed = fallbackParseCSV(text);
+      state.detectedDelimiter = detectDelimiter(text);
+
+      // Parse a first attempt with the detected delimiter to build preview
+      let parseText = text;
+      if (state.detectedDelimiter !== ',') parseText = convertDelimiter(text, state.detectedDelimiter, ',');
+      const parsed = fallbackParseCSV(parseText);
       state.headers = parsed.fields;
       state.rows = parsed.data;
       const detection = detectMode(state.headers, state.rows);
@@ -528,6 +745,7 @@
       renderFilePreview();
       renderFileSample();
       renderDetectionBanner();
+      renderDelimiterBanner();
       showScreen('setup');
     };
     reader.readAsArrayBuffer(file);
@@ -568,11 +786,18 @@
 
   /* ---------------- Validation ---------------- */
   function makeIssue(sev, code, title, extra) {
-    return Object.assign({
+    const issue = Object.assign({
       severity: sev, code, title,
       what_is_wrong: '', why_it_matters: '', suggested_action: '',
       affected_rows: [], shopify_doc_url: '', auto_fix: 'never'
     }, extra || {});
+    const guide = ISSUE_GUIDES[code];
+    if (guide) {
+      if (!issue.what_is_wrong) issue.what_is_wrong = guide.what;
+      if (!issue.why_it_matters) issue.why_it_matters = guide.why;
+      if (!issue.suggested_action) issue.suggested_action = guide.action;
+    }
+    return issue;
   }
 
   function runChecks() {
@@ -580,20 +805,35 @@
     const passed = [];
     const rowTypes = classifyRows();
 
+    /* Delimiter */
+    if (state.detectedDelimiter !== ',') {
+      const names = { ';': 'semicolon', '\t': 'tab', '|': 'pipe' };
+      issues.push(makeIssue('critical', 'DELIMITER_NOT_COMMA',
+        'File uses ' + (names[state.detectedDelimiter] || state.detectedDelimiter) + ' delimiter instead of comma', {
+          what_is_wrong: 'Your file uses ' + (names[state.detectedDelimiter] || state.detectedDelimiter) + '-separated values.',
+          why_it_matters: 'Shopify expects comma-separated values. The file would import as a single column or fail entirely.',
+          suggested_action: 'Autonom can convert the file to comma-delimited before export.',
+          auto_fix: 'review_required',
+          alternative_fix: 'convert_delimiter'
+        }));
+    } else passed.push('File uses comma delimiter');
+
     /* File size */
     if (state.fileSize >= FILE_SIZE_WARNING_BYTES && state.fileSize < FILE_SIZE_LIMIT_BYTES) {
       issues.push(makeIssue('info', 'FILE_SIZE_APPROACHING_LIMIT', 'File size is approaching Shopify\'s 15 MB limit', {
         what_is_wrong: 'Your file is ' + formatBytes(state.fileSize) + '. Shopify rejects files over 15 MB.',
         why_it_matters: 'If this file grows, Shopify will reject the import.',
-        suggested_action: 'Consider splitting this file into smaller batches before it hits the limit.',
+        suggested_action: 'Consider splitting this file before it hits the limit.',
         auto_fix: 'never'
       }));
     } else if (state.fileSize >= FILE_SIZE_LIMIT_BYTES) {
       issues.push(makeIssue('critical', 'FILE_SIZE_OVER_LIMIT', 'File size exceeds Shopify\'s 15 MB limit', {
         what_is_wrong: 'Your file is ' + formatBytes(state.fileSize) + '. Shopify will reject any file over 15 MB.',
         why_it_matters: 'The import will fail before Shopify reads any rows.',
-        suggested_action: 'Split this file into multiple smaller files (each under 15 MB) and import them one at a time.',
-        shopify_doc_url: SHOPIFY_DOC_URL, auto_fix: 'never'
+        suggested_action: 'Autonom can split the file into multiple parts, each under the limit. Products stay whole.',
+        shopify_doc_url: SHOPIFY_DOC_URL,
+        auto_fix: 'review_required',
+        alternative_fix: 'split_file_into_parts'
       }));
     }
 
@@ -628,8 +868,8 @@
     if (smartQuoteRows.length > 0) {
       const n = smartQuoteRows.length;
       issues.push(makeIssue('warning', 'SMART_QUOTES_DETECTED', 'Smart quotes and typographic characters detected', {
-        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'contains', 'contain') + ' curly quotes ("), dashes (–—), or ellipses (…). These characters come from copy-pasting from Word or Google Docs.',
-        why_it_matters: 'Shopify\'s CSV parser expects straight quotes ("). Smart quotes can break parsing or display as garbled characters on your storefront.',
+        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'contains', 'contain') + ' curly quotes, dashes, or ellipses.',
+        why_it_matters: 'Shopify\'s CSV parser expects straight quotes.',
         suggested_action: 'Autonom can convert all smart quotes to straight quotes.',
         affected_rows: smartQuoteRows.slice(0, 10), auto_fix: 'safe_automatic'
       }));
@@ -651,7 +891,7 @@
       const n = whitespaceRows.length;
       issues.push(makeIssue('warning', 'CELL_WHITESPACE', 'Extra whitespace in ' + pcount(n, 'cell'), {
         what_is_wrong: pcount(n, 'cell') + ' ' + v(n, 'has', 'have') + ' leading or trailing spaces.',
-        why_it_matters: 'Hidden spaces can create duplicate tags, cause SKU matching to fail, and produce broken URLs.',
+        why_it_matters: 'Hidden spaces can create duplicate tags and broken URLs.',
         suggested_action: 'Autonom can trim whitespace from all text columns.',
         affected_rows: whitespaceRows.slice(0, 10), auto_fix: 'safe_automatic'
       }));
@@ -693,7 +933,7 @@
       if (hCount[k] > 1) {
         issues.push(makeIssue('critical', 'HEADER_DUPLICATE', 'Duplicate column "' + k + '"', {
           what_is_wrong: 'The "' + k + '" column appears more than once.',
-          why_it_matters: 'Shopify will use only one of the duplicate columns.',
+          why_it_matters: 'Shopify uses only one of the duplicates.',
           suggested_action: 'Remove the duplicate column.', auto_fix: 'review_required'
         }));
       }
@@ -716,7 +956,7 @@
       const n = missingTitles.length;
       issues.push(makeIssue('critical', 'TITLE_MISSING', 'Title missing for ' + pcount(n, 'product'), {
         what_is_wrong: pcount(n, 'product') + ' ' + v(n, 'has', 'have') + ' no Title on the first row.',
-        why_it_matters: 'Shopify requires a Title to create or update a product. The row will be rejected and its images may be dropped.',
+        why_it_matters: 'Shopify requires a Title to create or update a product.',
         suggested_action: 'Add a Title to the first row of each product.',
         affected_rows: missingTitles.slice(0, 10)
       }));
@@ -756,7 +996,7 @@
     if (invalid.length > 0) {
       const n = invalid.length;
       issues.push(makeIssue('warning', 'HANDLE_FORMAT_INVALID', pcount(n, 'handle') + ' ' + v(n, 'does', 'do') + ' not match Shopify format', {
-        what_is_wrong: 'Handles should be lowercase with hyphens (no spaces, underscores, or accents).',
+        what_is_wrong: 'Handles should be lowercase with hyphens.',
         why_it_matters: 'Non-standard handles may cause URL issues.',
         suggested_action: 'Autonom can normalize these handles.',
         affected_rows: invalid.slice(0, 10), auto_fix: 'safe_automatic'
@@ -816,14 +1056,27 @@
     });
     if (whitespaceSKUs > 0) {
       const n = whitespaceSKUs;
-      issues.push(makeIssue('warning', 'SKU_WHITESPACE', pcount(n, 'SKU') + ' ' + v(n, 'contains', 'contain') + ' leading or trailing whitespace', {
+      issues.push(makeIssue('warning', 'SKU_WHITESPACE', pcount(n, 'SKU') + ' ' + v(n, 'contains', 'contain') + ' whitespace', {
         what_is_wrong: pcount(n, 'SKU') + ' ' + v(n, 'has', 'have') + ' hidden spaces.',
         why_it_matters: 'May cause matching issues.',
         suggested_action: 'Autonom can trim whitespace from all SKUs.', auto_fix: 'safe_automatic'
       }));
     } else passed.push('No whitespace in SKUs');
 
-    /* Destructive blanks — v1.7.3: skip if file has misaligned rows; only offer column removal if ratio >= 30% */
+    /* Duplicate identical rows (v1.8.2) */
+    const dupIdentical = duplicateIdenticalRows();
+    if (dupIdentical.length > 0) {
+      const n = dupIdentical.length;
+      issues.push(makeIssue('warning', 'DUPLICATE_IDENTICAL_ROWS', 'Identical duplicate ' + pcount(n, 'row'), {
+        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'is', 'are') + ' an exact duplicate of an earlier row.',
+        why_it_matters: 'This usually indicates an accidental duplicate paste. Shopify may reject the file or create duplicate variants.',
+        suggested_action: 'Autonom can remove the duplicate rows.',
+        affected_rows: dupIdentical.slice(0, 10).map(r => ({ row: r.row, handle: r.handle, title: r.title, duplicates_row: r.originalRow })),
+        auto_fix: 'review_required'
+      }));
+    } else passed.push('No identical duplicate rows');
+
+    /* Destructive blanks */
     if (state.mode === 'existing_products') {
       if (state.parseFieldMismatches > 0) {
         passed.push('Destructive blank check skipped (file has misaligned rows)');
@@ -856,14 +1109,13 @@
             const n = blanks.length;
             const ratio = n / consideredCount;
             const offerColumnRemoval = ratio >= BLANK_COLUMN_REMOVAL_THRESHOLD;
-
             issues.push(makeIssue('critical', 'DESTRUCTIVE_BLANK_INCLUDED_COLUMN',
               'Blank values in included column "' + col + '"', {
                 what_is_wrong: 'You included the "' + col + '" column, but ' + n + ' of ' + consideredCount + ' relevant cells ' + v(n, 'is', 'are') + ' empty.',
-                why_it_matters: 'Shopify treats a blank value in an included column as an intentional overwrite. If these rows match existing products, your live data may be cleared.',
+                why_it_matters: 'Shopify treats a blank value in an included column as an intentional overwrite.',
                 suggested_action: offerColumnRemoval
                   ? 'Remove the "' + col + '" column entirely, or fill in the blank cells.'
-                  : 'Fill in the ' + pcount(n, 'blank cell') + ' in your original file, then re-upload. Removing the whole column would skip the other ' + (consideredCount - n) + ' valid update' + (consideredCount - n === 1 ? '' : 's') + '.',
+                  : 'Fill in the ' + pcount(n, 'blank cell') + ' in your original file, then re-upload.',
                 affected_rows: blanks.slice(0, 10),
                 affected_column: col,
                 shopify_doc_url: SHOPIFY_DOC_URL,
@@ -875,7 +1127,7 @@
       }
     }
 
-    /* Orphaned variants + option name consistency */
+    /* Orphaned variants */
     const handleOpts = {};
     let orphaned = 0;
     const orphanedRows = [];
@@ -905,14 +1157,14 @@
       const names = Object.keys(handleOpts[h]);
       if (names.length > 1) {
         issues.push(makeIssue('critical', 'VARIANT_OPTION_NAME_INCONSISTENT', 'Inconsistent option names for handle "' + h + '"', {
-          what_is_wrong: 'Handle "' + h + '" has different option names: ' + names.join(', ') + '.',
+          what_is_wrong: 'Handle "' + h + '" has different option names.',
           why_it_matters: 'Shopify cannot resolve variant relationships.',
-          suggested_action: 'Use the same option name for all variant rows of the same product.'
+          suggested_action: 'Use the same option name for all variant rows.'
         }));
       }
     });
 
-    /* Duplicate option combinations */
+    /* Duplicate combos */
     const combosByHandle = {};
     state.rows.forEach((row, i) => {
       const h = row['Handle'];
@@ -940,9 +1192,9 @@
         d.rows.forEach(r => flat.push({ row: r, handle: d.handle, option_combo: d.combo }));
       });
       issues.push(makeIssue('critical', 'VARIANT_DUPLICATE_OPTION_COMBINATION', 'Duplicate option combinations for ' + pcount(n, 'variant'), {
-        what_is_wrong: pcount(n, 'option combination') + ' ' + v(n, 'appears', 'appear') + ' on multiple rows of the same product.',
-        why_it_matters: 'Shopify treats each option combination (e.g. Size=Small + Color=Blue) as a unique variant. Duplicates cause Shopify to silently drop one variant, even when SKUs differ.',
-        suggested_action: 'Remove the duplicate rows, or change their option values so each combination is unique.',
+        what_is_wrong: pcount(n, 'option combination') + ' ' + v(n, 'appears', 'appear') + ' on multiple rows.',
+        why_it_matters: 'Shopify silently drops one variant.',
+        suggested_action: 'Remove the duplicate rows, or change their option values.',
         affected_rows: flat, auto_fix: 'never'
       }));
     } else passed.push('No duplicate variant option combinations');
@@ -964,14 +1216,14 @@
     if (partial.length > 0) {
       const n = partial.length;
       issues.push(makeIssue('critical', 'VARIANT_PARTIAL_COLLAPSE', 'Incomplete option data for ' + pcount(n, 'row'), {
-        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' an option Name without a Value, or a Value without a Name.',
-        why_it_matters: 'Shopify needs both to construct a variant. An incomplete option pair can cause the multi-variant product to collapse into a single variant.',
-        suggested_action: 'Fill in both the Name and Value for each option used on a row.',
+        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' an option Name without a Value, or vice versa.',
+        why_it_matters: 'An incomplete option pair can collapse the product.',
+        suggested_action: 'Fill in both the Name and Value.',
         affected_rows: partial.slice(0, 10)
       }));
     } else passed.push('All option rows have matching Name and Value');
 
-    /* Variant column inconsistency */
+    /* Column inconsistency */
     const handleVariantCols = {};
     state.rows.forEach((row, i) => {
       const h = row['Handle'];
@@ -1006,9 +1258,9 @@
         c.rows.forEach(r => flat.push({ row: r, handle: c.handle, inconsistency: c.columns.join(', ') }));
       });
       issues.push(makeIssue('critical', 'VARIANT_COLUMN_INCONSISTENCY', 'Variant column inconsistency for ' + pcount(n, 'product'), {
-        what_is_wrong: pcount(n, 'product') + ' ' + v(n, 'has', 'have') + ' variant rows where some rows fill an option column and others leave it blank.',
-        why_it_matters: 'Shopify expects every variant row of a product to fill the same option columns. When columns are partially populated, Shopify may collapse the multi-variant product into a single variant.',
-        suggested_action: 'Fill the same option columns on every variant row of each product, or leave them consistently blank.',
+        what_is_wrong: pcount(n, 'product') + ' ' + v(n, 'has', 'have') + ' variant rows with partial option fills.',
+        why_it_matters: 'Shopify may collapse the product.',
+        suggested_action: 'Fill the same option columns on every variant row.',
         affected_rows: flat, auto_fix: 'never'
       }));
     } else passed.push('Variant option columns consistent across rows');
@@ -1018,22 +1270,22 @@
     if (imageDirty.length > 0) {
       const n = imageDirty.length;
       issues.push(makeIssue('critical', 'IMAGE_ROW_VARIANT_DATA', 'Image rows contain extra variant data in ' + pcount(n, 'row'), {
-        what_is_wrong: pcount(n, 'image row') + ' include data in columns that should be blank (Title, Variant SKU, Variant Price, Option values, etc.).',
-        why_it_matters: 'Shopify expects image rows to have ONLY Handle and Image Src filled. Extra data causes Shopify to try creating duplicate variants, which fails with "The variant \'Default Title\' already exists" or silently deletes existing variants.',
-        suggested_action: 'Autonom can clear all columns except Handle and Image Src on these rows.',
+        what_is_wrong: pcount(n, 'image row') + ' contain data in columns that should be blank.',
+        why_it_matters: 'Shopify tries creating duplicate variants or silently deletes them.',
+        suggested_action: 'Autonom can clear all columns except Handle and Image Src.',
         affected_rows: imageDirty.slice(0, 10).map(d => ({ row: d.row, handle: d.handle, columns_with_data: d.columns.join(', ') })),
         auto_fix: 'review_required', shopify_doc_url: SHOPIFY_DOC_URL
       }));
     } else passed.push('No image rows with stray variant data');
 
-    /* Single-variant multi-image */
+    /* Single variant multi-image */
     const svmi = singleVariantMultipleImages();
     if (svmi.length > 0) {
       const n = svmi.length;
       issues.push(makeIssue('critical', 'SINGLE_VARIANT_MULTIPLE_IMAGES', 'Missing Option1 declaration for ' + pcount(n, 'product with multiple images'), {
-        what_is_wrong: pcount(n, 'single-variant product') + ' ' + v(n, 'has', 'have') + ' multiple image rows but no Option1 Name/Value on the parent row.',
-        why_it_matters: 'When a single-variant product has multiple images, Shopify needs Option1 Name="Title" and Option1 Value="Default Title" on the parent row. Without these, Shopify treats each image row as a duplicate variant, causing "The variant \'Default Title\' already exists" errors.',
-        suggested_action: 'Autonom can set Option1 Name="Title" and Option1 Value="Default Title" on the parent row.',
+        what_is_wrong: pcount(n, 'single-variant product') + ' ' + v(n, 'has', 'have') + ' multiple image rows but no Option1 declaration.',
+        why_it_matters: 'Shopify treats each image row as a duplicate variant.',
+        suggested_action: 'Autonom can set Option1 Name="Title" and Option1 Value="Default Title".',
         affected_rows: svmi.slice(0, 10).map(d => ({ row: d.row, handle: d.handle, image_rows: d.imageCount })),
         auto_fix: 'review_required', shopify_doc_url: SHOPIFY_DOC_URL
       }));
@@ -1044,8 +1296,8 @@
     if (dupImgs.length > 0) {
       const n = dupImgs.length;
       issues.push(makeIssue('warning', 'DUPLICATE_IMAGE_ROWS', 'Duplicate image rows in ' + pcount(n, 'location'), {
-        what_is_wrong: pcount(n, 'image row') + ' ' + v(n, 'duplicates', 'duplicate') + ' an earlier image URL for the same product.',
-        why_it_matters: 'Shopify may attach the same image multiple times, or reject the duplicate rows.',
+        what_is_wrong: pcount(n, 'image row') + ' ' + v(n, 'duplicates', 'duplicate') + ' an earlier image URL.',
+        why_it_matters: 'Shopify may attach the same image multiple times.',
         suggested_action: 'Autonom can remove the duplicate rows.',
         affected_rows: dupImgs.slice(0, 10).map(d => ({ row: d.row, handle: d.handle, duplicates_row: d.duplicateOf, url: d.url })),
         auto_fix: 'safe_automatic'
@@ -1064,15 +1316,15 @@
       if (missingQty.length > 0) {
         const n = missingQty.length;
         issues.push(makeIssue('warning', 'INVENTORY_QTY_MISSING_WITH_TRACKER', 'Inventory quantity missing where tracker is set in ' + pcount(n, 'row'), {
-          what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' a "Variant Inventory Tracker" value but no "Variant Inventory Qty".',
-          why_it_matters: 'Shopify requires a quantity when a tracker is set. The import may fail or the row may be rejected.',
-          suggested_action: 'Autonom can set the missing quantity to 0 (the safest default).',
+          what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' a tracker but no quantity.',
+          why_it_matters: 'Shopify requires a quantity when a tracker is set.',
+          suggested_action: 'Autonom can set the missing quantity to 0.',
           affected_rows: missingQty.slice(0, 10), auto_fix: 'review_required'
         }));
       } else passed.push('All rows with inventory tracker have a quantity');
     }
 
-    /* Inventory qty set but tracker blank */
+    /* Inventory qty but no tracker */
     if (state.headers.indexOf('Variant Inventory Qty') !== -1 && state.headers.indexOf('Variant Inventory Tracker') !== -1) {
       const missingTracker = [];
       state.rows.forEach((row, i) => {
@@ -1084,9 +1336,9 @@
       if (missingTracker.length > 0) {
         const n = missingTracker.length;
         issues.push(makeIssue('warning', 'INVENTORY_TRACKER_MISSING', 'Inventory quantity set without a tracker on ' + pcount(n, 'row'), {
-          what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' an inventory quantity but no "Variant Inventory Tracker" value.',
-          why_it_matters: 'Shopify silently ignores inventory updates when no tracker is specified. The quantity will not be applied to your store.',
-          suggested_action: 'Set "Variant Inventory Tracker" to "shopify" on every row that includes inventory.',
+          what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' a quantity but no tracker.',
+          why_it_matters: 'Shopify silently ignores inventory updates without a tracker.',
+          suggested_action: 'Set Variant Inventory Tracker to "shopify".',
           affected_rows: missingTracker.slice(0, 10), auto_fix: 'never'
         }));
       } else passed.push('Inventory tracker set on all rows with quantity');
@@ -1107,14 +1359,14 @@
     if (boolIssues.length > 0) {
       const n = boolIssues.length;
       issues.push(makeIssue('warning', 'BOOLEAN_FORMAT', 'Non-standard boolean value on ' + pcount(n, 'row'), {
-        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'uses', 'use') + ' a non-standard value in a boolean column (Published, Variant Requires Shipping, etc.).',
-        why_it_matters: 'Shopify expects TRUE or FALSE (uppercase). Values like 1/0/yes/no may be ignored, causing the wrong published status.',
-        suggested_action: 'Autonom can convert these to TRUE or FALSE.',
+        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'uses', 'use') + ' a non-standard boolean.',
+        why_it_matters: 'Shopify expects TRUE or FALSE.',
+        suggested_action: 'Autonom can normalize these.',
         affected_rows: boolIssues.slice(0, 10), auto_fix: 'safe_automatic'
       }));
     } else if (BOOLEAN_COLUMNS.some(c => state.headers.indexOf(c) !== -1)) passed.push('All boolean columns use TRUE/FALSE');
 
-    /* Product Category format */
+    /* Product Category */
     if (state.headers.indexOf('Product Category') !== -1) {
       const badCat = [];
       state.rows.forEach((row, i) => {
@@ -1127,14 +1379,14 @@
         const n = badCat.length;
         issues.push(makeIssue('info', 'PRODUCT_CATEGORY_FORMAT', 'Product Category format may be invalid in ' + pcount(n, 'cell'), {
           what_is_wrong: pcount(n, 'Product Category value') + ' ' + v(n, 'doesn\'t', 'don\'t') + ' match Shopify\'s expected format.',
-          why_it_matters: 'Shopify expects the full taxonomy breadcrumb (e.g. "Apparel & Accessories > Clothing > Shirts & Tops") or a category ID. Free-text values like "Shirts" are rejected, and the product may end up uncategorized.',
-          suggested_action: 'Use Shopify\'s category picker and export one product to see the exact format, then paste those values here.',
+          why_it_matters: 'Shopify expects a breadcrumb or category ID.',
+          suggested_action: 'Use Shopify\'s category picker.',
           affected_rows: badCat.slice(0, 10), auto_fix: 'never'
         }));
       } else passed.push('All Product Category values look valid');
     }
 
-    /* Row order warning */
+    /* Row order */
     const handleOrder = [];
     const seenHandles = new Set();
     state.rows.forEach(row => {
@@ -1145,18 +1397,15 @@
     });
     if (handleOrder.indexOf('__scattered__') !== -1) {
       issues.push(makeIssue('info', 'ROW_ORDER_WARNING', 'Variant rows for the same product are not grouped together', {
-        what_is_wrong: 'Rows sharing a Handle are not adjacent in the file.',
-        why_it_matters: 'Shopify can still process the import, but the row order may affect how images and options get attached. Grouping rows by Handle is the recommended approach.',
-        suggested_action: 'Sort the file by Handle before import, keeping variant rows of the same product together.',
+        what_is_wrong: 'Rows sharing a Handle are not adjacent.',
+        why_it_matters: 'Image and option association may be affected.',
+        suggested_action: 'Sort the file by Handle before importing.',
         auto_fix: 'never'
       }));
     } else passed.push('Variant rows grouped by Handle');
 
     /* Prices */
-    const priceIssuesNonNum = [];
-    const priceIssuesComma = [];
-    const priceIssuesCurrency = [];
-    const priceIssuesNegative = [];
+    const priceIssuesNonNum = [], priceIssuesComma = [], priceIssuesCurrency = [], priceIssuesNegative = [];
     const PRICE_COLS = ['Variant Price', 'Variant Compare At Price'];
     state.rows.forEach((row, i) => {
       if (rowTypes.isImage[i]) return;
@@ -1175,9 +1424,9 @@
     if (priceIssuesCurrency.length > 0) {
       const n = priceIssuesCurrency.length;
       issues.push(makeIssue('warning', 'PRICE_CURRENCY_SYMBOL', 'Currency symbols in ' + pcount(n, 'price cell'), {
-        what_is_wrong: pcount(n, 'price cell') + ' ' + v(n, 'contains', 'contain') + ' currency symbols like $, €, or £.',
-        why_it_matters: 'Shopify expects a plain number. Currency symbols cause the row to be rejected or the price to be misread.',
-        suggested_action: 'Autonom can strip currency symbols and leave the numeric value.',
+        what_is_wrong: pcount(n, 'price cell') + ' ' + v(n, 'contains', 'contain') + ' currency symbols.',
+        why_it_matters: 'Shopify expects a plain number.',
+        suggested_action: 'Autonom can strip currency symbols.',
         affected_rows: priceIssuesCurrency.slice(0, 10), auto_fix: 'safe_automatic'
       }));
     }
@@ -1185,9 +1434,9 @@
     if (priceIssuesComma.length > 0) {
       const n = priceIssuesComma.length;
       issues.push(makeIssue('warning', 'PRICE_DECIMAL_COMMA', 'Comma-decimal prices detected in ' + pcount(n, 'cell'), {
-        what_is_wrong: pcount(n, 'price') + ' ' + v(n, 'uses', 'use') + ' a comma as the decimal separator (e.g. "19,99").',
-        why_it_matters: 'Shopify expects a dot as the decimal separator. Commas are read as thousands separators or rejected.',
-        suggested_action: 'Autonom can convert comma decimals to dots. Review the proposed values.',
+        what_is_wrong: pcount(n, 'price') + ' ' + v(n, 'uses', 'use') + ' a comma as the decimal separator.',
+        why_it_matters: 'Shopify expects a dot.',
+        suggested_action: 'Autonom can convert comma decimals to dots.',
         affected_rows: priceIssuesComma.slice(0, 10), auto_fix: 'review_required'
       }));
     }
@@ -1197,7 +1446,7 @@
       issues.push(makeIssue('warning', 'PRICE_NON_NUMERIC', 'Non-numeric price value in ' + pcount(n, 'cell'), {
         what_is_wrong: pcount(n, 'price cell') + ' could not be parsed as a number.',
         why_it_matters: 'Shopify will reject or ignore these rows.',
-        suggested_action: 'Enter a plain numeric value (e.g. 19.99).',
+        suggested_action: 'Enter a plain numeric value.',
         affected_rows: priceIssuesNonNum.slice(0, 10)
       }));
     } else if (state.headers.indexOf('Variant Price') !== -1) passed.push('All prices numeric');
@@ -1206,8 +1455,8 @@
       const n = priceIssuesNegative.length;
       issues.push(makeIssue('warning', 'PRICE_NEGATIVE', 'Negative price value in ' + pcount(n, 'cell'), {
         what_is_wrong: pcount(n, 'price') + ' ' + v(n, 'is', 'are') + ' negative.',
-        why_it_matters: 'Shopify may reject these rows or display incorrect pricing.',
-        suggested_action: 'Confirm the negative price is intentional, or correct it.',
+        why_it_matters: 'Shopify may reject these rows.',
+        suggested_action: 'Confirm the value is intentional, or correct it.',
         affected_rows: priceIssuesNegative.slice(0, 10)
       }));
     }
@@ -1235,16 +1484,15 @@
     if (compareIssues.length > 0) {
       const n = compareIssues.length;
       issues.push(makeIssue('critical', 'COMPARE_AT_PRICE_LOWER_THAN_PRICE', 'Compare-at price lower than price for ' + pcount(n, 'product'), {
-        what_is_wrong: pcount(n, 'product') + ' ' + v(n, 'has', 'have') + ' a compare-at price that is lower than or equal to the actual price.',
-        why_it_matters: 'Shopify rejects this combination or displays an incorrect sale badge. The compare-at price must be higher than the current price.',
-        suggested_action: 'Set the compare-at price higher than the current price, or clear it.',
+        what_is_wrong: pcount(n, 'product') + ' ' + v(n, 'has', 'have') + ' a compare-at price ≤ price.',
+        why_it_matters: 'Shopify rejects this or shows an incorrect sale badge.',
+        suggested_action: 'Set Compare At higher than Price, or clear it.',
         affected_rows: compareIssues.slice(0, 10), auto_fix: 'never'
       }));
     } else passed.push('Compare-at prices are consistent with prices');
 
     /* Inventory integers */
-    const nonInt = [];
-    const negInv = [];
+    const nonInt = [], negInv = [];
     state.rows.forEach((row, i) => {
       if (rowTypes.isImage[i]) return;
       const q = row['Variant Inventory Qty'];
@@ -1267,8 +1515,8 @@
       const n = negInv.length;
       issues.push(makeIssue('warning', 'INVENTORY_NEGATIVE', 'Negative inventory value in ' + pcount(n, 'cell'), {
         what_is_wrong: pcount(n, 'inventory cell') + ' ' + v(n, 'is', 'are') + ' negative.',
-        why_it_matters: 'Shopify may reject or misinterpret negative inventory.',
-        suggested_action: 'Verify the value is intentional (e.g. backorder tracking), or correct it.',
+        why_it_matters: 'Shopify may reject these.',
+        suggested_action: 'Verify or correct.',
         affected_rows: negInv.slice(0, 10)
       }));
     }
@@ -1296,8 +1544,8 @@
       const n = unclosed.length;
       issues.push(makeIssue('warning', 'HTML_UNCLOSED_TAG', 'Unclosed HTML tag in ' + pcount(n, 'description'), {
         what_is_wrong: pcount(n, 'description') + ' ' + v(n, 'has', 'have') + ' unclosed HTML.',
-        why_it_matters: 'Unclosed tags may break your storefront layout.',
-        suggested_action: 'Autonom can attempt to repair the HTML.',
+        why_it_matters: 'Unclosed tags may break your storefront.',
+        suggested_action: 'Autonom can attempt to repair.',
         affected_rows: unclosed.slice(0, 10), auto_fix: 'review_required'
       }));
     } else if (state.headers.indexOf('Body (HTML)') !== -1) passed.push('No unclosed HTML tags');
@@ -1305,18 +1553,15 @@
     if (dangerous.length > 0) {
       const n = dangerous.length;
       issues.push(makeIssue('warning', 'HTML_DANGEROUS_ATTRIBUTE', 'Potentially unsafe HTML tag in ' + pcount(n, 'description'), {
-        what_is_wrong: pcount(n, 'description') + ' ' + v(n, 'contains', 'contain') + ' tags that can execute code.',
-        why_it_matters: 'These may be blocked by Shopify or cause security warnings.',
-        suggested_action: 'Remove the tag or replace with plain text.',
+        what_is_wrong: pcount(n, 'description') + ' ' + v(n, 'contains', 'contain') + ' unsafe tags.',
+        why_it_matters: 'May be blocked by Shopify.',
+        suggested_action: 'Remove the tag.',
         affected_rows: dangerous.slice(0, 10)
       }));
     }
 
     /* Images */
-    const httpImgs = [];
-    const noExtImgs = [];
-    const privateCdnImgs = [];
-    const malformedImgs = [];
+    const httpImgs = [], noExtImgs = [], privateCdnImgs = [], malformedImgs = [];
     state.rows.forEach((row, i) => {
       const url = row['Image Src'];
       if (isBlank(url)) return;
@@ -1334,8 +1579,8 @@
       const n = httpImgs.length;
       issues.push(makeIssue('warning', 'IMAGE_URL_NOT_HTTPS', 'Image URL does not use HTTPS in ' + pcount(n, 'cell'), {
         what_is_wrong: pcount(n, 'image URL') + ' ' + v(n, 'does', 'do') + ' not use https://.',
-        why_it_matters: 'Shopify requires HTTPS for product images.',
-        suggested_action: 'Autonom can upgrade http:// to https://.',
+        why_it_matters: 'Shopify requires HTTPS.',
+        suggested_action: 'Autonom can upgrade to HTTPS.',
         affected_rows: httpImgs.slice(0, 10), auto_fix: 'review_required'
       }));
     } else if (state.headers.indexOf('Image Src') !== -1) passed.push('All image URLs use HTTPS');
@@ -1343,9 +1588,9 @@
     if (noExtImgs.length > 0) {
       const n = noExtImgs.length;
       issues.push(makeIssue('warning', 'IMAGE_URL_NO_EXTENSION', 'Image URL without a file extension in ' + pcount(n, 'cell'), {
-        what_is_wrong: pcount(n, 'image URL') + ' ' + v(n, 'doesn\'t', 'don\'t') + ' end in a recognizable image extension (.jpg, .png, .webp).',
-        why_it_matters: 'Shopify may not be able to download and store these images.',
-        suggested_action: 'Use direct image URLs that end in .jpg, .png, .webp, or .gif.',
+        what_is_wrong: pcount(n, 'image URL') + ' ' + v(n, 'doesn\'t', 'don\'t') + ' end in a recognizable extension.',
+        why_it_matters: 'Shopify may not be able to download it.',
+        suggested_action: 'Use direct URLs ending in .jpg, .png, .webp, or .gif.',
         affected_rows: noExtImgs.slice(0, 10)
       }));
     }
@@ -1353,9 +1598,9 @@
     if (privateCdnImgs.length > 0) {
       const n = privateCdnImgs.length;
       issues.push(makeIssue('warning', 'IMAGE_URL_PRIVATE_CDN', 'Image URL points to a private or local address in ' + pcount(n, 'cell'), {
-        what_is_wrong: pcount(n, 'image URL') + ' ' + v(n, 'points', 'point') + ' to localhost, a private IP, or an internal hostname.',
-        why_it_matters: 'Shopify cannot access these URLs. The images will fail to import.',
-        suggested_action: 'Host the images on a public CDN or your Shopify Files, then paste the new URL.',
+        what_is_wrong: pcount(n, 'image URL') + ' ' + v(n, 'points', 'point') + ' to a private address.',
+        why_it_matters: 'Shopify cannot access these URLs.',
+        suggested_action: 'Host the images on a public CDN.',
         affected_rows: privateCdnImgs.slice(0, 10)
       }));
     }
@@ -1364,8 +1609,8 @@
       const n = malformedImgs.length;
       issues.push(makeIssue('warning', 'IMAGE_URL_MALFORMED', 'Image URL could not be parsed in ' + pcount(n, 'cell'), {
         what_is_wrong: pcount(n, 'image URL') + ' ' + v(n, 'is', 'are') + ' not a valid URL.',
-        why_it_matters: 'Shopify will not be able to download these images.',
-        suggested_action: 'Verify the URL is complete (starts with https://).',
+        why_it_matters: 'Shopify cannot download these images.',
+        suggested_action: 'Verify the URL is complete.',
         affected_rows: malformedImgs.slice(0, 10)
       }));
     }
@@ -1395,9 +1640,9 @@
     if (state.parseFieldMismatches > 0) {
       const n = state.parseFieldMismatches;
       issues.push(makeIssue('info', 'FIELD_COUNT_MISMATCH', 'CSV row field count mismatch in ' + pcount(n, 'row'), {
-        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' a different number of fields than the header row.',
-        why_it_matters: 'This usually means unquoted commas in Tags, Body HTML, or other text cells. The affected rows may be missing data or shifted columns.',
-        suggested_action: 'Re-export the file from your spreadsheet tool with proper quoting, or check the flagged rows.',
+        what_is_wrong: pcount(n, 'row') + ' ' + v(n, 'has', 'have') + ' a different number of columns than the header.',
+        why_it_matters: 'Unquoted commas in text fields may have shifted data.',
+        suggested_action: 'Re-export the file with proper quoting.',
         auto_fix: 'never'
       }));
     }
@@ -1436,7 +1681,7 @@
     if (counts.critical > 0) status = 'NOT_READY';
     else if (counts.warning > 0) status = 'READY_WITH_WARNINGS';
     return {
-      status, tool: 'shopify-guard', tool_version: '1.7.3',
+      status, tool: 'shopify-guard', tool_version: '1.8.2',
       profile: 'shopify-product-csv', profile_version: '2025-01',
       mode: state.mode, detected_mode: state.detectedMode, detected_confidence: state.detectedConfidence,
       summary: { critical: counts.critical, warnings: counts.warning, info: counts.info, passed: passed.length, rows_scanned: state.rows.length, columns_detected: state.headers.length },
@@ -1789,6 +2034,30 @@
       if (touched) appliedCodes.add('SKU_DUPLICATE_IN_FILE');
     }
 
+    if (accepted['DUPLICATE_IDENTICAL_ROWS']) {
+      let touched = false;
+      const sigs = {};
+      const toRemove = new Set();
+      rows.forEach((row, i) => {
+        const sig = headers.map(h => String(row[h] == null ? '' : row[h]).trim()).join('\u0001');
+        if (sig.replace(/\u0001/g, '') === '') return;
+        if (sigs[sig]) toRemove.add(i);
+        else sigs[sig] = i;
+      });
+      if (toRemove.size > 0) {
+        const kept = [];
+        rows.forEach((r, i) => {
+          if (toRemove.has(i)) {
+            changeLog.push({ row: i + 2, column: '(row)', before: r['Handle'] || '(no handle)', after: '(row removed)', reason: 'Removed identical duplicate row' });
+            touched = true;
+          } else kept.push(r);
+        });
+        rows.length = 0;
+        kept.forEach(r => rows.push(r));
+      }
+      if (touched) appliedCodes.add('DUPLICATE_IDENTICAL_ROWS');
+    }
+
     const csv = (typeof Papa !== 'undefined' && Papa.unparse)
       ? Papa.unparse({ fields: headers, data: rows.map(r => headers.map(h => r[h] == null ? '' : r[h])) }, { quotes: true })
       : buildCSVManually(headers, rows);
@@ -1796,7 +2065,46 @@
     let finalCSV = csv;
     if (finalCSV.charCodeAt(0) === 0xFEFF) finalCSV = finalCSV.slice(1);
 
-    return { csv: finalCSV, changeLog, appliedCodes };
+    // Delimiter conversion (if user accepted)
+    if (accepted['DELIMITER_NOT_COMMA'] && state.detectedDelimiter !== ',') {
+      changeLog.push({ row: 'all', column: '(file)', before: state.detectedDelimiter + '-separated', after: 'comma-separated', reason: 'Converted delimiter to comma' });
+      appliedCodes.add('DELIMITER_NOT_COMMA');
+    }
+
+    // Split if user accepted
+    let splitParts = null;
+    if (accepted['FILE_SIZE_OVER_LIMIT_SPLIT']) {
+      const finalBytes = new Blob([finalCSV]).size;
+      if (finalBytes >= FILE_SIZE_LIMIT_BYTES) {
+        const baseName = state.fileName.replace(/\.csv$/i, '');
+        splitParts = splitRowsIntoChunks(rows, headers, SPLIT_TARGET_BYTES, baseName);
+        if (splitParts) {
+          appliedCodes.add('FILE_SIZE_OVER_LIMIT_SPLIT');
+          changeLog.push({
+            row: 'all', column: '(file)',
+            before: formatBytes(finalBytes) + ' (over limit)',
+            after: splitParts.length + ' parts, each under 15 MB',
+            reason: 'Split into ' + splitParts.length + ' parts, products kept whole'
+          });
+        } else {
+          changeLog.push({
+            row: 'all', column: '(file)',
+            before: formatBytes(finalBytes),
+            after: '(could not split safely)',
+            reason: 'A single product is too large to fit under the 15 MB limit'
+          });
+        }
+      } else {
+        changeLog.push({
+          row: 'all', column: '(file)',
+          before: formatBytes(state.fileSize),
+          after: formatBytes(finalBytes),
+          reason: 'File now fits under 15 MB after other fixes'
+        });
+      }
+    }
+
+    return { csv: finalCSV, changeLog, appliedCodes, splitParts };
   }
 
   function buildCSVManually(headers, rows) {
@@ -1815,6 +2123,16 @@
     log.forEach(c => {
       const esc = val => '"' + String(val == null ? '' : val).replace(/"/g, '""') + '"';
       lines.push([c.row, c.column, c.before, c.after, c.reason].map(esc).join(','));
+    });
+    return lines.join('\n');
+  }
+
+  function buildIssuesCSV() {
+    const lines = ['Severity,Code,Title,What is wrong,Why it matters,Suggested action,Affected rows'];
+    state.result.issues.forEach(i => {
+      const esc = val => '"' + String(val == null ? '' : val).replace(/"/g, '""') + '"';
+      const rowsList = (i.affected_rows || []).slice(0, 20).map(r => r.row).join(' ');
+      lines.push([i.severity, i.code, i.title, i.what_is_wrong, i.why_it_matters, i.suggested_action, rowsList].map(esc).join(','));
     });
     return lines.join('\n');
   }
@@ -1841,8 +2159,8 @@
     if (state.parseFieldMismatches > 0) {
       h += '<div style="background:#fdf6e6;border:1px solid #eedcb4;border-radius:8px;padding:16px;margin:20px 0;">';
       h += '<strong>⚠ Important limitation</strong>';
-      h += '<p>This file contains ' + state.parseFieldMismatches + ' row(s) with a different number of columns than the header. Because we cannot reliably tell which column each cell belongs to, Autonom skipped its destructive-blank check.</p>';
-      h += '<p>Please re-export the file from your spreadsheet tool with proper quoting, then re-run the scan.</p>';
+      h += '<p>This file contains ' + state.parseFieldMismatches + ' row(s) with a different number of columns than the header. Autonom skipped its destructive-blank check.</p>';
+      h += '<p>Please re-export the file with proper quoting, then re-run the scan.</p>';
       h += '</div>';
     }
     if (r.issues.length) {
@@ -1866,9 +2184,7 @@
   /* ---------------- Row context ---------------- */
   function buildRowContext(affectedRows, columnName) {
     if (!affectedRows || !affectedRows.length) return null;
-    const CONTEXT = 2;
-    const MAX_CLUSTERS = 3;
-    const MAX_ROWS_PER_CLUSTER = 15;
+    const CONTEXT = 2, MAX_CLUSTERS = 3, MAX_ROWS_PER_CLUSTER = 15;
     const affectedNums = affectedRows.map(r => r.row).sort((a, b) => a - b);
     const clusters = [];
     let current = null;
@@ -1888,8 +2204,7 @@
       for (rowNum = start; rowNum <= end && count < MAX_ROWS_PER_CLUSTER; rowNum++) {
         const rowData = state.rows[rowNum - 2];
         if (!rowData) continue;
-        const isTarget = cluster.targets.indexOf(rowNum) !== -1;
-        out.push({ rowNum, isTarget, data: rowData });
+        out.push({ rowNum, isTarget: cluster.targets.indexOf(rowNum) !== -1, data: rowData });
         count++;
       }
       if (rowNum <= end) out.push({ rowNum: null, isTarget: false, truncated: true });
@@ -1909,8 +2224,7 @@
       if (baseCols.indexOf(k) === -1 && extraCols.indexOf(k) === -1 && state.headers.indexOf(k) !== -1) extraCols.push(k);
     });
     const showCols = baseCols.concat(extraCols).slice(0, 4);
-    let html = '<div class="asg-issue-rows">';
-    html += '<table><thead><tr><th>Row</th>';
+    let html = '<div class="asg-issue-rows"><table><thead><tr><th>Row</th>';
     showCols.forEach(c => { html += '<th>' + escapeHtml(c) + '</th>'; });
     if (issue.affected_rows.some(r => r.proposed_handle || r.proposed)) html += '<th>Proposed</th>';
     html += '</tr></thead><tbody>';
@@ -1956,11 +2270,10 @@
     return html;
   }
 
-  /* ---------------- Screen management ---------------- */
+  /* ---------------- Screens ---------------- */
   const STEPS = { landing: 1, setup: 2, scanning: 3, report: 4, repair: 5, export: 6 };
 
   function showScreen(name) {
-    LOG('showScreen', name);
     $$('.asg-screen').forEach(el => { el.hidden = el.dataset.screen !== name; });
     const step = STEPS[name] || 1;
     $$('.asg-step').forEach(el => {
@@ -2007,7 +2320,7 @@
       primary.onclick = doExport;
     } else if (name === 'export') {
       back.hidden = false; back.textContent = '← Back'; back.onclick = () => showScreen('repair');
-      primary.textContent = 'Download ZIP (3 files)';
+      primary.textContent = 'Download ZIP';
       primary.onclick = downloadAll;
     }
   }
@@ -2078,12 +2391,7 @@
       if (issue.suggested_action) body += '<div class="asg-issue-section-label">What you can do</div><p>' + escapeHtml(issue.suggested_action) + '</p>';
       let actions = '';
       if (issue.shopify_doc_url) actions += '<a class="asg-btn" href="' + escapeHtml(issue.shopify_doc_url) + '" target="_blank" rel="noopener">Shopify documentation →</a>';
-      el.innerHTML = '<div class="asg-issue-head">' +
-        '<span class="asg-issue-marker">' + marker + '</span>' +
-        '<h4 class="asg-issue-title">' + escapeHtml(issue.title) + '</h4>' +
-        '<span class="asg-issue-toggle">▾</span></div>' +
-        '<div class="asg-issue-body" hidden>' + body +
-        (actions ? '<div class="asg-issue-actions">' + actions + '</div>' : '') + '</div>';
+      el.innerHTML = '<div class="asg-issue-head"><span class="asg-issue-marker">' + marker + '</span><h4 class="asg-issue-title">' + escapeHtml(issue.title) + '</h4><span class="asg-issue-toggle">▾</span></div><div class="asg-issue-body" hidden>' + body + (actions ? '<div class="asg-issue-actions">' + actions + '</div>' : '') + '</div>';
       const head = el.querySelector('.asg-issue-head');
       const bodyEl = el.querySelector('.asg-issue-body');
       head.addEventListener('click', (e) => {
@@ -2138,13 +2446,9 @@
         if (issue.code === 'DESTRUCTIVE_BLANK_INCLUDED_COLUMN' && issue.alternative_fix === 'strip_column_with_user_approval') {
           const m = issue.title.match(/"([^"]+)"/);
           const colName = m ? m[1] : '';
-          removeColumnControl = '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:#5b6471;cursor:pointer;">' +
-            '<input type="checkbox" data-remove-column="' + escapeHtml(colName) + '" checked>' +
-            ' Remove the "' + escapeHtml(colName) + '" column from the corrected file</label>';
+          removeColumnControl = '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:#5b6471;cursor:pointer;"><input type="checkbox" data-remove-column="' + escapeHtml(colName) + '" checked> Remove the "' + escapeHtml(colName) + '" column from the corrected file</label>';
         }
-        li.innerHTML = '<div style="flex:1;"><div>' + escapeHtml(issue.title) + '</div>' +
-          (detail ? '<div class="asg-repair-detail">' + escapeHtml(detail) + '</div>' : '') +
-          removeColumnControl + '</div>' + controls;
+        li.innerHTML = '<div style="flex:1;"><div>' + escapeHtml(issue.title) + '</div>' + (detail ? '<div class="asg-repair-detail">' + escapeHtml(detail) + '</div>' : '') + removeColumnControl + '</div>' + controls;
         ul.appendChild(li);
       });
     }
@@ -2193,7 +2497,11 @@
       pcount(remaining.length, 'issue') + ' still in the file';
 
     const base = state.fileName.replace(/\.csv$/i, '');
-    document.getElementById('asg-export-csv-name').textContent = base + '_safe.csv';
+    if (state.splitParts && state.splitParts.length > 0) {
+      document.getElementById('asg-export-csv-name').textContent = state.splitParts.length + ' CSV parts (each under 15 MB)';
+    } else {
+      document.getElementById('asg-export-csv-name').textContent = base + '_safe.csv';
+    }
 
     const checkEl = document.getElementById('asg-export-check');
     const titleEl = document.getElementById('asg-export-title');
@@ -2206,9 +2514,26 @@
     }
 
     const heroEl = document.querySelector('.asg-export-hero');
+
+    // Split panel
+    const oldSplit = heroEl.parentNode.querySelector('.asg-export-split');
+    if (oldSplit) oldSplit.remove();
+    if (state.splitParts && state.splitParts.length > 0) {
+      const split = document.createElement('div');
+      split.className = 'asg-export-split';
+      let html = '<h3>📦 Your file was split into ' + state.splitParts.length + ' parts</h3>';
+      html += '<p>Shopify rejects files over 15 MB. Autonom split your corrected file into ' + state.splitParts.length + ' parts, each under the limit. <strong>Products stay whole</strong> — every variant row of the same Handle is in the same part.</p>';
+      html += '<ul>';
+      state.splitParts.forEach(part => { html += '<li><strong>' + escapeHtml(part.name) + '</strong> — ' + part.rowCount + ' rows</li>'; });
+      html += '</ul>';
+      html += '<p><strong>Import them one at a time, in numerical order.</strong></p>';
+      split.innerHTML = html;
+      heroEl.parentNode.insertBefore(split, heroEl.nextSibling);
+    }
+
+    // Warning panel
     const oldWarn = heroEl.parentNode.querySelector('.asg-export-warning');
     if (oldWarn) oldWarn.remove();
-
     if (remaining.length > 0) {
       const warn = document.createElement('div');
       warn.className = 'asg-export-warning';
@@ -2227,10 +2552,30 @@
       warn.className = 'asg-export-warning';
       warn.style.background = 'var(--asg-passed-bg)';
       warn.style.borderColor = '#b8dfc6';
-      warn.innerHTML = '<h3 style="color:var(--asg-passed);">✅ This file is as clean as Autonom can make it</h3>' +
-        '<p>All safe fixes were applied and all approved fixes were completed. No remaining issues were detected.</p>' +
-        '<p><strong>Reminder:</strong> Autonom does not know your store\'s current data. Always test-import 2–5 products first.</p>';
+      warn.innerHTML = '<h3 style="color:var(--asg-passed);">✅ This file is as clean as Autonom can make it</h3><p>All safe fixes were applied and all approved fixes were completed. No remaining issues were detected.</p><p><strong>Reminder:</strong> Autonom does not know your store\'s current data. Always test-import 2–5 products first.</p>';
       heroEl.parentNode.insertBefore(warn, heroEl.nextSibling);
+    }
+
+    // Dynamic checklist
+    const checklist = document.getElementById('asg-export-checklist');
+    if (checklist) {
+      const items = [];
+      const hasCritical = remaining.some(i => i.severity === 'critical');
+      if (hasCritical) items.push({ cls: 'is-critical', text: '<strong>Resolve the remaining critical issues</strong> before importing.' });
+      if (safeApplied > 0 || approvedApplied > 0) {
+        const totalFixes = safeApplied + approvedApplied;
+        items.push({ cls: 'is-done', text: '<strong>' + totalFixes + ' fix' + (totalFixes === 1 ? '' : 'es') + ' applied.</strong> Review the diff above.' });
+      }
+      if (state.splitParts && state.splitParts.length > 0) {
+        items.push({ cls: '', text: '<strong>Import each part separately</strong>, in numerical order.' });
+      }
+      if (remaining.length === 0 && !hasCritical && !state.splitParts) {
+        items.push({ cls: 'is-done', text: '<strong>This file is as clean as Autonom can make it.</strong>' });
+      }
+      items.push({ cls: '', text: '<strong>Export a backup</strong> of your current Shopify products before importing.' });
+      items.push({ cls: '', text: '<strong>Test-import 2–5 products first.</strong>' });
+      items.push({ cls: '', text: 'Only then run the full import.' });
+      checklist.innerHTML = items.map(i => '<li class="' + i.cls + '">' + i.text + '</li>').join('');
     }
 
     renderDiffSection();
@@ -2242,34 +2587,58 @@
     const listEl = document.getElementById('asg-diff-list');
     const countEl = document.getElementById('asg-diff-count');
     const toggle = document.getElementById('asg-diff-toggle');
+    const viewToggle = document.getElementById('asg-diff-view-toggle');
     const log = state.changeLog || [];
     if (!log.length) { section.hidden = true; return; }
     section.hidden = false;
     countEl.textContent = log.length + ' change' + (log.length === 1 ? '' : 's');
-    let html = '';
-    log.forEach(c => {
-      html += '<div class="asg-diff-item"><div class="asg-diff-item-head">';
-      html += '<span class="asg-diff-item-loc">' + (c.row === 'all' ? 'Entire file' : 'Row ' + c.row) + ' · ' + escapeHtml(c.column) + '</span>';
-      html += '<span class="asg-diff-item-reason">' + escapeHtml(c.reason) + '</span></div>';
-      html += '<div class="asg-diff-item-body">';
-      html += '<div class="asg-diff-before"><span class="asg-diff-label">Before</span><code>' + escapeHtml(String(c.before).substring(0, 200)) + '</code></div>';
-      html += '<div class="asg-diff-after"><span class="asg-diff-label">After</span><code>' + escapeHtml(String(c.after).substring(0, 200)) + '</code></div>';
-      html += '</div></div>';
-    });
-    listEl.innerHTML = html;
+
+    if (!state.diffViewMode) state.diffViewMode = 'detailed';
+
+    function renderList() {
+      let html = '';
+      if (state.diffViewMode === 'compact') {
+        html += '<table class="asg-diff-compact"><thead><tr><th>Row</th><th>Column</th><th>Before</th><th>After</th><th>Reason</th></tr></thead><tbody>';
+        log.forEach(c => {
+          html += '<tr><td>' + (c.row === 'all' ? 'file' : c.row) + '</td><td>' + escapeHtml(c.column) + '</td><td class="asg-diff-cell-before">' + escapeHtml(String(c.before).substring(0, 80)) + '</td><td class="asg-diff-cell-after">' + escapeHtml(String(c.after).substring(0, 80)) + '</td><td class="asg-diff-cell-reason">' + escapeHtml(c.reason) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      } else {
+        log.forEach(c => {
+          html += '<div class="asg-diff-item"><div class="asg-diff-item-head"><span class="asg-diff-item-loc">' + (c.row === 'all' ? 'Entire file' : 'Row ' + c.row) + ' · ' + escapeHtml(c.column) + '</span><span class="asg-diff-item-reason">' + escapeHtml(c.reason) + '</span></div><div class="asg-diff-item-body"><div class="asg-diff-before"><span class="asg-diff-label">Before</span><code>' + escapeHtml(String(c.before).substring(0, 200)) + '</code></div><div class="asg-diff-after"><span class="asg-diff-label">After</span><code>' + escapeHtml(String(c.after).substring(0, 200)) + '</code></div></div></div>';
+        });
+      }
+      listEl.innerHTML = html;
+    }
+
+    if (viewToggle) {
+      const newViewToggle = viewToggle.cloneNode(true);
+      viewToggle.parentNode.replaceChild(newViewToggle, viewToggle);
+      newViewToggle.hidden = false;
+      newViewToggle.querySelectorAll('.asg-diff-view-btn').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.view === state.diffViewMode);
+        btn.addEventListener('click', () => {
+          state.diffViewMode = btn.dataset.view;
+          renderDiffSection();
+        });
+      });
+    }
+
     const newToggle = toggle.cloneNode(true);
     toggle.parentNode.replaceChild(newToggle, toggle);
-    newToggle.addEventListener('click', () => {
-      const expanded = newToggle.getAttribute('aria-expanded') === 'true';
-      newToggle.setAttribute('aria-expanded', String(!expanded));
-      listEl.hidden = expanded;
-      const arrow = newToggle.querySelector('.asg-diff-header-arrow');
-      if (arrow) arrow.textContent = expanded ? '▸' : '▾';
-    });
-    newToggle.setAttribute('aria-expanded', 'false');
-    listEl.hidden = true;
+    const wasExpanded = newToggle.getAttribute('aria-expanded') === 'true';
+    listEl.hidden = !wasExpanded;
     const arrowEl = newToggle.querySelector('.asg-diff-header-arrow');
-    if (arrowEl) arrowEl.textContent = '▸';
+    if (arrowEl) arrowEl.textContent = wasExpanded ? '▾' : '▸';
+    newToggle.addEventListener('click', () => {
+      const isExpanded = newToggle.getAttribute('aria-expanded') === 'true';
+      newToggle.setAttribute('aria-expanded', String(!isExpanded));
+      listEl.hidden = isExpanded;
+      const arrow = newToggle.querySelector('.asg-diff-header-arrow');
+      if (arrow) arrow.textContent = isExpanded ? '▸' : '▾';
+    });
+
+    renderList();
   }
 
   /* ---------------- Scan ---------------- */
@@ -2285,7 +2654,18 @@
     showScreen('scanning');
     document.getElementById('asg-scan-filename').textContent = state.fileName + ' · ' + formatBytes(state.fileSize);
     setStep('read', 'is-running');
-    const parsed = await parseWithPapa(state.fileText);
+
+    try { await loadPapaParse(); } catch (err) { LOG('PapaParse load failed', err); }
+
+    // Use converted delimiter if user clicked convert
+    let text = state.fileText;
+    if (state.detectedDelimiter !== ',' && state.acceptedRepairs && state.acceptedRepairs['DELIMITER_NOT_COMMA']) {
+      text = convertDelimiter(text, state.detectedDelimiter, ',');
+    } else if (state.detectedDelimiter !== ',') {
+      text = convertDelimiter(text, state.detectedDelimiter, ',');
+    }
+
+    const parsed = await parseWithPapa(text);
     state.headers = parsed.fields || [];
     state.rows = parsed.data || [];
     state.parseFieldMismatches = 0;
@@ -2328,6 +2708,7 @@
     state.correctedCSV = result.csv;
     state.changeLog = result.changeLog;
     state.appliedCodes = result.appliedCodes;
+    state.splitParts = result.splitParts || null;
     renderExport();
   }
 
@@ -2340,25 +2721,52 @@
     const log = buildChangeLogCSV(state.changeLog || []);
     const report = buildReportHTML();
 
+    try { await loadJSZip(); } catch (err) { LOG('JSZip load failed', err); }
+
     if (typeof JSZip === 'undefined') {
-      downloadBlob(csv, csvName, 'text/csv;charset=utf-8');
-      setTimeout(() => downloadBlob(log, logName, 'text/csv;charset=utf-8'), 300);
-      setTimeout(() => downloadBlob(report, reportName, 'text/html;charset=utf-8'), 600);
+      if (state.splitParts && state.splitParts.length > 0) {
+        state.splitParts.forEach((part, i) => {
+          setTimeout(() => downloadBlob(part.csv, part.name, 'text/csv;charset=utf-8'), i * 300);
+        });
+      } else {
+        downloadBlob(csv, csvName, 'text/csv;charset=utf-8');
+      }
+      setTimeout(() => downloadBlob(log, logName, 'text/csv;charset=utf-8'), 500);
+      setTimeout(() => downloadBlob(report, reportName, 'text/html;charset=utf-8'), 800);
       return;
     }
 
     try {
       const zip = new JSZip();
       const folder = zip.folder(base + '_autonom_safe');
-      folder.file(csvName, csv);
+      if (state.splitParts && state.splitParts.length > 0) {
+        state.splitParts.forEach(part => folder.file(part.name, part.csv));
+      } else {
+        folder.file(csvName, csv);
+      }
       folder.file(logName, log);
       folder.file(reportName, report);
+
+      const splitNote = (state.splitParts && state.splitParts.length > 0)
+        ? [
+            'Your file was split into ' + state.splitParts.length + ' parts.',
+            'Each part is under Shopify\'s 15 MB limit and contains complete products.',
+            'Import the parts one at a time in numerical order.',
+            ''
+          ]
+        : [];
+
+      const fileList = (state.splitParts && state.splitParts.length > 0)
+        ? state.splitParts.map(p => '  ' + p.name + '  —  ' + p.rowCount + ' rows. Import this part as-is.')
+        : ['  ' + csvName + '  —  Your corrected CSV, ready to import into Shopify.'];
+
       folder.file('README.txt', [
         'Autonom Shopify Guard — corrected package', '',
         'Files in this archive:',
-        '  ' + csvName + '  —  Your corrected CSV, ready to import into Shopify.',
+        ...fileList,
         '  ' + logName + '  —  Every change Autonom made, in plain language.',
         '  ' + reportName + '  —  The full readiness report.', '',
+        ...splitNote,
         'Before importing:',
         '  1. Keep a current Shopify export as a backup.',
         '  2. Resolve any critical issues still listed in the report.',
@@ -2368,6 +2776,7 @@
         'A passing report does not guarantee Shopify will accept the import.', '',
         'Generated locally in your browser — no file contents were transmitted.', ''
       ].join('\n'));
+
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2387,10 +2796,13 @@
     state.file = null; state.fileName = ''; state.fileSize = 0; state.fileText = '';
     state.headers = []; state.rows = []; state.mode = null;
     state.detectedMode = null; state.detectedConfidence = null; state.detectedReason = '';
+    state.detectedDelimiter = ',';
     state.result = null; state.repairs = null; state.acceptedRepairs = {};
     state.correctedCSV = null; state.changeLog = null; state.appliedCodes = null;
+    state.splitParts = null;
     state.hasBOM = false; state.detectedEncoding = 'UTF-8';
     state.showRowContext = {};
+    state.diffViewMode = 'detailed';
     state.parseFieldMismatches = 0;
     const fi = document.getElementById('asg-file-input');
     if (fi) fi.value = '';
@@ -2402,14 +2814,22 @@
     $$('.asg-scan-steps li').forEach(el => el.classList.remove('is-running', 'is-done'));
     const oldWarn = document.querySelector('.asg-export-warning');
     if (oldWarn) oldWarn.remove();
+    const oldSplit = document.querySelector('.asg-export-split');
+    if (oldSplit) oldSplit.remove();
     const diffSection = document.getElementById('asg-diff-section');
     if (diffSection) diffSection.hidden = true;
     const diffList = document.getElementById('asg-diff-list');
     if (diffList) { diffList.hidden = true; diffList.innerHTML = ''; }
+    const viewToggle = document.getElementById('asg-diff-view-toggle');
+    if (viewToggle) viewToggle.hidden = true;
+    const checklist = document.getElementById('asg-export-checklist');
+    if (checklist) checklist.innerHTML = '';
     const sampleWrap = document.getElementById('asg-file-sample');
     if (sampleWrap) sampleWrap.hidden = true;
     const detectBanner = document.getElementById('asg-detect-banner');
     if (detectBanner) detectBanner.hidden = true;
+    const delimBanner = document.getElementById('asg-delim-banner');
+    if (delimBanner) delimBanner.hidden = true;
     const grid = document.getElementById('asg-mode-grid');
     if (grid) grid.classList.remove('is-hidden');
     showScreen('landing');
@@ -2459,6 +2879,9 @@
     const removeFileBtn = document.getElementById('asg-remove-file-btn');
     const detectOverride = document.getElementById('asg-detect-override');
     const toggleSample = document.getElementById('asg-toggle-sample');
+    const delimConvert = document.getElementById('asg-delim-convert');
+    const selectAllBtn = document.getElementById('asg-repair-select-all');
+    const deselectAllBtn = document.getElementById('asg-repair-deselect-all');
 
     dropzone.addEventListener('click', e => {
       if (e.target.tagName === 'LABEL' || e.target.closest('label')) return;
@@ -2493,7 +2916,7 @@
           banner.classList.add('is-low');
           document.getElementById('asg-detect-icon').textContent = '✋';
           document.getElementById('asg-detect-line').textContent = 'Mode: ' + (state.mode === 'existing_products' ? 'Updating existing products' : 'Adding new products');
-          document.getElementById('asg-detect-sub').textContent = 'You selected this. Autonom will use the corresponding checks.';
+          document.getElementById('asg-detect-sub').textContent = 'You selected this.';
         }
         updateActionBar('setup');
       });
@@ -2518,6 +2941,37 @@
         const isHidden = table.style.display === 'none';
         table.style.display = isHidden ? '' : 'none';
         toggleSample.textContent = isHidden ? 'Hide preview' : 'Show preview';
+      });
+    }
+
+    if (delimConvert) {
+      delimConvert.addEventListener('click', () => {
+        if (state.detectedDelimiter === ',') return;
+        const converted = convertDelimiter(state.fileText, state.detectedDelimiter, ',');
+        const parsed = fallbackParseCSV(converted);
+        state.headers = parsed.fields;
+        state.rows = parsed.data;
+        state.fileText = converted;
+        state.detectedDelimiter = ',';
+        renderFilePreview();
+        renderFileSample();
+        renderDelimiterBanner();
+        const detection = detectMode(state.headers, state.rows);
+        state.detectedMode = detection.mode;
+        state.detectedConfidence = detection.confidence;
+        state.detectedReason = detection.reason;
+        renderDetectionBanner();
+      });
+    }
+
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', () => {
+        $$('#asg-repair-review-list input[data-accept]').forEach(i => { i.checked = true; });
+      });
+    }
+    if (deselectAllBtn) {
+      deselectAllBtn.addEventListener('click', () => {
+        $$('#asg-repair-review-list input[data-accept]').forEach(i => { i.checked = false; });
       });
     }
 
@@ -2551,7 +3005,7 @@
     initPrivacyMonitor();
     wireEvents();
     showScreen('landing');
-    LOG('Init complete — v1.7.3');
+    LOG('Init complete — v1.8.2');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
