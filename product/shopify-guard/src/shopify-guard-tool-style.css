@@ -1,5 +1,5 @@
 /* ============================================================================
-   AUTONOM SHOPIFY GUARD v1.8.2.1 — Complete stylesheet
+   AUTONOM SHOPIFY GUARD v2.0.1 — Complete stylesheet with multiple upload
    Scoped under .asg-root
    ========================================================================= */
 
@@ -818,6 +818,574 @@
 .asg-diff-compact .asg-diff-cell-before { background: #fdf1f1; color: #a02020; }
 .asg-diff-compact .asg-diff-cell-after { background: var(--asg-passed-bg); color: var(--asg-passed); }
 .asg-diff-compact .asg-diff-cell-reason { color: var(--asg-text-muted); font-family: var(--asg-sans); font-size: 11px; }
+
+/* ============================================================================
+   v1.9.0 — BATCH MODE ADDITIONS
+   ========================================================================= */
+
+/* ---------- Batch queue screen ---------- */
+.asg-batch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.asg-batch-file {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--asg-bg-soft);
+  border: 1px solid var(--asg-border);
+  border-radius: var(--asg-radius);
+  padding: 14px 18px;
+}
+.asg-batch-file-icon { font-size: 22px; flex-shrink: 0; }
+.asg-batch-file-info { flex: 1; min-width: 0; }
+.asg-batch-file-name {
+  font-weight: 600;
+  font-size: 14px;
+  word-break: break-all;
+}
+.asg-batch-file-meta {
+  font-size: 12px;
+  color: var(--asg-text-muted);
+  margin-top: 2px;
+  font-family: var(--asg-mono);
+}
+.asg-batch-file-remove {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.asg-batch-mode-title {
+  font-size: 15px;
+  margin: 24px 0 14px;
+  font-weight: 600;
+}
+
+/* ---------- Batch progress on scanning screen ---------- */
+.asg-batch-progress {
+  margin-bottom: 22px;
+}
+.asg-batch-progress-track {
+  height: 6px;
+  background: var(--asg-bg-muted);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.asg-batch-progress-bar {
+  height: 100%;
+  background: var(--asg-accent);
+  border-radius: 999px;
+  width: 0%;
+  transition: width 200ms ease;
+}
+.asg-batch-progress-label {
+  font-size: 12px;
+  color: var(--asg-text-muted);
+  font-family: var(--asg-mono);
+  text-align: right;
+}
+
+/* ---------- File badges on issues (batch report) ---------- */
+.asg-issue-file-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--asg-mono);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--asg-bg-muted);
+  color: var(--asg-text-muted);
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ---------- Per-file summary cards on report ---------- */
+.asg-batch-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.asg-batch-file-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--asg-bg-soft);
+  border: 1px solid var(--asg-border);
+  border-radius: var(--asg-radius);
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.asg-batch-file-card:hover {
+  border-color: var(--asg-border-strong);
+  background: var(--asg-bg);
+}
+.asg-batch-file-card.is-selected {
+  border-color: var(--asg-accent);
+  background: #eef3ff;
+}
+.asg-batch-file-card-icon { font-size: 18px; flex-shrink: 0; }
+.asg-batch-file-card-body { flex: 1; min-width: 0; }
+.asg-batch-file-card-name {
+  font-weight: 600;
+  font-size: 13px;
+  word-break: break-all;
+}
+.asg-batch-file-card-counts {
+  font-size: 11px;
+  font-family: var(--asg-mono);
+  color: var(--asg-text-muted);
+  margin-top: 2px;
+}
+.asg-batch-file-card-counts .is-critical { color: var(--asg-critical); font-weight: 700; }
+.asg-batch-file-card-counts .is-warning { color: var(--asg-warning); font-weight: 700; }
+.asg-batch-file-card-counts .is-passed { color: var(--asg-passed); font-weight: 700; }
+
+/* ---------- Export file tree ---------- */
+.asg-export-files {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.asg-batch-export-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--asg-bg-soft);
+  border: 1px solid var(--asg-border);
+  border-radius: var(--asg-radius);
+  margin-bottom: 10px;
+}
+.asg-batch-export-header-icon { font-size: 24px; }
+.asg-batch-export-header-name {
+  font-weight: 600;
+  font-size: 14px;
+  font-family: var(--asg-mono);
+}
+
+.asg-batch-export-group {
+  margin-left: 24px;
+  padding-left: 16px;
+  border-left: 2px solid var(--asg-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.asg-batch-export-item {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--asg-bg-soft);
+  border: 1px solid var(--asg-border);
+  border-radius: var(--asg-radius-sm);
+}
+.asg-batch-export-item-icon { font-size: 18px; flex-shrink: 0; }
+.asg-batch-export-item-info { min-width: 0; }
+.asg-batch-export-item-name {
+  font-family: var(--asg-mono);
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-all;
+}
+.asg-batch-export-item-desc {
+  font-size: 11px;
+  color: var(--asg-text-muted);
+  margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .asg-batch-export-group { margin-left: 12px; padding-left: 12px; }
+  .asg-batch-file { padding: 12px 14px; }
+  .asg-batch-file-card { padding: 10px 12px; }
+}
+
+/* ============================================================================
+   v1.9.1 — COLUMN MAPPING
+   ========================================================================= */
+
+.asg-mapping-banner {
+  display: flex; gap: 14px; align-items: center;
+  background: #eef3ff;
+  border: 1px solid #c9d3e6;
+  border-radius: var(--asg-radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+.asg-mapping-banner-icon { font-size: 22px; flex-shrink: 0; }
+.asg-mapping-banner-body { flex: 1; min-width: 0; }
+.asg-mapping-banner-line { font-size: 14px; font-weight: 600; color: var(--asg-text); }
+.asg-mapping-banner-sub { font-size: 12px; color: var(--asg-text-muted); margin-top: 2px; }
+
+.asg-mapping-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.asg-mapping-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: center;
+  background: var(--asg-bg-soft);
+  border: 1px solid var(--asg-border);
+  border-radius: var(--asg-radius);
+  padding: 14px 18px;
+}
+.asg-mapping-row.is-suggested { border-color: #c9d3e6; background: #f3f6fd; }
+.asg-mapping-row.is-unmapped { border-color: #eedcb4; background: #fdfaf2; }
+.asg-mapping-row.is-conflict { border-color: #f4c5c5; background: var(--asg-critical-bg); }
+
+.asg-mapping-source {
+  min-width: 0;
+}
+.asg-mapping-source-name {
+  font-family: var(--asg-mono);
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-all;
+  color: var(--asg-text);
+}
+.asg-mapping-source-meta {
+  font-size: 11px;
+  color: var(--asg-text-muted);
+  margin-top: 4px;
+}
+.asg-mapping-source-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.asg-mapping-source-badge.is-suggested { background: #e6ecfa; color: var(--asg-accent); }
+.asg-mapping-source-badge.is-saved { background: var(--asg-passed-bg); color: var(--asg-passed); }
+
+.asg-mapping-arrow {
+  font-size: 18px;
+  color: var(--asg-text-dim);
+  text-align: center;
+}
+
+.asg-mapping-target {
+  min-width: 0;
+}
+.asg-mapping-select {
+  width: 100%;
+  font-family: var(--asg-sans);
+  font-size: 13px;
+  padding: 8px 12px;
+  border: 1px solid var(--asg-border);
+  border-radius: var(--asg-radius-sm);
+  background: var(--asg-bg);
+  color: var(--asg-text);
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+.asg-mapping-select:hover { border-color: var(--asg-border-strong); }
+.asg-mapping-select:focus {
+  outline: none;
+  border-color: var(--asg-accent);
+  box-shadow: 0 0 0 3px rgba(42,79,214,0.08);
+}
+
+.asg-mapping-warning {
+  background: var(--asg-critical-bg);
+  border: 1px solid #f4c5c5;
+  border-radius: var(--asg-radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--asg-text);
+}
+.asg-mapping-warning strong { color: var(--asg-critical); }
+
+@media (max-width: 640px) {
+  .asg-mapping-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .asg-mapping-arrow { transform: rotate(90deg); }
+}
+
+/* ============================================================================
+   v2.0 — COMPARISON MODE
+   ========================================================================= */
+
+.asg-compare-line {
+  text-align: center;
+  font-size: 13px;
+  color: var(--asg-text-muted);
+  margin: 0 0 40px;
+}
+
+.asg-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.asg-compare-slot { min-width: 0; }
+
+.asg-compare-slot-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--asg-text-muted);
+  margin-bottom: 12px;
+}
+
+.asg-compare-dropzone {
+  border: 2px dashed var(--asg-border-strong);
+  border-radius: var(--asg-radius);
+  background: var(--asg-bg);
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.asg-compare-dropzone:hover,
+.asg-compare-dropzone:focus-visible {
+  border-color: var(--asg-accent);
+  background: var(--asg-bg-soft);
+  outline: none;
+}
+.asg-compare-dropzone.is-dragover {
+  border-color: var(--asg-accent);
+  background: #eef3ff;
+}
+.asg-compare-dropzone.has-file {
+  display: none;
+}
+
+.asg-compare-dropzone-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+.asg-compare-dropzone-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.asg-compare-dropzone-meta {
+  font-size: 12px;
+  color: var(--asg-text-dim);
+  margin: 0;
+}
+
+.asg-compare-file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--asg-bg-soft);
+  border: 1px solid var(--asg-border);
+  border-radius: var(--asg-radius);
+  padding: 14px 16px;
+}
+.asg-compare-file-info-icon { font-size: 22px; flex-shrink: 0; }
+.asg-compare-file-info-body { flex: 1; min-width: 0; }
+.asg-compare-file-info-name {
+  font-weight: 600;
+  font-size: 13px;
+  word-break: break-all;
+}
+.asg-compare-file-info-meta {
+  font-size: 11px;
+  color: var(--asg-text-muted);
+  margin-top: 2px;
+  font-family: var(--asg-mono);
+}
+.asg-compare-file-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--asg-text-muted);
+  padding: 4px 8px;
+}
+.asg-compare-file-remove:hover { color: var(--asg-critical); }
+
+.asg-compare-note {
+  font-size: 12px;
+  color: var(--asg-text-dim);
+  text-align: center;
+  margin: 20px 0 0;
+}
+
+@media (max-width: 640px) {
+  .asg-compare-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================================
+   v2.0.1 — MODE CHOICE, BACK BUTTONS, TOOL FOOTER
+   ========================================================================= */
+
+.asg-mode-choice {
+  margin-top: 40px;
+  margin-bottom: 20px;
+}
+
+.asg-mode-choice-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  color: var(--asg-text-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.asg-mode-choice-divider::before,
+.asg-mode-choice-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--asg-border);
+}
+
+.asg-mode-choice-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 22px 24px;
+  background: linear-gradient(135deg, #eef3ff 0%, #ffffff 100%);
+  border: 1.5px solid #c9d3e6;
+  border-radius: var(--asg-radius);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 140ms ease;
+}
+.asg-mode-choice-card:hover {
+  border-color: var(--asg-accent);
+  box-shadow: 0 6px 20px rgba(42,79,214,0.12);
+  transform: translateY(-1px);
+}
+.asg-mode-choice-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--asg-accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 22px;
+  font-weight: 700;
+}
+.asg-mode-choice-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.asg-mode-choice-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--asg-text);
+  letter-spacing: -0.01em;
+}
+.asg-mode-choice-desc {
+  font-size: 13px;
+  color: var(--asg-text-muted);
+  line-height: 1.5;
+}
+.asg-mode-choice-arrow {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: var(--asg-accent);
+  font-weight: 700;
+  transition: transform 160ms ease;
+}
+.asg-mode-choice-card:hover .asg-mode-choice-arrow {
+  transform: translateX(4px);
+}
+
+.asg-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 20px;
+  color: var(--asg-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.asg-back-btn:hover { color: var(--asg-text); }
+
+.asg-export-end {
+  text-align: center;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--asg-border);
+}
+.asg-export-end p {
+  font-size: 14px;
+  color: var(--asg-text-muted);
+  margin-bottom: 14px;
+}
+
+.asg-tool-footer {
+  margin-top: 60px;
+  padding: 24px 24px 0;
+  border-top: 1px solid var(--asg-border);
+}
+.asg-tool-footer-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 24px;
+}
+.asg-tool-footer-mark {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--asg-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.asg-tool-footer-note {
+  font-size: 12px;
+  color: var(--asg-text-dim);
+}
+
+@media (max-width: 640px) {
+  .asg-mode-choice-card { padding: 18px; gap: 14px; }
+  .asg-mode-choice-icon { width: 40px; height: 40px; font-size: 18px; }
+  .asg-mode-choice-desc { font-size: 12px; }
+  .asg-tool-footer-inner { flex-direction: column; text-align: center; }
+}
 
 /* ============================================================================
    STICKY ACTION BAR & FOOTER
