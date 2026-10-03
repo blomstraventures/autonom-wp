@@ -1,5 +1,6 @@
 /* ============================================================================
-   AUTONOM SHOPIFY GUARD — Client-side engine v1.8.2
+   AUTONOM SHOPIFY GUARD — Client-side engine v2.0.1
+   Batch Mode + Column Mapping + Comparison Mode
    All processing is local. No file contents are transmitted.
    ========================================================================= */
 
@@ -49,6 +50,102 @@
   const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|avif|svg|bmp|tiff?)(\?|#|$)/i;
   const PRIVATE_CDN_PATTERN = /(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.|10\.\d+\.|172\.(1[6-9]|2\d|3[01])\.|\.local\b|\.internal\b|\.lan\b|\.test\b)/i;
   const VARIANT_OPTION_COLUMNS = ['Option1 Name', 'Option1 Value', 'Option2 Name', 'Option2 Value', 'Option3 Name', 'Option3 Value'];
+
+  const MAPPING_TARGETS = [
+    { value: '', label: '(ignore this column)' },
+    { value: 'Handle', label: 'Handle' },
+    { value: 'Title', label: 'Title' },
+    { value: 'Body (HTML)', label: 'Body (HTML)' },
+    { value: 'Vendor', label: 'Vendor' },
+    { value: 'Product Category', label: 'Product Category' },
+    { value: 'Type', label: 'Type' },
+    { value: 'Tags', label: 'Tags' },
+    { value: 'Published', label: 'Published' },
+    { value: 'Option1 Name', label: 'Option1 Name' },
+    { value: 'Option1 Value', label: 'Option1 Value' },
+    { value: 'Option2 Name', label: 'Option2 Name' },
+    { value: 'Option2 Value', label: 'Option2 Value' },
+    { value: 'Option3 Name', label: 'Option3 Name' },
+    { value: 'Option3 Value', label: 'Option3 Value' },
+    { value: 'Variant SKU', label: 'Variant SKU' },
+    { value: 'Variant Grams', label: 'Variant Grams' },
+    { value: 'Variant Inventory Tracker', label: 'Variant Inventory Tracker' },
+    { value: 'Variant Inventory Qty', label: 'Variant Inventory Qty' },
+    { value: 'Variant Inventory Policy', label: 'Variant Inventory Policy' },
+    { value: 'Variant Fulfillment Service', label: 'Variant Fulfillment Service' },
+    { value: 'Variant Price', label: 'Variant Price' },
+    { value: 'Variant Compare At Price', label: 'Variant Compare At Price' },
+    { value: 'Variant Requires Shipping', label: 'Variant Requires Shipping' },
+    { value: 'Variant Taxable', label: 'Variant Taxable' },
+    { value: 'Variant Barcode', label: 'Variant Barcode' },
+    { value: 'Image Src', label: 'Image Src' },
+    { value: 'Image Position', label: 'Image Position' },
+    { value: 'Image Alt Text', label: 'Image Alt Text' },
+    { value: 'Gift Card', label: 'Gift Card' },
+    { value: 'SEO Title', label: 'SEO Title' },
+    { value: 'SEO Description', label: 'SEO Description' },
+    { value: 'Status', label: 'Status' }
+  ];
+
+  const COLUMN_MAPPING_DICTIONARY = {
+    'handle': 'Handle', 'url handle': 'Handle', 'slug': 'Handle', 'url slug': 'Handle', 'url': 'Handle',
+    'item name': 'Title', 'product name': 'Title', 'product title': 'Title', 'name': 'Title', 'item title': 'Title',
+    'body': 'Body (HTML)', 'body html': 'Body (HTML)', 'description html': 'Body (HTML)', 'html description': 'Body (HTML)',
+    'long description': 'Body (HTML)', 'product description': 'Body (HTML)',
+    'vendor': 'Vendor', 'brand': 'Vendor', 'manufacturer': 'Vendor', 'supplier': 'Vendor', 'brand name': 'Vendor',
+    'type': 'Type', 'product type': 'Type',
+    'category': 'Product Category', 'product category': 'Product Category',
+    'tags': 'Tags', 'keywords': 'Tags', 'labels': 'Tags',
+    'published': 'Published', 'status': 'Status',
+    'option1 name': 'Option1 Name', 'option1 value': 'Option1 Value',
+    'option2 name': 'Option2 Name', 'option2 value': 'Option2 Value',
+    'option3 name': 'Option3 Name', 'option3 value': 'Option3 Value',
+    'sku': 'Variant SKU', 'sku code': 'Variant SKU', 'item code': 'Variant SKU', 'item number': 'Variant SKU',
+    'product code': 'Variant SKU', 'product number': 'Variant SKU', 'article number': 'Variant SKU',
+    'article code': 'Variant SKU', 'variant sku': 'Variant SKU',
+    'weight': 'Variant Grams', 'grams': 'Variant Grams', 'weight in grams': 'Variant Grams',
+    'inventory tracker': 'Variant Inventory Tracker', 'tracker': 'Variant Inventory Tracker',
+    'qty': 'Variant Inventory Qty', 'quantity': 'Variant Inventory Qty', 'stock': 'Variant Inventory Qty',
+    'on hand': 'Variant Inventory Qty', 'available': 'Variant Inventory Qty', 'inventory': 'Variant Inventory Qty',
+    'inventory qty': 'Variant Inventory Qty', 'inventory quantity': 'Variant Inventory Qty',
+    'stock quantity': 'Variant Inventory Qty', 'stock level': 'Variant Inventory Qty',
+    'quantity available': 'Variant Inventory Qty',
+    'inventory policy': 'Variant Inventory Policy', 'fulfillment service': 'Variant Fulfillment Service',
+    'price': 'Variant Price', 'cost': 'Variant Price', 'item price': 'Variant Price', 'retail price': 'Variant Price',
+    'unit price': 'Variant Price', 'sale price': 'Variant Price', 'selling price': 'Variant Price',
+    'regular price': 'Variant Price', 'product price': 'Variant Price',
+    'compare at price': 'Variant Compare At Price', 'compare price': 'Variant Compare At Price',
+    'compare-at price': 'Variant Compare At Price', 'msrp': 'Variant Compare At Price',
+    'list price': 'Variant Compare At Price', 'was price': 'Variant Compare At Price',
+    'original price': 'Variant Compare At Price',
+    'barcode': 'Variant Barcode', 'ean': 'Variant Barcode', 'upc': 'Variant Barcode',
+    'gtin': 'Variant Barcode', 'isbn': 'Variant Barcode',
+    'image': 'Image Src', 'image url': 'Image Src', 'image src': 'Image Src', 'photo': 'Image Src',
+    'photo url': 'Image Src', 'picture': 'Image Src', 'picture url': 'Image Src', 'image link': 'Image Src',
+    'main image': 'Image Src', 'product image': 'Image Src',
+    'seo title': 'SEO Title', 'seo description': 'SEO Description',
+    'meta title': 'SEO Title', 'meta description': 'SEO Description', 'page title': 'SEO Title'
+  };
+
+  const COMPARE_FIELD_CATEGORIES = {
+    'Variant Price': { cat: 'price', label: 'price' },
+    'Variant Compare At Price': { cat: 'price', label: 'compare-at price' },
+    'Cost per item': { cat: 'price', label: 'cost' },
+    'Variant Inventory Qty': { cat: 'inventory', label: 'inventory' },
+    'Title': { cat: 'identity', label: 'title' },
+    'Handle': { cat: 'identity', label: 'handle' },
+    'Variant SKU': { cat: 'identity', label: 'SKU' },
+    'Body (HTML)': { cat: 'content', label: 'description' },
+    'SEO Title': { cat: 'content', label: 'SEO title' },
+    'SEO Description': { cat: 'content', label: 'SEO description' },
+    'Image Src': { cat: 'content', label: 'image' },
+    'Vendor': { cat: 'metadata', label: 'vendor' },
+    'Type': { cat: 'metadata', label: 'type' },
+    'Tags': { cat: 'metadata', label: 'tags' },
+    'Published': { cat: 'metadata', label: 'published status' },
+    'Status': { cat: 'metadata', label: 'status' },
+    'Product Category': { cat: 'metadata', label: 'category' }
+  };
 
   const ISSUE_GUIDES = {
     TITLE_MISSING: { what: 'A product row has no Title.', why: 'Shopify requires a Title to create or update a product. Without it, the row is rejected.', action: 'Add a Title to the first row of each product.' },
@@ -102,6 +199,22 @@
   };
 
   const state = {
+    files: [],
+    currentFileIndex: 0,
+    batchMode: null,
+    batchDetectedMode: null,
+    batchDetectedConfidence: null,
+    batchDetectedReason: '',
+
+    pendingMappingIndices: [],
+    currentMappingIndex: 0,
+    mappingDraft: {},
+
+    compareMode: false,
+    compareStoreFile: null,
+    compareUpdateFile: null,
+    compareResult: null,
+
     file: null, fileName: '', fileSize: 0, fileText: '',
     hasBOM: false, detectedEncoding: 'UTF-8',
     detectedDelimiter: ',',
@@ -116,7 +229,6 @@
     networkStats: { files: 0, bytes: 0, requests: 0 }
   };
 
-  /* ---------------- Utilities ---------------- */
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
@@ -245,7 +357,92 @@
     return sku;
   }
 
-  /* ---------------- Delimiter detection ---------------- */
+  function hashHeaders(headers) {
+    return headers.map(h => String(h == null ? '' : h).trim().toLowerCase()).sort().join('|');
+  }
+
+  function loadSavedMapping(headers) {
+    try {
+      const key = 'autonom_mapping_v1_' + hashHeaders(headers);
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+
+  function saveMapping(headers, mapping) {
+    try {
+      const key = 'autonom_mapping_v1_' + hashHeaders(headers);
+      localStorage.setItem(key, JSON.stringify(mapping));
+    } catch (e) { LOG('Could not save mapping', e); }
+  }
+
+  function suggestMapping(headers) {
+    const suggestions = {};
+    headers.forEach(h => {
+      const key = String(h == null ? '' : h).trim().toLowerCase();
+      if (COLUMN_MAPPING_DICTIONARY[key]) {
+        suggestions[h] = COLUMN_MAPPING_DICTIONARY[key];
+      }
+    });
+    return suggestions;
+  }
+
+  function needsMappingForFile(fileIdx) {
+    const f = state.files[fileIdx];
+    if (!f) return false;
+    if (f.mapped) return false;
+    const lower = f.headers.map(h => String(h == null ? '' : h).trim().toLowerCase());
+    const required = f.mode === 'new_products' ? REQUIRED_COLUMNS_NEW : ['Handle'];
+    const missingRequired = required.some(req => lower.indexOf(req.toLowerCase()) === -1);
+    const knownLower = KNOWN_COLUMNS.map(c => c.toLowerCase());
+    let unknownCount = 0;
+    f.headers.forEach(h => {
+      const hl = String(h == null ? '' : h).trim().toLowerCase();
+      if (!hl) return;
+      if (knownLower.indexOf(hl) === -1 && !/^Metafield:|^mf_|^Google Shopping|^Cost per item|^Variant Inventory/.test(h)) {
+        unknownCount++;
+      }
+    });
+    return missingRequired || unknownCount >= 3;
+  }
+
+  function applyMappingToFile(fileIdx, mapping) {
+    const f = state.files[fileIdx];
+    if (!f) return;
+    applyMappingToFileData(f, mapping);
+  }
+
+  function applyMappingToFileData(f, mapping) {
+    if (!f) return;
+    const oldHeaders = f.headers.slice();
+    const newHeaders = [];
+    const headerMap = {};
+    oldHeaders.forEach(h => {
+      if (Object.prototype.hasOwnProperty.call(mapping, h) && mapping[h] === '') {
+        headerMap[h] = null;
+      } else {
+        const target = mapping[h] || h;
+        newHeaders.push(target);
+        headerMap[h] = target;
+      }
+    });
+    const newRows = f.rows.map(row => {
+      const newRow = {};
+      oldHeaders.forEach(h => {
+        if (headerMap[h] === null) return;
+        newRow[headerMap[h]] = row[h];
+      });
+      return newRow;
+    });
+    f.headers = newHeaders;
+    f.rows = newRows;
+    f.mapped = true;
+    f.mapping = Object.assign({}, mapping);
+  }
+
   function detectDelimiter(text) {
     const sample = text.split(/\r?\n/).slice(0, 5).join('\n');
     const counts = {
@@ -280,7 +477,6 @@
       }
     }
     if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
-
     const escape = val => {
       const s = val == null ? '' : String(val);
       if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
@@ -289,7 +485,6 @@
     return rows.map(r => r.map(escape).join(to)).join('\n');
   }
 
-  /* ---------------- Row classification ---------------- */
   function classifyRows() {
     const byHandle = {};
     state.rows.forEach((row, i) => {
@@ -331,7 +526,6 @@
     return { isImage, isPrimary, isVariant };
   }
 
-  /* ---------------- Image row detection ---------------- */
   function detectImageRows() {
     const byHandle = {};
     state.rows.forEach((row, i) => {
@@ -439,7 +633,6 @@
     Object.keys(sigs).forEach(sig => {
       const idxs = sigs[sig];
       if (idxs.length > 1) {
-        // Skip the first as original; report the rest
         for (let k = 1; k < idxs.length; k++) {
           const row = state.rows[idxs[k]];
           results.push({
@@ -463,7 +656,6 @@
     return true;
   }
 
-  /* ---------------- Split ---------------- */
   function splitRowsIntoChunks(rows, headers, targetBytes, baseName) {
     const TARGET = targetBytes || SPLIT_TARGET_BYTES;
 
@@ -503,14 +695,11 @@
     const chunks = [];
     let currentIndices = [];
     let currentBytes = headerBytes;
-    let oversizedSingleGroup = false;
 
     groups.forEach(group => {
       const groupRows = group.map(idx => rows[idx]);
       const groupCsv = renderChunk(groupRows);
       const groupBytes = new Blob([groupCsv]).size - headerBytes;
-
-      if (groupBytes > TARGET - headerBytes) oversizedSingleGroup = true;
 
       if (currentBytes + groupBytes > TARGET && currentIndices.length > 0) {
         chunks.push(currentIndices);
@@ -533,7 +722,6 @@
     }));
   }
 
-  /* ---------------- Fallback parser ---------------- */
   function fallbackParseCSV(text) {
     const lines = [];
     let cur = '', row = [], inQuotes = false;
@@ -563,7 +751,6 @@
     return { fields, data };
   }
 
-  /* ---------------- Lazy loaders ---------------- */
   function loadPapaParse() {
     return new Promise((resolve, reject) => {
       if (typeof window.Papa !== 'undefined') return resolve();
@@ -600,7 +787,6 @@
     });
   }
 
-  /* ---------------- Privacy monitor ---------------- */
   function initPrivacyMonitor() {
     if (!('PerformanceObserver' in window)) return;
     try {
@@ -627,7 +813,6 @@
     if (r) r.textContent = state.networkStats.requests;
   }
 
-  /* ---------------- Encoding ---------------- */
   function detectEncoding(buf) {
     const bytes = new Uint8Array(buf);
     if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF)
@@ -643,7 +828,6 @@
     } catch (e) { return { encoding: 'ISO-8859-1', hasBOM: false }; }
   }
 
-  /* ---------------- Mode detection ---------------- */
   function detectMode(headers, rows) {
     const lower = headers.map(h => h.toLowerCase());
     const has = col => lower.indexOf(col) !== -1;
@@ -684,7 +868,7 @@
       sub.textContent = state.detectedReason || '';
       state.mode = state.detectedMode;
       $$('.asg-mode-card').forEach(c => c.classList.remove('is-selected'));
-      const card = document.querySelector('.asg-mode-card[data-mode="' + state.detectedMode + '"]');
+      const card = document.querySelector('#asg-mode-grid .asg-mode-card[data-mode="' + state.detectedMode + '"]');
       if (card) card.classList.add('is-selected');
     } else {
       banner.hidden = false;
@@ -709,46 +893,178 @@
     }
   }
 
-  /* ---------------- File handling ---------------- */
+  function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = (e) => reject(e);
+      reader.onload = (e) => {
+        const buf = e.target.result;
+        const enc = detectEncoding(buf);
+        let text;
+        if (enc.encoding === 'UTF-16LE' || enc.encoding === 'UTF-16BE') text = new TextDecoder(enc.encoding).decode(buf);
+        else if (enc.encoding === 'ISO-8859-1') text = new TextDecoder('iso-8859-1').decode(buf);
+        else text = new TextDecoder('utf-8').decode(buf);
+        if (enc.hasBOM && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        resolve({ text, hasBOM: enc.hasBOM, encoding: enc.encoding });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
   function handleFile(file) {
-    if (!file) return;
-    if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') { alert('Please choose a .csv file.'); return; }
-    if (file.size > 50 * 1024 * 1024) { alert('This file is larger than 50MB.'); return; }
-    state.file = file;
-    state.fileName = file.name;
-    state.fileSize = file.size;
+    handleFiles([file]);
+  }
 
-    const reader = new FileReader();
-    reader.onload = e => {
-      const buf = e.target.result;
-      const enc = detectEncoding(buf);
-      state.hasBOM = enc.hasBOM;
-      state.detectedEncoding = enc.encoding;
-      let text;
-      if (enc.encoding === 'UTF-16LE' || enc.encoding === 'UTF-16BE') text = new TextDecoder(enc.encoding).decode(buf);
-      else if (enc.encoding === 'ISO-8859-1') text = new TextDecoder('iso-8859-1').decode(buf);
-      else text = new TextDecoder('utf-8').decode(buf);
-      if (state.hasBOM && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-      state.fileText = text;
-      state.detectedDelimiter = detectDelimiter(text);
+  async function handleFiles(fileList) {
+    const files = Array.from(fileList || []).filter(f => f);
+    if (!files.length) return;
 
-      // Parse a first attempt with the detected delimiter to build preview
-      let parseText = text;
-      if (state.detectedDelimiter !== ',') parseText = convertDelimiter(text, state.detectedDelimiter, ',');
-      const parsed = fallbackParseCSV(parseText);
-      state.headers = parsed.fields;
-      state.rows = parsed.data;
-      const detection = detectMode(state.headers, state.rows);
-      state.detectedMode = detection.mode;
-      state.detectedConfidence = detection.confidence;
-      state.detectedReason = detection.reason;
+    if (state.files.length + files.length > 20) {
+      alert('Maximum 20 files per batch. Please split into smaller batches.');
+      return;
+    }
+
+    for (const file of files) {
+      if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') {
+        alert('Skipped ' + file.name + ': not a CSV file.');
+        continue;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        alert('Skipped ' + file.name + ': larger than 50MB.');
+        continue;
+      }
+
+      try {
+        const { text, hasBOM, encoding } = await readFileAsText(file);
+        const delimiter = detectDelimiter(text);
+
+        let parseText = text;
+        if (delimiter !== ',') parseText = convertDelimiter(text, delimiter, ',');
+        const parsed = fallbackParseCSV(parseText);
+
+        const detection = detectMode(parsed.fields, parsed.data);
+
+        state.files.push({
+          file: file,
+          fileName: file.name,
+          fileSize: file.size,
+          fileText: text,
+          hasBOM: hasBOM,
+          detectedEncoding: encoding,
+          detectedDelimiter: delimiter,
+          headers: parsed.fields,
+          rows: parsed.data,
+          mode: null,
+          detectedMode: detection.mode,
+          detectedConfidence: detection.confidence,
+          detectedReason: detection.reason,
+          result: null,
+          repairs: null,
+          acceptedRepairs: {},
+          correctedCSV: null,
+          changeLog: null,
+          appliedCodes: null,
+          splitParts: null,
+          parseFieldMismatches: 0,
+          status: 'ready',
+          mapped: false,
+          mapping: null
+        });
+      } catch (err) {
+        LOG('Could not read file', file.name, err);
+        alert('Could not read ' + file.name);
+      }
+    }
+
+    if (!state.files.length) {
+      resetToLanding();
+      return;
+    }
+
+    state.files.forEach((f, i) => {
+      const saved = loadSavedMapping(f.headers);
+      if (saved) {
+        applyMappingToFileData(f, saved);
+        const det = detectMode(f.headers, f.rows);
+        f.detectedMode = det.mode;
+        f.detectedConfidence = det.confidence;
+        f.detectedReason = det.reason;
+      }
+    });
+
+    const needsMapping = [];
+    state.files.forEach((f, i) => {
+      const savedMode = f.mode;
+      if (!f.mode) f.mode = f.detectedMode || 'existing_products';
+      if (needsMappingForFile(i)) needsMapping.push(i);
+      f.mode = savedMode;
+    });
+
+    if (needsMapping.length > 0) {
+      state.pendingMappingIndices = needsMapping.slice();
+      state.currentMappingIndex = 0;
+      renderMappingScreen();
+      showScreen('mapping');
+      return;
+    }
+
+    if (state.files.length === 1) {
+      loadFileIntoWorking(0);
       renderFilePreview();
       renderFileSample();
       renderDetectionBanner();
       renderDelimiterBanner();
       showScreen('setup');
-    };
-    reader.readAsArrayBuffer(file);
+    } else {
+      const first = state.files[0];
+      state.batchMode = first.detectedMode;
+      state.batchDetectedMode = first.detectedMode;
+      state.batchDetectedConfidence = first.detectedConfidence;
+      state.batchDetectedReason = first.detectedReason;
+      renderBatchQueue();
+      showScreen('batch-queue');
+    }
+  }
+
+  function loadFileIntoWorking(index) {
+    const entry = state.files[index];
+    if (!entry) return;
+    state.currentFileIndex = index;
+    state.file = entry.file;
+    state.fileName = entry.fileName;
+    state.fileSize = entry.fileSize;
+    state.fileText = entry.fileText;
+    state.hasBOM = entry.hasBOM;
+    state.detectedEncoding = entry.detectedEncoding;
+    state.detectedDelimiter = entry.detectedDelimiter;
+    state.headers = entry.headers;
+    state.rows = entry.rows;
+    state.mode = entry.mode;
+    state.detectedMode = entry.detectedMode;
+    state.detectedConfidence = entry.detectedConfidence;
+    state.detectedReason = entry.detectedReason;
+    state.result = entry.result;
+    state.repairs = entry.repairs;
+    state.acceptedRepairs = entry.acceptedRepairs || {};
+    state.correctedCSV = entry.correctedCSV;
+    state.changeLog = entry.changeLog;
+    state.appliedCodes = entry.appliedCodes;
+    state.splitParts = entry.splitParts;
+    state.parseFieldMismatches = entry.parseFieldMismatches;
+  }
+
+  function saveWorkingToFile(index) {
+    const entry = state.files[index];
+    if (!entry) return;
+    entry.mode = state.mode;
+    entry.result = state.result;
+    entry.repairs = state.repairs;
+    entry.acceptedRepairs = state.acceptedRepairs;
+    entry.correctedCSV = state.correctedCSV;
+    entry.changeLog = state.changeLog;
+    entry.appliedCodes = state.appliedCodes;
+    entry.splitParts = state.splitParts;
+    entry.parseFieldMismatches = state.parseFieldMismatches;
   }
 
   function renderFilePreview() {
@@ -784,7 +1100,260 @@
     table.innerHTML = html;
   }
 
-  /* ---------------- Validation ---------------- */
+  function renderBatchQueue() {
+    const titleCount = document.getElementById('asg-batch-count-title');
+    if (titleCount) titleCount.textContent = state.files.length;
+
+    const list = document.getElementById('asg-batch-list');
+    if (list) {
+      list.innerHTML = '';
+      state.files.forEach((entry, i) => {
+        const el = document.createElement('div');
+        el.className = 'asg-batch-file';
+        let rowCount = '—';
+        try { rowCount = Math.max(0, entry.rows.length).toLocaleString(); } catch (e) {}
+        el.innerHTML =
+          '<span class="asg-batch-file-icon">📄</span>' +
+          '<div class="asg-batch-file-info">' +
+            '<div class="asg-batch-file-name">' + escapeHtml(entry.fileName) + '</div>' +
+            '<div class="asg-batch-file-meta">' + formatBytes(entry.fileSize) + ' · ' + rowCount + ' rows · ' + entry.detectedEncoding + (entry.hasBOM ? ' · BOM' : '') + (entry.detectedDelimiter !== ',' ? ' · ' + entry.detectedDelimiter + '-delimited' : '') + (entry.mapped ? ' · Mapped' : '') + '</div>' +
+          '</div>' +
+          '<button type="button" class="asg-btn asg-btn-ghost asg-batch-file-remove" data-index="' + i + '" aria-label="Remove file">✕</button>';
+        list.appendChild(el);
+      });
+      list.querySelectorAll('.asg-batch-file-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-index'), 10);
+          state.files.splice(idx, 1);
+          if (!state.files.length) { resetToLanding(); return; }
+          if (state.files.length === 1) {
+            loadFileIntoWorking(0);
+            renderFilePreview();
+            renderFileSample();
+            renderDetectionBanner();
+            renderDelimiterBanner();
+            showScreen('setup');
+            return;
+          }
+          renderBatchQueue();
+        });
+      });
+    }
+
+    if (state.batchMode) {
+      document.querySelectorAll('#asg-batch-mode-grid .asg-mode-card').forEach(c => {
+        c.classList.toggle('is-selected', c.dataset.mode === state.batchMode);
+      });
+    }
+    updateActionBar('batch-queue');
+  }
+
+  function renderMappingScreen() {
+    const fileIdx = state.pendingMappingIndices[state.currentMappingIndex];
+    if (fileIdx == null) return;
+    const f = state.files[fileIdx];
+    if (!f) return;
+
+    const draft = {};
+    const suggestions = suggestMapping(f.headers);
+    const saved = loadSavedMapping(f.headers);
+    const knownLower = KNOWN_COLUMNS.map(c => c.toLowerCase());
+
+    f.headers.forEach(h => {
+      const hl = String(h == null ? '' : h).trim().toLowerCase();
+      if (saved && Object.prototype.hasOwnProperty.call(saved, h)) {
+        draft[h] = { target: saved[h] || '', source: 'saved' };
+      } else if (knownLower.indexOf(hl) !== -1) {
+        draft[h] = { target: '', source: 'identity' };
+      } else if (suggestions[h]) {
+        draft[h] = { target: suggestions[h], source: 'suggested' };
+      } else {
+        draft[h] = { target: '', source: 'unmapped' };
+      }
+    });
+    state.mappingDraft = draft;
+
+    const sub = document.getElementById('asg-mapping-sub');
+    if (sub) {
+      sub.textContent = 'File ' + (state.currentMappingIndex + 1) + ' of ' + state.pendingMappingIndices.length + ': ' + f.fileName;
+    }
+
+    const banner = document.getElementById('asg-mapping-banner');
+    const bannerLine = document.getElementById('asg-mapping-banner-line');
+    const bannerSub = document.getElementById('asg-mapping-banner-sub');
+    if (banner && bannerLine && bannerSub) {
+      const unknownCount = f.headers.filter(h => {
+        const hl = String(h == null ? '' : h).trim().toLowerCase();
+        return knownLower.indexOf(hl) === -1;
+      }).length;
+      const suggestedCount = Object.keys(draft).filter(h => draft[h].source === 'suggested').length;
+      const savedCount = Object.keys(draft).filter(h => draft[h].source === 'saved').length;
+      if (savedCount > 0) {
+        banner.hidden = false;
+        bannerLine.textContent = 'Using saved mapping';
+        bannerSub.textContent = savedCount + ' column' + (savedCount === 1 ? '' : 's') + ' mapped from a previous scan. Review and confirm.';
+      } else if (suggestedCount > 0) {
+        banner.hidden = false;
+        bannerLine.textContent = 'Autonom suggested ' + suggestedCount + ' mapping' + (suggestedCount === 1 ? '' : 's');
+        bannerSub.textContent = unknownCount + ' unknown column' + (unknownCount === 1 ? '' : 's') + ' detected. Review and adjust before applying.';
+      } else if (unknownCount > 0) {
+        banner.hidden = false;
+        bannerLine.textContent = unknownCount + ' column' + (unknownCount === 1 ? '' : 's') + ' need mapping';
+        bannerSub.textContent = 'Pick a Shopify target for each column, or leave empty to skip.';
+      } else {
+        banner.hidden = true;
+      }
+    }
+
+    const list = document.getElementById('asg-mapping-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    f.headers.forEach(h => {
+      const entry = draft[h];
+      const row = document.createElement('div');
+      let cls = 'asg-mapping-row';
+      if (entry.source === 'suggested') cls += ' is-suggested';
+      else if (entry.source === 'unmapped') cls += ' is-unmapped';
+      row.className = cls;
+      row.dataset.sourceHeader = h;
+
+      let badge = '';
+      if (entry.source === 'suggested') badge = '<span class="asg-mapping-source-badge is-suggested">Suggested</span>';
+      else if (entry.source === 'saved') badge = '<span class="asg-mapping-source-badge is-saved">Saved</span>';
+
+      let selectHtml;
+      if (entry.source === 'identity') {
+        selectHtml = '<select class="asg-mapping-select" data-source="' + escapeHtml(h) + '" disabled><option value="">(already a Shopify column)</option></select>';
+      } else {
+        selectHtml = '<select class="asg-mapping-select" data-source="' + escapeHtml(h) + '">';
+        MAPPING_TARGETS.forEach(t => {
+          const selected = t.value === entry.target ? ' selected' : '';
+          selectHtml += '<option value="' + escapeHtml(t.value) + '"' + selected + '>' + escapeHtml(t.label) + '</option>';
+        });
+        selectHtml += '</select>';
+      }
+
+      row.innerHTML =
+        '<div class="asg-mapping-source">' +
+          '<div class="asg-mapping-source-name">' + escapeHtml(h || '(empty header)') + badge + '</div>' +
+        '</div>' +
+        '<div class="asg-mapping-arrow">→</div>' +
+        '<div class="asg-mapping-target">' + selectHtml + '</div>';
+
+      list.appendChild(row);
+    });
+
+    list.querySelectorAll('.asg-mapping-select').forEach(sel => {
+      sel.addEventListener('change', updateMappingWarning);
+    });
+
+    updateMappingWarning();
+    updateActionBar('mapping');
+  }
+
+  function collectMappingFromScreen() {
+    const mapping = {};
+    document.querySelectorAll('#asg-mapping-list .asg-mapping-select').forEach(sel => {
+      if (sel.disabled) return;
+      const src = sel.getAttribute('data-source');
+      const target = sel.value;
+      mapping[src] = target || '';
+    });
+    return mapping;
+  }
+
+  function updateMappingWarning() {
+    const warning = document.getElementById('asg-mapping-warning');
+    if (!warning) return;
+    const mapping = collectMappingFromScreen();
+    const used = {};
+    const conflicts = [];
+    Object.keys(mapping).forEach(src => {
+      const tgt = mapping[src];
+      if (!tgt) return;
+      if (used[tgt]) conflicts.push(tgt);
+      else used[tgt] = src;
+    });
+    if (conflicts.length > 0) {
+      warning.hidden = false;
+      warning.innerHTML = '<strong>Conflict:</strong> ' + conflicts.map(c => '"' + escapeHtml(c) + '"').join(', ') + ' ' +
+        (conflicts.length === 1 ? 'is assigned to two columns' : 'are each assigned to two columns') +
+        '. Each Shopify column can only receive one source.';
+    } else {
+      warning.hidden = true;
+    }
+  }
+
+  function applyMappingAndContinue() {
+    const mapping = collectMappingFromScreen();
+    const used = {};
+    let hasConflict = false;
+    Object.keys(mapping).forEach(src => {
+      const tgt = mapping[src];
+      if (!tgt) return;
+      if (used[tgt]) { hasConflict = true; return; }
+      used[tgt] = src;
+    });
+    if (hasConflict) {
+      updateMappingWarning();
+      return;
+    }
+
+    const fileIdx = state.pendingMappingIndices[state.currentMappingIndex];
+    const f = state.files[fileIdx];
+    if (f) {
+      const originalHeaders = f.headers.slice();
+      applyMappingToFile(fileIdx, mapping);
+      if (Object.keys(mapping).length > 0) {
+        saveMapping(originalHeaders, mapping);
+      }
+      const det = detectMode(f.headers, f.rows);
+      f.detectedMode = det.mode;
+      f.detectedConfidence = det.confidence;
+      f.detectedReason = det.reason;
+    }
+
+    state.currentMappingIndex++;
+    if (state.currentMappingIndex >= state.pendingMappingIndices.length) {
+      state.pendingMappingIndices = [];
+      state.currentMappingIndex = 0;
+      continueAfterMapping();
+    } else {
+      renderMappingScreen();
+    }
+  }
+
+  function skipMappingAndContinue() {
+    state.currentMappingIndex++;
+    if (state.currentMappingIndex >= state.pendingMappingIndices.length) {
+      state.pendingMappingIndices = [];
+      state.currentMappingIndex = 0;
+      continueAfterMapping();
+    } else {
+      renderMappingScreen();
+    }
+  }
+
+  function continueAfterMapping() {
+    if (state.files.length === 1) {
+      loadFileIntoWorking(0);
+      renderFilePreview();
+      renderFileSample();
+      renderDetectionBanner();
+      renderDelimiterBanner();
+      showScreen('setup');
+    } else {
+      const first = state.files[0];
+      state.batchMode = first.detectedMode;
+      state.batchDetectedMode = first.detectedMode;
+      state.batchDetectedConfidence = first.detectedConfidence;
+      state.batchDetectedReason = first.detectedReason;
+      renderBatchQueue();
+      showScreen('batch-queue');
+    }
+  }
+
   function makeIssue(sev, code, title, extra) {
     const issue = Object.assign({
       severity: sev, code, title,
@@ -805,7 +1374,6 @@
     const passed = [];
     const rowTypes = classifyRows();
 
-    /* Delimiter */
     if (state.detectedDelimiter !== ',') {
       const names = { ';': 'semicolon', '\t': 'tab', '|': 'pipe' };
       issues.push(makeIssue('critical', 'DELIMITER_NOT_COMMA',
@@ -818,7 +1386,6 @@
         }));
     } else passed.push('File uses comma delimiter');
 
-    /* File size */
     if (state.fileSize >= FILE_SIZE_WARNING_BYTES && state.fileSize < FILE_SIZE_LIMIT_BYTES) {
       issues.push(makeIssue('info', 'FILE_SIZE_APPROACHING_LIMIT', 'File size is approaching Shopify\'s 15 MB limit', {
         what_is_wrong: 'Your file is ' + formatBytes(state.fileSize) + '. Shopify rejects files over 15 MB.',
@@ -837,7 +1404,6 @@
       }));
     }
 
-    /* Encoding */
     if (state.hasBOM) {
       issues.push(makeIssue('warning', 'ENCODING_BOM_PRESENT', 'File starts with a byte-order mark (BOM)', {
         what_is_wrong: 'This file has a hidden BOM character at the start.',
@@ -854,7 +1420,6 @@
       }));
     } else passed.push('File encoding is UTF-8');
 
-    /* Smart quotes */
     const smartQuoteRows = [];
     state.rows.forEach((row, i) => {
       for (const key of Object.keys(row)) {
@@ -875,7 +1440,6 @@
       }));
     } else passed.push('No smart quotes detected');
 
-    /* Whitespace */
     const whitespaceRows = [];
     state.rows.forEach((row, i) => {
       for (const col of TEXT_COLUMNS_FOR_WHITESPACE) {
@@ -897,23 +1461,26 @@
       }));
     } else passed.push('No stray whitespace in text cells');
 
-    /* Required headers */
     const headerLower = {};
     state.headers.forEach(h => { headerLower[h.toLowerCase()] = h; });
     if (state.mode === 'new_products') {
       REQUIRED_COLUMNS_NEW.forEach(req => {
-        if (!headerLower[req.toLowerCase()]) {
-          issues.push(makeIssue('critical', 'HEADER_REQUIRED_MISSING', 'Required column "' + req + '" is missing', {
-            what_is_wrong: 'Shopify requires the "' + req + '" column, but it is not present.',
-            why_it_matters: 'Shopify will reject the import entirely.',
-            suggested_action: 'Add the missing column and re-export.',
-            shopify_doc_url: SHOPIFY_DOC_URL
-          }));
-        } else passed.push('Required column present: ' + req);
+        if (headerLower[req.toLowerCase()]) {
+          passed.push('Required column present: ' + req);
+          return;
+        }
+        if (req === 'Handle' && headerLower['title']) {
+          return;
+        }
+        issues.push(makeIssue('critical', 'HEADER_REQUIRED_MISSING', 'Required column "' + req + '" is missing', {
+          what_is_wrong: 'Shopify requires the "' + req + '" column, but it is not present.',
+          why_it_matters: 'Shopify will reject the import entirely.',
+          suggested_action: 'Add the missing column and re-export.',
+          shopify_doc_url: SHOPIFY_DOC_URL
+        }));
       });
     }
 
-    /* Unknown columns */
     const knownLower = KNOWN_COLUMNS.map(c => c.toLowerCase());
     state.headers.forEach(h => {
       if (h && knownLower.indexOf(h.toLowerCase()) === -1 &&
@@ -926,7 +1493,6 @@
       }
     });
 
-    /* Duplicate headers */
     const hCount = {};
     state.headers.forEach(h => { const k = h.toLowerCase(); hCount[k] = (hCount[k] || 0) + 1; });
     Object.keys(hCount).forEach(k => {
@@ -940,7 +1506,6 @@
     });
     if (Object.keys(hCount).length === state.headers.length) passed.push('No duplicate headers');
 
-    /* Title presence */
     const handleFirstTitle = {};
     state.rows.forEach((row, i) => {
       const h = row['Handle']; const t = row['Title'];
@@ -962,7 +1527,6 @@
       }));
     } else passed.push('All products have a Title');
 
-    /* Handles */
     const handleCounts = {};
     const blankNew = [], blankUpdate = [], invalid = [];
     state.rows.forEach((row, i) => {
@@ -1003,7 +1567,6 @@
       }));
     }
 
-    /* Duplicate handles */
     const hTitles = {};
     state.rows.forEach((row, i) => {
       const h = row['Handle'];
@@ -1030,7 +1593,6 @@
     });
     if (!issues.some(i => i.code === 'HANDLE_DUPLICATE_IN_FILE')) passed.push('No conflicting duplicate handles');
 
-    /* SKUs */
     const skuMap = {};
     let whitespaceSKUs = 0;
     state.rows.forEach((row, i) => {
@@ -1063,7 +1625,6 @@
       }));
     } else passed.push('No whitespace in SKUs');
 
-    /* Duplicate identical rows (v1.8.2) */
     const dupIdentical = duplicateIdenticalRows();
     if (dupIdentical.length > 0) {
       const n = dupIdentical.length;
@@ -1076,7 +1637,6 @@
       }));
     } else passed.push('No identical duplicate rows');
 
-    /* Destructive blanks */
     if (state.mode === 'existing_products') {
       if (state.parseFieldMismatches > 0) {
         passed.push('Destructive blank check skipped (file has misaligned rows)');
@@ -1127,7 +1687,6 @@
       }
     }
 
-    /* Orphaned variants */
     const handleOpts = {};
     let orphaned = 0;
     const orphanedRows = [];
@@ -1164,7 +1723,6 @@
       }
     });
 
-    /* Duplicate combos */
     const combosByHandle = {};
     state.rows.forEach((row, i) => {
       const h = row['Handle'];
@@ -1199,7 +1757,6 @@
       }));
     } else passed.push('No duplicate variant option combinations');
 
-    /* Partial collapse */
     const partial = [];
     state.rows.forEach((row, i) => {
       for (let n = 1; n <= 3; n++) {
@@ -1223,7 +1780,6 @@
       }));
     } else passed.push('All option rows have matching Name and Value');
 
-    /* Column inconsistency */
     const handleVariantCols = {};
     state.rows.forEach((row, i) => {
       const h = row['Handle'];
@@ -1265,7 +1821,6 @@
       }));
     } else passed.push('Variant option columns consistent across rows');
 
-    /* Image rows with variant data */
     const imageDirty = imageRowsWithExtraData();
     if (imageDirty.length > 0) {
       const n = imageDirty.length;
@@ -1278,7 +1833,6 @@
       }));
     } else passed.push('No image rows with stray variant data');
 
-    /* Single variant multi-image */
     const svmi = singleVariantMultipleImages();
     if (svmi.length > 0) {
       const n = svmi.length;
@@ -1291,7 +1845,6 @@
       }));
     } else passed.push('Single-variant products with images are properly configured');
 
-    /* Duplicate image rows */
     const dupImgs = duplicateImageRows();
     if (dupImgs.length > 0) {
       const n = dupImgs.length;
@@ -1304,7 +1857,6 @@
       }));
     } else passed.push('No duplicate image rows');
 
-    /* Inventory tracker set but qty blank */
     if (state.headers.indexOf('Variant Inventory Tracker') !== -1 && state.headers.indexOf('Variant Inventory Qty') !== -1) {
       const missingQty = [];
       state.rows.forEach((row, i) => {
@@ -1324,7 +1876,6 @@
       } else passed.push('All rows with inventory tracker have a quantity');
     }
 
-    /* Inventory qty but no tracker */
     if (state.headers.indexOf('Variant Inventory Qty') !== -1 && state.headers.indexOf('Variant Inventory Tracker') !== -1) {
       const missingTracker = [];
       state.rows.forEach((row, i) => {
@@ -1344,7 +1895,6 @@
       } else passed.push('Inventory tracker set on all rows with quantity');
     }
 
-    /* Boolean format */
     const boolIssues = [];
     BOOLEAN_COLUMNS.forEach(col => {
       if (state.headers.indexOf(col) === -1) return;
@@ -1366,7 +1916,6 @@
       }));
     } else if (BOOLEAN_COLUMNS.some(c => state.headers.indexOf(c) !== -1)) passed.push('All boolean columns use TRUE/FALSE');
 
-    /* Product Category */
     if (state.headers.indexOf('Product Category') !== -1) {
       const badCat = [];
       state.rows.forEach((row, i) => {
@@ -1386,7 +1935,6 @@
       } else passed.push('All Product Category values look valid');
     }
 
-    /* Row order */
     const handleOrder = [];
     const seenHandles = new Set();
     state.rows.forEach(row => {
@@ -1404,7 +1952,6 @@
       }));
     } else passed.push('Variant rows grouped by Handle');
 
-    /* Prices */
     const priceIssuesNonNum = [], priceIssuesComma = [], priceIssuesCurrency = [], priceIssuesNegative = [];
     const PRICE_COLS = ['Variant Price', 'Variant Compare At Price'];
     state.rows.forEach((row, i) => {
@@ -1461,7 +2008,6 @@
       }));
     }
 
-    /* Compare-at */
     const compareIssues = [];
     if (state.headers.indexOf('Variant Price') !== -1 && state.headers.indexOf('Variant Compare At Price') !== -1) {
       const firstRowByHandle = {};
@@ -1491,7 +2037,6 @@
       }));
     } else passed.push('Compare-at prices are consistent with prices');
 
-    /* Inventory integers */
     const nonInt = [], negInv = [];
     state.rows.forEach((row, i) => {
       if (rowTypes.isImage[i]) return;
@@ -1521,7 +2066,6 @@
       }));
     }
 
-    /* HTML */
     const unclosed = [], dangerous = [];
     state.rows.forEach((row, i) => {
       const html = row['Body (HTML)'];
@@ -1560,7 +2104,6 @@
       }));
     }
 
-    /* Images */
     const httpImgs = [], noExtImgs = [], privateCdnImgs = [], malformedImgs = [];
     state.rows.forEach((row, i) => {
       const url = row['Image Src'];
@@ -1615,7 +2158,6 @@
       }));
     }
 
-    /* Status */
     if (state.headers.indexOf('Status') !== -1) {
       const invalidS = [];
       state.rows.forEach((row, i) => {
@@ -1636,7 +2178,6 @@
       } else passed.push('All status values valid');
     }
 
-    /* Field count */
     if (state.parseFieldMismatches > 0) {
       const n = state.parseFieldMismatches;
       issues.push(makeIssue('info', 'FIELD_COUNT_MISMATCH', 'CSV row field count mismatch in ' + pcount(n, 'row'), {
@@ -1681,7 +2222,7 @@
     if (counts.critical > 0) status = 'NOT_READY';
     else if (counts.warning > 0) status = 'READY_WITH_WARNINGS';
     return {
-      status, tool: 'shopify-guard', tool_version: '1.8.2',
+      status, tool: 'shopify-guard', tool_version: '2.0.1',
       profile: 'shopify-product-csv', profile_version: '2025-01',
       mode: state.mode, detected_mode: state.detectedMode, detected_confidence: state.detectedConfidence,
       summary: { critical: counts.critical, warnings: counts.warning, info: counts.info, passed: passed.length, rows_scanned: state.rows.length, columns_detected: state.headers.length },
@@ -1689,16 +2230,6 @@
       potential_impact: state.mode === 'existing_products' ? calculateImpact() : null,
       technical_metadata: { file_name: state.fileName, byte_size: state.fileSize, encoding: state.detectedEncoding, has_bom: state.hasBOM }
     };
-  }
-
-  function planRepairs() {
-    const safe = [], review = [], never = [];
-    state.result.issues.forEach(i => {
-      if (i.auto_fix === 'safe_automatic') safe.push(i);
-      else if (i.auto_fix === 'review_required') review.push(i);
-      else never.push(i);
-    });
-    return { safe, review, never };
   }
 
   function buildCorrectedCSV() {
@@ -1709,8 +2240,6 @@
     const appliedCodes = new Set();
 
     function hasCol(col) { return headers.indexOf(col) !== -1; }
-
-    /* ---- SAFE AUTOMATIC ---- */
 
     if (state.hasBOM) {
       changeLog.push({ row: 'all', column: '(file)', before: 'BOM present', after: 'BOM removed', reason: 'Stripped UTF-8 byte-order mark' });
@@ -1836,7 +2365,6 @@
       }
     });
 
-    /* ---- USER-APPROVED COLUMN REMOVALS ---- */
     Object.keys(accepted).forEach(key => {
       if (key.indexOf('REMOVE_COLUMN:') === 0 && accepted[key]) {
         const col = key.substring('REMOVE_COLUMN:'.length);
@@ -1850,10 +2378,16 @@
       }
     });
 
-    /* ---- REVIEW-REQUIRED ---- */
-
-    if (accepted['HANDLE_MISSING_NEW'] && hasCol('Handle') && hasCol('Title')) {
+    if (accepted['HANDLE_MISSING_NEW'] && hasCol('Title')) {
       let touched = false;
+      if (!hasCol('Handle')) {
+        const titleIdx = headers.indexOf('Title');
+        if (titleIdx !== -1) headers.splice(titleIdx + 1, 0, 'Handle');
+        else headers.push('Handle');
+        changeLog.push({ row: 'all', column: '(file)', before: '(no Handle column)', after: 'Handle column added', reason: 'Added Handle column so rows can be matched by Shopify' });
+        appliedCodes.add('HANDLE_MISSING_NEW');
+        touched = true;
+      }
       rows.forEach((row, i) => {
         if (isBlank(row['Handle']) && !isBlank(row['Title'])) {
           const before = row['Handle'] || '';
@@ -2065,13 +2599,11 @@
     let finalCSV = csv;
     if (finalCSV.charCodeAt(0) === 0xFEFF) finalCSV = finalCSV.slice(1);
 
-    // Delimiter conversion (if user accepted)
     if (accepted['DELIMITER_NOT_COMMA'] && state.detectedDelimiter !== ',') {
       changeLog.push({ row: 'all', column: '(file)', before: state.detectedDelimiter + '-separated', after: 'comma-separated', reason: 'Converted delimiter to comma' });
       appliedCodes.add('DELIMITER_NOT_COMMA');
     }
 
-    // Split if user accepted
     let splitParts = null;
     if (accepted['FILE_SIZE_OVER_LIMIT_SPLIT']) {
       const finalBytes = new Blob([finalCSV]).size;
@@ -2127,16 +2659,6 @@
     return lines.join('\n');
   }
 
-  function buildIssuesCSV() {
-    const lines = ['Severity,Code,Title,What is wrong,Why it matters,Suggested action,Affected rows'];
-    state.result.issues.forEach(i => {
-      const esc = val => '"' + String(val == null ? '' : val).replace(/"/g, '""') + '"';
-      const rowsList = (i.affected_rows || []).slice(0, 20).map(r => r.row).join(' ');
-      lines.push([i.severity, i.code, i.title, i.what_is_wrong, i.why_it_matters, i.suggested_action, rowsList].map(esc).join(','));
-    });
-    return lines.join('\n');
-  }
-
   function buildReportHTML() {
     const r = state.result;
     let h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Autonom Shopify Guard — Readiness Report</title>';
@@ -2181,7 +2703,51 @@
     return h;
   }
 
-  /* ---------------- Row context ---------------- */
+  function buildBatchReportHTML() {
+    let h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Autonom Shopify Guard — Batch Readiness Report</title>';
+    h += '<style>body{font-family:-apple-system,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#1a1d23;line-height:1.55;}h1{border-bottom:2px solid #1a1d23;padding-bottom:10px;}h2{margin-top:32px;font-size:18px;}h3{margin-top:24px;}.critical{color:#d92b2b;font-weight:600;}.warning{color:#c47a00;font-weight:600;}.info{color:#4b5b74;}.passed{color:#17864a;}.file-block{background:#f7f8fa;border-radius:8px;padding:16px 20px;margin:16px 0;}</style></head><body>';
+    h += '<h1>Autonom Shopify Guard — Batch Report</h1>';
+    h += '<p><strong>Files scanned:</strong> ' + state.files.length + '</p>';
+    h += '<p><strong>Scan date:</strong> ' + new Date().toISOString() + '</p>';
+    h += '<p><strong>Tool version:</strong> 2.0.1</p>';
+
+    let agg = { critical: 0, warning: 0, info: 0, passed: 0 };
+    state.files.forEach(f => {
+      if (!f.result) return;
+      agg.critical += f.result.summary.critical || 0;
+      agg.warning += f.result.summary.warnings || 0;
+      agg.info += f.result.summary.info || 0;
+      agg.passed += f.result.summary.passed || 0;
+    });
+    h += '<h2>Combined summary</h2>';
+    h += '<p>Critical: <span class="critical">' + agg.critical + '</span> · Warnings: <span class="warning">' + agg.warning + '</span> · Info: <span class="info">' + agg.info + '</span> · Passed: <span class="passed">' + agg.passed + '</span></p>';
+
+    h += '<h2>Per-file details</h2>';
+    state.files.forEach(f => {
+      if (!f.result) return;
+      const s = f.result.summary;
+      h += '<div class="file-block">';
+      h += '<h3>' + escapeHtml(f.fileName) + '</h3>';
+      h += '<p>Mode: ' + escapeHtml(f.mode || '—') + ' · Rows: ' + s.rows_scanned + ' · Columns: ' + s.columns_detected + '</p>';
+      h += '<p>Critical: <span class="critical">' + s.critical + '</span> · Warnings: <span class="warning">' + s.warnings + '</span> · Info: <span class="info">' + s.info + '</span> · Passed: <span class="passed">' + s.passed + '</span></p>';
+      if (f.result.issues.length) {
+        h += '<ul>';
+        f.result.issues.forEach(i => {
+          h += '<li><strong>' + escapeHtml(i.title) + '</strong> — ' + escapeHtml(i.what_is_wrong) + '</li>';
+        });
+        h += '</ul>';
+      } else {
+        h += '<p>No issues detected.</p>';
+      }
+      h += '</div>';
+    });
+
+    h += '<h2>Limitations</h2><p>Autonom does not know your store\'s current data. Autonom cannot guarantee Shopify will accept any import.</p>';
+    h += '<hr><p style="color:#8a94a3;font-size:12px;">Generated locally in your browser.</p>';
+    h += '</body></html>';
+    return h;
+  }
+
   function buildRowContext(affectedRows, columnName) {
     if (!affectedRows || !affectedRows.length) return null;
     const CONTEXT = 2, MAX_CLUSTERS = 3, MAX_ROWS_PER_CLUSTER = 15;
@@ -2270,13 +2836,12 @@
     return html;
   }
 
-  /* ---------------- Screens ---------------- */
-  const STEPS = { landing: 1, setup: 2, scanning: 3, report: 4, repair: 5, export: 6 };
+  const STEPS = { landing: 1, 'batch-queue': 2, setup: 2, mapping: 2, 'compare-setup': 1, 'compare-report': 1, scanning: 3, report: 4, repair: 5, export: 6 };
 
   function showScreen(name) {
-    $$('.asg-screen').forEach(el => { el.hidden = el.dataset.screen !== name; });
+    document.querySelectorAll('.asg-screen').forEach(el => { el.hidden = el.dataset.screen !== name; });
     const step = STEPS[name] || 1;
-    $$('.asg-step').forEach(el => {
+    document.querySelectorAll('.asg-step').forEach(el => {
       const s = parseInt(el.dataset.step, 10);
       el.classList.remove('is-active', 'is-done');
       if (s === step) el.classList.add('is-active');
@@ -2299,28 +2864,60 @@
     const back = document.getElementById('asg-actionbar-back');
     back.hidden = true; secondary.hidden = true; primary.hidden = false; primary.disabled = false;
     primary.className = 'asg-btn asg-btn-primary';
-    if (name === 'landing' || name === 'scanning') { bar.hidden = true; return; }
+    if (name === 'landing' || name === 'scanning' || name === 'compare-setup') { bar.hidden = true; return; }
     bar.hidden = false;
-    if (name === 'setup') {
+
+    if (name === 'batch-queue') {
+      back.hidden = false; back.textContent = '← Start over'; back.onclick = resetToLanding;
+      primary.textContent = 'Scan all ' + state.files.length + ' files';
+      primary.disabled = !state.batchMode;
+      primary.onclick = runBatchScan;
+    } else if (name === 'setup') {
       back.hidden = false; back.textContent = '← Start over'; back.onclick = resetToLanding;
       primary.textContent = 'Scan this CSV';
       primary.disabled = !state.mode || !state.file;
       primary.onclick = runScan;
+    } else if (name === 'mapping') {
+      back.hidden = false; back.textContent = '← Start over'; back.onclick = resetToLanding;
+      secondary.hidden = false; secondary.textContent = 'Skip mapping';
+      secondary.onclick = skipMappingAndContinue;
+      primary.textContent = 'Apply and continue';
+      primary.onclick = applyMappingAndContinue;
+    } else if (name === 'compare-report') {
+      secondary.hidden = false; secondary.textContent = 'Download comparison report';
+      secondary.onclick = downloadCompareReport;
+      primary.textContent = 'New comparison';
+      primary.onclick = resetToLanding;
     } else if (name === 'report') {
       back.hidden = false; back.textContent = '← New scan'; back.onclick = resetToLanding;
       secondary.hidden = false; secondary.textContent = 'Download report (free)';
-      secondary.onclick = () => { downloadBlob(buildReportHTML(), state.fileName.replace(/\.csv$/i, '') + '_readiness_report.html', 'text/html;charset=utf-8'); };
+      secondary.onclick = () => {
+        const isBatch = state.files.length > 1;
+        const html = isBatch ? buildBatchReportHTML() : buildReportHTML();
+        const fileName = isBatch ? 'autonom_batch_report.html' : state.fileName.replace(/\.csv$/i, '') + '_readiness_report.html';
+        downloadBlob(html, fileName, 'text/html;charset=utf-8');
+      };
       primary.textContent = 'Review and repair →';
       primary.onclick = renderRepair;
     } else if (name === 'repair') {
-      back.hidden = false; back.textContent = '← Report'; back.onclick = () => showScreen('report');
+      back.hidden = false; back.textContent = '← Report'; back.onclick = () => {
+        if (state.files.length > 1) renderBatchReport();
+        else renderReport();
+      };
       secondary.hidden = false; secondary.textContent = 'Skip repairs';
-      secondary.onclick = () => { state.acceptedRepairs = {}; doExport(); };
+      secondary.onclick = () => {
+        state.files.forEach(f => { f.acceptedRepairs = {}; });
+        doExport();
+      };
       primary.textContent = 'Generate corrected files';
       primary.onclick = doExport;
     } else if (name === 'export') {
       back.hidden = false; back.textContent = '← Back'; back.onclick = () => showScreen('repair');
-      primary.textContent = 'Download ZIP';
+      secondary.hidden = false; secondary.textContent = '↻ New scan';
+      secondary.onclick = resetToLanding;
+      primary.textContent = state.files.length > 1
+        ? 'Download ZIP (' + state.files.length + ' files)'
+        : 'Download ZIP';
       primary.onclick = downloadAll;
     }
   }
@@ -2365,11 +2962,88 @@
         listEl.appendChild(li);
       });
     } else document.getElementById('asg-impact').hidden = true;
-    renderIssues(r.issues);
+    renderIssues(r.issues, {});
     showScreen('report');
   }
 
-  function renderIssues(issues) {
+  function renderBatchReport() {
+    const agg = { critical: 0, warning: 0, info: 0, passed: 0 };
+    state.files.forEach(f => {
+      if (!f.result) return;
+      agg.critical += f.result.summary.critical || 0;
+      agg.warning += f.result.summary.warnings || 0;
+      agg.info += f.result.summary.info || 0;
+      agg.passed += f.result.summary.passed || 0;
+    });
+
+    let status = 'READY_FOR_REVIEW';
+    if (agg.critical > 0) status = 'NOT_READY';
+    else if (agg.warning > 0) status = 'READY_WITH_WARNINGS';
+
+    const verdict = document.getElementById('asg-verdict');
+    const badge = document.getElementById('asg-verdict-badge');
+    const title = document.getElementById('asg-verdict-title');
+    const sub = document.getElementById('asg-verdict-sub');
+    verdict.classList.remove('is-critical', 'is-warning', 'is-passed');
+    if (status === 'NOT_READY') {
+      verdict.classList.add('is-critical'); badge.textContent = 'Not ready';
+      title.textContent = 'Not ready for import';
+      sub.textContent = pcount(agg.critical, 'critical issue') + ' across ' + state.files.length + ' files.';
+    } else if (status === 'READY_WITH_WARNINGS') {
+      verdict.classList.add('is-warning'); badge.textContent = 'Ready with warnings';
+      title.textContent = 'Ready with warnings';
+      sub.textContent = pcount(agg.warning, 'warning') + ' should be reviewed.';
+    } else {
+      verdict.classList.add('is-passed'); badge.textContent = 'Ready for review';
+      title.textContent = 'Ready for review';
+      sub.textContent = 'No critical issues detected.';
+    }
+
+    document.getElementById('asg-count-critical').textContent = agg.critical;
+    document.getElementById('asg-count-warning').textContent = agg.warning;
+    document.getElementById('asg-count-info').textContent = agg.info;
+    document.getElementById('asg-count-passed').textContent = agg.passed;
+
+    document.getElementById('asg-impact').hidden = true;
+
+    const filesWrap = document.getElementById('asg-batch-files');
+    if (filesWrap) {
+      filesWrap.hidden = false;
+      filesWrap.innerHTML = '';
+      state.files.forEach((f, idx) => {
+        const card = document.createElement('div');
+        card.className = 'asg-batch-file-card';
+        card.dataset.index = idx;
+        const s = f.result && f.result.summary ? f.result.summary : { critical: 0, warnings: 0, info: 0, passed: 0, rows_scanned: 0 };
+        card.innerHTML =
+          '<span class="asg-batch-file-card-icon">📄</span>' +
+          '<div class="asg-batch-file-card-body">' +
+            '<div class="asg-batch-file-card-name">' + escapeHtml(f.fileName) + '</div>' +
+            '<div class="asg-batch-file-card-counts">' +
+              '<span class="is-critical">' + s.critical + ' critical</span> · ' +
+              '<span class="is-warning">' + s.warnings + ' warnings</span> · ' +
+              '<span class="is-passed">' + s.passed + ' passed</span> · ' +
+              s.rows_scanned + ' rows' +
+            '</div>' +
+          '</div>';
+        filesWrap.appendChild(card);
+      });
+    }
+
+    const merged = [];
+    state.files.forEach(f => {
+      if (!f.result) return;
+      f.result.issues.forEach(issue => {
+        merged.push(Object.assign({}, issue, { _file: f.fileName }));
+      });
+    });
+
+    renderIssues(merged, { showFileBadge: true });
+    showScreen('report');
+  }
+
+  function renderIssues(issues, options) {
+    options = options || {};
     const list = document.getElementById('asg-issues-list');
     const noIssues = document.getElementById('asg-no-issues');
     list.innerHTML = '';
@@ -2380,7 +3054,11 @@
       el.className = 'asg-issue is-' + issue.severity;
       el.dataset.severity = issue.severity;
       el.dataset.code = issue.code;
+      if (issue._file) el.dataset.file = issue._file;
       const marker = issue.severity === 'critical' ? '!' : (issue.severity === 'warning' ? '!' : 'i');
+      const fileBadge = options.showFileBadge && issue._file
+        ? '<span class="asg-issue-file-badge">' + escapeHtml(issue._file) + '</span>'
+        : '';
       let body = '';
       if (issue.what_is_wrong) body += '<div class="asg-issue-section-label">What is wrong</div><p>' + escapeHtml(issue.what_is_wrong) + '</p>';
       if (issue.why_it_matters) body += '<div class="asg-issue-section-label">Why this matters</div><p>' + escapeHtml(issue.why_it_matters) + '</p>';
@@ -2391,7 +3069,12 @@
       if (issue.suggested_action) body += '<div class="asg-issue-section-label">What you can do</div><p>' + escapeHtml(issue.suggested_action) + '</p>';
       let actions = '';
       if (issue.shopify_doc_url) actions += '<a class="asg-btn" href="' + escapeHtml(issue.shopify_doc_url) + '" target="_blank" rel="noopener">Shopify documentation →</a>';
-      el.innerHTML = '<div class="asg-issue-head"><span class="asg-issue-marker">' + marker + '</span><h4 class="asg-issue-title">' + escapeHtml(issue.title) + '</h4><span class="asg-issue-toggle">▾</span></div><div class="asg-issue-body" hidden>' + body + (actions ? '<div class="asg-issue-actions">' + actions + '</div>' : '') + '</div>';
+      el.innerHTML = '<div class="asg-issue-head">' + fileBadge +
+        '<span class="asg-issue-marker">' + marker + '</span>' +
+        '<h4 class="asg-issue-title">' + escapeHtml(issue.title) + '</h4>' +
+        '<span class="asg-issue-toggle">▾</span></div>' +
+        '<div class="asg-issue-body" hidden>' + body +
+        (actions ? '<div class="asg-issue-actions">' + actions + '</div>' : '') + '</div>';
       const head = el.querySelector('.asg-issue-head');
       const bodyEl = el.querySelector('.asg-issue-body');
       head.addEventListener('click', (e) => {
@@ -2405,7 +3088,7 @@
           e.stopPropagation();
           const code = ctxBtn.getAttribute('data-context-toggle');
           state.showRowContext[code] = !state.showRowContext[code];
-          renderIssues(issues);
+          renderIssues(issues, options);
           const reopened = document.querySelector('.asg-issue[data-code="' + code + '"]');
           if (reopened) {
             const h = reopened.querySelector('.asg-issue-head');
@@ -2419,12 +3102,32 @@
   }
 
   function renderRepair() {
-    const plan = planRepairs();
-    state.repairs = plan;
-    document.getElementById('asg-repair-summary').textContent =
-      pcount(plan.safe.length, 'automatic fix', 'automatic fixes') + ' can be applied now. ' +
-      pcount(plan.review.length, 'fix', 'fixes') + ' need your approval. ' +
-      pcount(plan.never.length, 'issue') + ' cannot be fixed automatically.';
+    state.files.forEach((f, i) => {
+      if (!f.result) return;
+      const safe = [], review = [], never = [];
+      f.result.issues.forEach(issue => {
+        if (issue.auto_fix === 'safe_automatic') safe.push(issue);
+        else if (issue.auto_fix === 'review_required') review.push(issue);
+        else never.push(issue);
+      });
+      f.repairs = { safe, review, never };
+    });
+
+    const totalSafe = state.files.reduce((sum, f) => sum + ((f.repairs && f.repairs.safe.length) || 0), 0);
+    const totalReview = state.files.reduce((sum, f) => sum + ((f.repairs && f.repairs.review.length) || 0), 0);
+    const totalNever = state.files.reduce((sum, f) => sum + ((f.repairs && f.repairs.never.length) || 0), 0);
+
+    let summaryParts = [];
+    if (totalSafe > 0) summaryParts.push(pcount(totalSafe, 'automatic fix', 'automatic fixes') + ' across all files');
+    else summaryParts.push('No automatic fixes needed');
+    if (totalReview > 0) summaryParts.push(pcount(totalReview, 'fix', 'fixes') + (totalReview === 1 ? ' needs' : ' need') + ' your approval');
+    else summaryParts.push('no fixes need your approval');
+    if (totalNever > 0) summaryParts.push(pcount(totalNever, 'issue') + ' will be flagged');
+    else summaryParts.push('nothing will be flagged');
+
+    document.getElementById('asg-repair-summary').textContent = summaryParts.join('. ') + '.';
+
+    const showFileBadge = state.files.length > 1;
 
     function renderList(container, items, allowAccept) {
       const ul = container.querySelector('.asg-repair-list');
@@ -2434,150 +3137,195 @@
         li.textContent = 'None'; li.style.color = '#8a94a3';
         ul.appendChild(li); return;
       }
-      items.forEach(issue => {
+      items.forEach(entry => {
+        const issue = entry.issue;
+        const fileIdx = entry.fileIdx;
         const li = document.createElement('li');
         let detail = '';
         if (issue.affected_rows && issue.affected_rows.length) {
           detail = issue.affected_rows.slice(0, 3).map(r => 'Row ' + r.row + (r.proposed_handle ? ' → ' + r.proposed_handle : (r.proposed ? ' → ' + r.proposed : ''))).join(' · ');
         }
+        const fileBadge = showFileBadge
+          ? '<span class="asg-issue-file-badge">' + escapeHtml(state.files[fileIdx].fileName) + '</span> '
+          : '';
         let controls = '';
-        if (allowAccept) controls = '<input type="checkbox" data-accept="' + escapeHtml(issue.code) + '" checked style="margin-top:4px;">';
+        if (allowAccept) {
+          controls = '<input type="checkbox" data-accept="' + fileIdx + ':' + escapeHtml(issue.code) + '" checked style="margin-top:4px;">';
+        }
         let removeColumnControl = '';
         if (issue.code === 'DESTRUCTIVE_BLANK_INCLUDED_COLUMN' && issue.alternative_fix === 'strip_column_with_user_approval') {
           const m = issue.title.match(/"([^"]+)"/);
           const colName = m ? m[1] : '';
-          removeColumnControl = '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:#5b6471;cursor:pointer;"><input type="checkbox" data-remove-column="' + escapeHtml(colName) + '" checked> Remove the "' + escapeHtml(colName) + '" column from the corrected file</label>';
+          removeColumnControl = '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:#5b6471;cursor:pointer;"><input type="checkbox" data-remove-column="' + fileIdx + ':' + escapeHtml(colName) + '" checked> Remove the "' + escapeHtml(colName) + '" column from the corrected file</label>';
         }
-        li.innerHTML = '<div style="flex:1;"><div>' + escapeHtml(issue.title) + '</div>' + (detail ? '<div class="asg-repair-detail">' + escapeHtml(detail) + '</div>' : '') + removeColumnControl + '</div>' + controls;
+        li.innerHTML = '<div style="flex:1;"><div>' + fileBadge + escapeHtml(issue.title) + '</div>' + (detail ? '<div class="asg-repair-detail">' + escapeHtml(detail) + '</div>' : '') + removeColumnControl + '</div>' + controls;
         ul.appendChild(li);
       });
     }
 
+    const safeFlat = [];
+    const reviewFlat = [];
+    const neverFlat = [];
+    state.files.forEach((f, i) => {
+      if (!f.repairs) return;
+      f.repairs.safe.forEach(issue => safeFlat.push({ fileIdx: i, issue }));
+      f.repairs.review.forEach(issue => reviewFlat.push({ fileIdx: i, issue }));
+      f.repairs.never.forEach(issue => neverFlat.push({ fileIdx: i, issue }));
+    });
+
     const safeGroup = document.getElementById('asg-repair-safe');
     const reviewGroup = document.getElementById('asg-repair-review');
     const neverGroup = document.getElementById('asg-repair-never');
-    safeGroup.hidden = !plan.safe.length;
-    reviewGroup.hidden = !plan.review.length;
-    neverGroup.hidden = !plan.never.length;
-    if (plan.safe.length) renderList(safeGroup, plan.safe, false);
-    if (plan.review.length) renderList(reviewGroup, plan.review, true);
-    if (plan.never.length) renderList(neverGroup, plan.never, false);
+    safeGroup.hidden = !safeFlat.length;
+    reviewGroup.hidden = !reviewFlat.length;
+    neverGroup.hidden = !neverFlat.length;
+    if (safeFlat.length) renderList(safeGroup, safeFlat, false);
+    if (reviewFlat.length) renderList(reviewGroup, reviewFlat, true);
+    if (neverFlat.length) renderList(neverGroup, neverFlat, false);
     showScreen('repair');
   }
 
   function renderExport() {
-    const plan = state.repairs || { safe: [], review: [], never: [] };
-    const accepted = state.acceptedRepairs || {};
-    const appliedCodes = state.appliedCodes || new Set();
-    let approvedApplied = 0;
-    Object.keys(accepted).forEach(k => {
-      if (!accepted[k]) return;
-      if (appliedCodes.has(k)) approvedApplied++;
-    });
-    let safeApplied = 0;
-    plan.safe.forEach(i => { if (appliedCodes.has(i.code)) safeApplied++; });
+    let totalSafe = 0;
+    let totalApproved = 0;
+    let totalRemaining = 0;
+    let totalSplitParts = 0;
+    const allChangeEntries = [];
 
-    const resolvedColumns = new Set();
-    Object.keys(accepted).forEach(k => {
-      if (k.indexOf('REMOVE_COLUMN:') === 0 && accepted[k]) resolvedColumns.add(k.substring('REMOVE_COLUMN:'.length));
-    });
+    state.files.forEach(f => {
+      const appliedCodes = f.appliedCodes || new Set();
+      const accepted = f.acceptedRepairs || {};
+      const repairs = f.repairs || { safe: [], review: [], never: [] };
 
-    const remaining = plan.never.filter(issue => {
-      if (appliedCodes.has(issue.code)) return false;
-      if (issue.code === 'DESTRUCTIVE_BLANK_INCLUDED_COLUMN') {
-        const m = issue.title.match(/"([^"]+)"/);
-        if (m && resolvedColumns.has(m[1])) return false;
-      }
-      return true;
+      repairs.safe.forEach(i => { if (appliedCodes.has(i.code)) totalSafe++; });
+      Object.keys(accepted).forEach(k => {
+        if (!accepted[k]) return;
+        if (appliedCodes.has(k)) totalApproved++;
+      });
+
+      const resolvedColumns = new Set();
+      Object.keys(accepted).forEach(k => {
+        if (k.indexOf('REMOVE_COLUMN:') === 0 && accepted[k]) resolvedColumns.add(k.substring('REMOVE_COLUMN:'.length));
+      });
+
+      const remaining = repairs.never.filter(issue => {
+        if (appliedCodes.has(issue.code)) return false;
+        if (issue.code === 'DESTRUCTIVE_BLANK_INCLUDED_COLUMN') {
+          const m = issue.title.match(/"([^"]+)"/);
+          if (m && resolvedColumns.has(m[1])) return false;
+        }
+        return true;
+      });
+      totalRemaining += remaining.length;
+
+      if (f.splitParts && f.splitParts.length > 0) totalSplitParts += f.splitParts.length;
+
+      (f.changeLog || []).forEach(c => {
+        allChangeEntries.push(Object.assign({}, c, { _file: f.fileName }));
+      });
     });
 
     document.getElementById('asg-export-summary').textContent =
-      applied(safeApplied, 'safe fix', 'safe fixes') + ' · ' +
-      applied(approvedApplied, 'approved fix', 'approved fixes') + ' · ' +
-      pcount(remaining.length, 'issue') + ' still in the file';
-
-    const base = state.fileName.replace(/\.csv$/i, '');
-    if (state.splitParts && state.splitParts.length > 0) {
-      document.getElementById('asg-export-csv-name').textContent = state.splitParts.length + ' CSV parts (each under 15 MB)';
-    } else {
-      document.getElementById('asg-export-csv-name').textContent = base + '_safe.csv';
-    }
+      applied(totalSafe, 'safe fix', 'safe fixes') + ' · ' +
+      applied(totalApproved, 'approved fix', 'approved fixes') + ' · ' +
+      pcount(totalRemaining, 'issue') + ' still in the files';
 
     const checkEl = document.getElementById('asg-export-check');
     const titleEl = document.getElementById('asg-export-title');
-    if (remaining.length > 0) {
+    if (totalRemaining > 0) {
       checkEl.textContent = '⚠'; checkEl.classList.add('is-warning');
-      titleEl.textContent = 'Your corrected CSV is ready — with remaining issues';
+      titleEl.textContent = 'Your corrected CSVs are ready — with remaining issues';
     } else {
       checkEl.textContent = '✓'; checkEl.classList.remove('is-warning');
-      titleEl.textContent = 'Your corrected CSV is ready';
+      titleEl.textContent = 'Your corrected CSVs are ready';
     }
 
     const heroEl = document.querySelector('.asg-export-hero');
-
-    // Split panel
     const oldSplit = heroEl.parentNode.querySelector('.asg-export-split');
     if (oldSplit) oldSplit.remove();
-    if (state.splitParts && state.splitParts.length > 0) {
-      const split = document.createElement('div');
-      split.className = 'asg-export-split';
-      let html = '<h3>📦 Your file was split into ' + state.splitParts.length + ' parts</h3>';
-      html += '<p>Shopify rejects files over 15 MB. Autonom split your corrected file into ' + state.splitParts.length + ' parts, each under the limit. <strong>Products stay whole</strong> — every variant row of the same Handle is in the same part.</p>';
-      html += '<ul>';
-      state.splitParts.forEach(part => { html += '<li><strong>' + escapeHtml(part.name) + '</strong> — ' + part.rowCount + ' rows</li>'; });
-      html += '</ul>';
-      html += '<p><strong>Import them one at a time, in numerical order.</strong></p>';
-      split.innerHTML = html;
-      heroEl.parentNode.insertBefore(split, heroEl.nextSibling);
-    }
-
-    // Warning panel
     const oldWarn = heroEl.parentNode.querySelector('.asg-export-warning');
     if (oldWarn) oldWarn.remove();
-    if (remaining.length > 0) {
+
+    if (totalRemaining > 0) {
       const warn = document.createElement('div');
       warn.className = 'asg-export-warning';
-      let html = '<h3>⚠ This file is not fully clean</h3>';
-      html += '<p>Autonom fixed everything it safely could, but <strong>' + pcount(remaining.length, 'issue') + '</strong> remain that require your decision:</p><ul>';
-      remaining.forEach(issue => {
-        html += '<li><strong>' + escapeHtml(issue.title) + '</strong>';
-        if (issue.suggested_action) html += ' — ' + escapeHtml(issue.suggested_action);
-        html += '</li>';
-      });
-      html += '</ul><p><strong>Autonom does not invent data.</strong> These issues need your judgement before importing.</p>';
-      warn.innerHTML = html;
+      warn.innerHTML = '<h3>⚠ Some files are not fully clean</h3><p>Autonom fixed everything it safely could. <strong>' + pcount(totalRemaining, 'issue') + '</strong> remain across your files.</p>';
       heroEl.parentNode.insertBefore(warn, heroEl.nextSibling);
     } else {
       const warn = document.createElement('div');
       warn.className = 'asg-export-warning';
       warn.style.background = 'var(--asg-passed-bg)';
       warn.style.borderColor = '#b8dfc6';
-      warn.innerHTML = '<h3 style="color:var(--asg-passed);">✅ This file is as clean as Autonom can make it</h3><p>All safe fixes were applied and all approved fixes were completed. No remaining issues were detected.</p><p><strong>Reminder:</strong> Autonom does not know your store\'s current data. Always test-import 2–5 products first.</p>';
+      warn.innerHTML = '<h3 style="color:var(--asg-passed);">✅ All files are as clean as Autonom can make them</h3><p>Safe fixes were applied and approved fixes were completed.</p>';
       heroEl.parentNode.insertBefore(warn, heroEl.nextSibling);
     }
 
-    // Dynamic checklist
+    const filesWrap = document.getElementById('asg-export-files');
+    if (filesWrap) {
+      filesWrap.innerHTML = '';
+      const baseFolder = state.files.length === 1
+        ? state.files[0].fileName.replace(/\.csv$/i, '') + '_autonom_safe'
+        : 'autonom_batch_' + state.files.length + '_files';
+
+      const header = document.createElement('div');
+      header.className = 'asg-batch-export-header';
+      header.innerHTML = '<span class="asg-batch-export-header-icon">📦</span><span class="asg-batch-export-header-name">' + escapeHtml(baseFolder) + '.zip</span>';
+      filesWrap.appendChild(header);
+
+      const group = document.createElement('div');
+      group.className = 'asg-batch-export-group';
+      state.files.forEach(f => {
+        if (f.splitParts && f.splitParts.length > 0) {
+          f.splitParts.forEach(part => {
+            const item = document.createElement('div');
+            item.className = 'asg-batch-export-item';
+            item.innerHTML = '<span class="asg-batch-export-item-icon">📄</span><div class="asg-batch-export-item-info"><div class="asg-batch-export-item-name">' + escapeHtml(part.name) + '</div><div class="asg-batch-export-item-desc">' + part.rowCount + ' rows (part of ' + escapeHtml(f.fileName) + ')</div></div>';
+            group.appendChild(item);
+          });
+        } else {
+          const safeName = f.fileName.replace(/\.csv$/i, '') + '_safe.csv';
+          const item = document.createElement('div');
+          item.className = 'asg-batch-export-item';
+          item.innerHTML = '<span class="asg-batch-export-item-icon">📄</span><div class="asg-batch-export-item-info"><div class="asg-batch-export-item-name">' + escapeHtml(safeName) + '</div><div class="asg-batch-export-item-desc">Corrected CSV, ready to import</div></div>';
+          group.appendChild(item);
+        }
+        const logName = f.fileName.replace(/\.csv$/i, '') + '_change_log.csv';
+        const logItem = document.createElement('div');
+        logItem.className = 'asg-batch-export-item';
+        logItem.innerHTML = '<span class="asg-batch-export-item-icon">📋</span><div class="asg-batch-export-item-info"><div class="asg-batch-export-item-name">' + escapeHtml(logName) + '</div><div class="asg-batch-export-item-desc">Every change for this file, in plain language</div></div>';
+        group.appendChild(logItem);
+      });
+
+      const reportName = state.files.length === 1 ? 'autonom_readiness_report.html' : 'autonom_batch_report.html';
+      const reportItem = document.createElement('div');
+      reportItem.className = 'asg-batch-export-item';
+      reportItem.innerHTML = '<span class="asg-batch-export-item-icon">📊</span><div class="asg-batch-export-item-info"><div class="asg-batch-export-item-name">' + reportName + '</div><div class="asg-batch-export-item-desc">' + (state.files.length === 1 ? 'The full readiness report' : 'Combined report across all files') + '</div></div>';
+      group.appendChild(reportItem);
+
+      const readmeItem = document.createElement('div');
+      readmeItem.className = 'asg-batch-export-item';
+      readmeItem.innerHTML = '<span class="asg-batch-export-item-icon">📖</span><div class="asg-batch-export-item-info"><div class="asg-batch-export-item-name">README.txt</div><div class="asg-batch-export-item-desc">Import checklist and package guide</div></div>';
+      group.appendChild(readmeItem);
+
+      filesWrap.appendChild(group);
+    }
+
     const checklist = document.getElementById('asg-export-checklist');
     if (checklist) {
       const items = [];
-      const hasCritical = remaining.some(i => i.severity === 'critical');
-      if (hasCritical) items.push({ cls: 'is-critical', text: '<strong>Resolve the remaining critical issues</strong> before importing.' });
-      if (safeApplied > 0 || approvedApplied > 0) {
-        const totalFixes = safeApplied + approvedApplied;
+      if (totalRemaining > 0) items.push({ cls: 'is-critical', text: '<strong>Resolve the remaining critical issues</strong> before importing.' });
+      if (totalSafe > 0 || totalApproved > 0) {
+        const totalFixes = totalSafe + totalApproved;
         items.push({ cls: 'is-done', text: '<strong>' + totalFixes + ' fix' + (totalFixes === 1 ? '' : 'es') + ' applied.</strong> Review the diff above.' });
       }
-      if (state.splitParts && state.splitParts.length > 0) {
-        items.push({ cls: '', text: '<strong>Import each part separately</strong>, in numerical order.' });
-      }
-      if (remaining.length === 0 && !hasCritical && !state.splitParts) {
-        items.push({ cls: 'is-done', text: '<strong>This file is as clean as Autonom can make it.</strong>' });
-      }
+      if (totalSplitParts > 0) items.push({ cls: '', text: '<strong>Some files were split into parts.</strong> Import each part separately, in numerical order.' });
       items.push({ cls: '', text: '<strong>Export a backup</strong> of your current Shopify products before importing.' });
       items.push({ cls: '', text: '<strong>Test-import 2–5 products first.</strong>' });
       items.push({ cls: '', text: 'Only then run the full import.' });
       checklist.innerHTML = items.map(i => '<li class="' + i.cls + '">' + i.text + '</li>').join('');
     }
 
+    state.changeLog = allChangeEntries;
     renderDiffSection();
     showScreen('export');
   }
@@ -2594,18 +3342,36 @@
     countEl.textContent = log.length + ' change' + (log.length === 1 ? '' : 's');
 
     if (!state.diffViewMode) state.diffViewMode = 'detailed';
+    const showFileBadge = state.files.length > 1;
 
     function renderList() {
       let html = '';
       if (state.diffViewMode === 'compact') {
-        html += '<table class="asg-diff-compact"><thead><tr><th>Row</th><th>Column</th><th>Before</th><th>After</th><th>Reason</th></tr></thead><tbody>';
+        html += '<table class="asg-diff-compact"><thead><tr>' +
+          (showFileBadge ? '<th>File</th>' : '') +
+          '<th>Row</th><th>Column</th><th>Before</th><th>After</th><th>Reason</th></tr></thead><tbody>';
         log.forEach(c => {
-          html += '<tr><td>' + (c.row === 'all' ? 'file' : c.row) + '</td><td>' + escapeHtml(c.column) + '</td><td class="asg-diff-cell-before">' + escapeHtml(String(c.before).substring(0, 80)) + '</td><td class="asg-diff-cell-after">' + escapeHtml(String(c.after).substring(0, 80)) + '</td><td class="asg-diff-cell-reason">' + escapeHtml(c.reason) + '</td></tr>';
+          html += '<tr>' +
+            (showFileBadge ? '<td>' + escapeHtml(c._file || '') + '</td>' : '') +
+            '<td>' + (c.row === 'all' ? 'file' : c.row) + '</td>' +
+            '<td>' + escapeHtml(c.column) + '</td>' +
+            '<td class="asg-diff-cell-before">' + escapeHtml(String(c.before).substring(0, 80)) + '</td>' +
+            '<td class="asg-diff-cell-after">' + escapeHtml(String(c.after).substring(0, 80)) + '</td>' +
+            '<td class="asg-diff-cell-reason">' + escapeHtml(c.reason) + '</td></tr>';
         });
         html += '</tbody></table>';
       } else {
         log.forEach(c => {
-          html += '<div class="asg-diff-item"><div class="asg-diff-item-head"><span class="asg-diff-item-loc">' + (c.row === 'all' ? 'Entire file' : 'Row ' + c.row) + ' · ' + escapeHtml(c.column) + '</span><span class="asg-diff-item-reason">' + escapeHtml(c.reason) + '</span></div><div class="asg-diff-item-body"><div class="asg-diff-before"><span class="asg-diff-label">Before</span><code>' + escapeHtml(String(c.before).substring(0, 200)) + '</code></div><div class="asg-diff-after"><span class="asg-diff-label">After</span><code>' + escapeHtml(String(c.after).substring(0, 200)) + '</code></div></div></div>';
+          const fileBadge = showFileBadge && c._file
+            ? '<span class="asg-issue-file-badge">' + escapeHtml(c._file) + '</span> '
+            : '';
+          html += '<div class="asg-diff-item"><div class="asg-diff-item-head">' +
+            '<span class="asg-diff-item-loc">' + fileBadge + (c.row === 'all' ? 'Entire file' : 'Row ' + c.row) + ' · ' + escapeHtml(c.column) + '</span>' +
+            '<span class="asg-diff-item-reason">' + escapeHtml(c.reason) + '</span></div>' +
+            '<div class="asg-diff-item-body">' +
+            '<div class="asg-diff-before"><span class="asg-diff-label">Before</span><code>' + escapeHtml(String(c.before).substring(0, 200)) + '</code></div>' +
+            '<div class="asg-diff-after"><span class="asg-diff-label">After</span><code>' + escapeHtml(String(c.after).substring(0, 200)) + '</code></div>' +
+            '</div></div>';
         });
       }
       listEl.innerHTML = html;
@@ -2641,7 +3407,6 @@
     renderList();
   }
 
-  /* ---------------- Scan ---------------- */
   function setStep(step, cls) {
     const el = document.querySelector('.asg-scan-steps li[data-step="' + step + '"]');
     if (!el) return;
@@ -2653,29 +3418,36 @@
     if (!state.mode || !state.file) return;
     showScreen('scanning');
     document.getElementById('asg-scan-filename').textContent = state.fileName + ' · ' + formatBytes(state.fileSize);
-    setStep('read', 'is-running');
+    const progressWrap = document.getElementById('asg-batch-progress');
+    if (progressWrap) progressWrap.hidden = true;
 
+    setStep('read', 'is-running');
     try { await loadPapaParse(); } catch (err) { LOG('PapaParse load failed', err); }
 
-    // Use converted delimiter if user clicked convert
-    let text = state.fileText;
-    if (state.detectedDelimiter !== ',' && state.acceptedRepairs && state.acceptedRepairs['DELIMITER_NOT_COMMA']) {
-      text = convertDelimiter(text, state.detectedDelimiter, ',');
-    } else if (state.detectedDelimiter !== ',') {
-      text = convertDelimiter(text, state.detectedDelimiter, ',');
+    const entry = state.files[state.currentFileIndex];
+    if (entry && entry.mapped) {
+      state.headers = entry.headers.slice();
+      state.rows = entry.rows.slice();
+      state.parseFieldMismatches = 0;
+      await delay(180);
+      setStep('read', 'is-done');
+    } else {
+      let text = state.fileText;
+      if (state.detectedDelimiter !== ',') text = convertDelimiter(text, state.detectedDelimiter, ',');
+
+      const parsed = await parseWithPapa(text);
+      state.headers = parsed.fields || [];
+      state.rows = parsed.data || [];
+      state.parseFieldMismatches = 0;
+      if (parsed.errors && parsed.errors.length) {
+        parsed.errors.forEach(err => {
+          if (err.type === 'FieldMismatch' || /field/i.test(err.code || '')) state.parseFieldMismatches++;
+        });
+      }
+      await delay(180);
+      setStep('read', 'is-done');
     }
 
-    const parsed = await parseWithPapa(text);
-    state.headers = parsed.fields || [];
-    state.rows = parsed.data || [];
-    state.parseFieldMismatches = 0;
-    if (parsed.errors && parsed.errors.length) {
-      parsed.errors.forEach(err => {
-        if (err.type === 'FieldMismatch' || /field/i.test(err.code || '')) state.parseFieldMismatches++;
-      });
-    }
-    await delay(180);
-    setStep('read', 'is-done');
     const checkResult = runChecks();
     for (const step of ['encoding', 'headers', 'handles', 'variants', 'skus', 'prices', 'blanks', 'html', 'images']) {
       setStep(step, 'is-running');
@@ -2687,86 +3459,190 @@
     state.result = buildResult(checkResult.issues, checkResult.passed);
     setStep('report', 'is-done');
     await delay(200);
+    saveWorkingToFile(0);
     renderReport();
   }
 
-  /* ---------------- Export ---------------- */
+  async function runBatchScan() {
+    if (!state.files.length) return;
+    if (!state.batchMode) return;
+
+    state.files.forEach(f => { f.mode = state.batchMode; });
+
+    showScreen('scanning');
+    const progressWrap = document.getElementById('asg-batch-progress');
+    const progressBar = document.getElementById('asg-batch-progress-bar');
+    const progressLabel = document.getElementById('asg-batch-progress-label');
+    const batchHeader = document.getElementById('asg-scan-filename');
+
+    if (state.files.length > 1) {
+      if (progressWrap) progressWrap.hidden = false;
+      if (progressLabel) progressLabel.textContent = 'Starting…';
+    } else {
+      if (progressWrap) progressWrap.hidden = true;
+    }
+
+    try { await loadPapaParse(); } catch (err) { LOG('PapaParse load failed', err); }
+
+    for (let i = 0; i < state.files.length; i++) {
+      if (batchHeader) {
+        batchHeader.textContent = state.files.length === 1
+          ? state.files[i].fileName + ' · ' + formatBytes(state.files[i].fileSize)
+          : 'File ' + (i + 1) + ' of ' + state.files.length + ': ' + state.files[i].fileName;
+      }
+      if (progressLabel) progressLabel.textContent = 'File ' + (i + 1) + ' of ' + state.files.length;
+      if (progressBar) progressBar.style.width = Math.round((i / state.files.length) * 100) + '%';
+
+      document.querySelectorAll('#asg-scan-steps li').forEach(li => li.classList.remove('is-running', 'is-done'));
+
+      loadFileIntoWorking(i);
+      state.files[i].status = 'scanning';
+      state.acceptedRepairs = {};
+
+      if (state.files[i].mapped) {
+        state.headers = state.files[i].headers.slice();
+        state.rows = state.files[i].rows.slice();
+        state.parseFieldMismatches = 0;
+        setStep('read', 'is-running');
+        await delay(120);
+        setStep('read', 'is-done');
+      } else {
+        let text = state.fileText;
+        if (state.detectedDelimiter !== ',') text = convertDelimiter(text, state.detectedDelimiter, ',');
+
+        setStep('read', 'is-running');
+        const parsed = await parseWithPapa(text);
+        state.headers = parsed.fields || [];
+        state.rows = parsed.data || [];
+        state.parseFieldMismatches = 0;
+        if (parsed.errors && parsed.errors.length) {
+          parsed.errors.forEach(err => {
+            if (err.type === 'FieldMismatch' || /field/i.test(err.code || '')) state.parseFieldMismatches++;
+          });
+        }
+        await delay(120);
+        setStep('read', 'is-done');
+      }
+
+      const checkResult = runChecks();
+      for (const step of ['encoding', 'headers', 'handles', 'variants', 'skus', 'prices', 'blanks', 'html', 'images']) {
+        setStep(step, 'is-running');
+        await delay(60);
+        setStep(step, 'is-done');
+      }
+      setStep('report', 'is-running');
+      await delay(80);
+      state.result = buildResult(checkResult.issues, checkResult.passed);
+      setStep('report', 'is-done');
+
+      saveWorkingToFile(i);
+      state.files[i].status = 'scanned';
+
+      if (progressBar) progressBar.style.width = Math.round(((i + 1) / state.files.length) * 100) + '%';
+      await delay(120);
+    }
+
+    await delay(200);
+    renderBatchReport();
+  }
+
   function collectAccepted() {
-    const accepted = {};
-    $$('#asg-repair-review-list input[data-accept]').forEach(input => {
-      if (input.checked) accepted[input.dataset.accept] = true;
+    state.files.forEach(f => { f.acceptedRepairs = {}; });
+
+    document.querySelectorAll('#asg-repair-review-list input[data-accept]').forEach(input => {
+      if (!input.checked) return;
+      const val = input.dataset.accept || '';
+      const sep = val.indexOf(':');
+      if (sep === -1) return;
+      const fileIdx = parseInt(val.substring(0, sep), 10);
+      const code = val.substring(sep + 1);
+      if (!state.files[fileIdx]) return;
+      state.files[fileIdx].acceptedRepairs[code] = true;
     });
-    $$('#asg-repair-never-list input[data-remove-column]').forEach(input => {
-      if (input.checked) accepted['REMOVE_COLUMN:' + input.dataset.removeColumn] = true;
+
+    document.querySelectorAll('#asg-repair-never-list input[data-remove-column]').forEach(input => {
+      if (!input.checked) return;
+      const val = input.dataset.removeColumn || '';
+      const sep = val.indexOf(':');
+      if (sep === -1) return;
+      const fileIdx = parseInt(val.substring(0, sep), 10);
+      const col = val.substring(sep + 1);
+      if (!state.files[fileIdx]) return;
+      state.files[fileIdx].acceptedRepairs['REMOVE_COLUMN:' + col] = true;
     });
-    state.acceptedRepairs = accepted;
   }
 
   function doExport() {
     collectAccepted();
-    const result = buildCorrectedCSV();
-    state.correctedCSV = result.csv;
-    state.changeLog = result.changeLog;
-    state.appliedCodes = result.appliedCodes;
-    state.splitParts = result.splitParts || null;
+
+    state.files.forEach((entry, i) => {
+      loadFileIntoWorking(i);
+      const result = buildCorrectedCSV();
+      state.correctedCSV = result.csv;
+      state.changeLog = result.changeLog;
+      state.appliedCodes = result.appliedCodes;
+      state.splitParts = result.splitParts || null;
+      saveWorkingToFile(i);
+    });
+
     renderExport();
   }
 
   async function downloadAll() {
-    const base = state.fileName.replace(/\.csv$/i, '');
-    const csvName = base + '_safe.csv';
-    const logName = 'autonom_change_log.csv';
-    const reportName = 'autonom_readiness_report.html';
-    const csv = state.correctedCSV || '';
-    const log = buildChangeLogCSV(state.changeLog || []);
-    const report = buildReportHTML();
-
     try { await loadJSZip(); } catch (err) { LOG('JSZip load failed', err); }
 
+    const baseFolder = state.files.length === 1
+      ? state.files[0].fileName.replace(/\.csv$/i, '') + '_autonom_safe'
+      : 'autonom_batch_' + state.files.length + '_files';
+
     if (typeof JSZip === 'undefined') {
-      if (state.splitParts && state.splitParts.length > 0) {
-        state.splitParts.forEach((part, i) => {
-          setTimeout(() => downloadBlob(part.csv, part.name, 'text/csv;charset=utf-8'), i * 300);
-        });
-      } else {
-        downloadBlob(csv, csvName, 'text/csv;charset=utf-8');
-      }
-      setTimeout(() => downloadBlob(log, logName, 'text/csv;charset=utf-8'), 500);
-      setTimeout(() => downloadBlob(report, reportName, 'text/html;charset=utf-8'), 800);
+      state.files.forEach((f, i) => {
+        if (f.splitParts && f.splitParts.length > 0) {
+          f.splitParts.forEach((part, k) => {
+            setTimeout(() => downloadBlob(part.csv, part.name, 'text/csv;charset=utf-8'), (i * 5 + k) * 300);
+          });
+        } else {
+          const safeName = f.fileName.replace(/\.csv$/i, '') + '_safe.csv';
+          setTimeout(() => downloadBlob(f.correctedCSV || '', safeName, 'text/csv;charset=utf-8'), i * 600);
+        }
+      });
       return;
     }
 
     try {
       const zip = new JSZip();
-      const folder = zip.folder(base + '_autonom_safe');
-      if (state.splitParts && state.splitParts.length > 0) {
-        state.splitParts.forEach(part => folder.file(part.name, part.csv));
-      } else {
-        folder.file(csvName, csv);
-      }
-      folder.file(logName, log);
-      folder.file(reportName, report);
+      const folder = zip.folder(baseFolder);
 
-      const splitNote = (state.splitParts && state.splitParts.length > 0)
-        ? [
-            'Your file was split into ' + state.splitParts.length + ' parts.',
-            'Each part is under Shopify\'s 15 MB limit and contains complete products.',
-            'Import the parts one at a time in numerical order.',
-            ''
-          ]
-        : [];
+      state.files.forEach(f => {
+        if (f.splitParts && f.splitParts.length > 0) {
+          f.splitParts.forEach(part => folder.file(part.name, part.csv));
+        } else {
+          const safeName = f.fileName.replace(/\.csv$/i, '') + '_safe.csv';
+          folder.file(safeName, f.correctedCSV || '');
+        }
+        const logName = f.fileName.replace(/\.csv$/i, '') + '_change_log.csv';
+        folder.file(logName, buildChangeLogCSV(f.changeLog || []));
+      });
 
-      const fileList = (state.splitParts && state.splitParts.length > 0)
-        ? state.splitParts.map(p => '  ' + p.name + '  —  ' + p.rowCount + ' rows. Import this part as-is.')
-        : ['  ' + csvName + '  —  Your corrected CSV, ready to import into Shopify.'];
+      const reportName = state.files.length === 1 ? 'autonom_readiness_report.html' : 'autonom_batch_report.html';
+      const reportHtml = state.files.length === 1 ? buildReportHTML() : buildBatchReportHTML();
+      folder.file(reportName, reportHtml);
+
+      const fileListLines = [];
+      state.files.forEach(f => {
+        if (f.splitParts && f.splitParts.length > 0) {
+          f.splitParts.forEach(p => fileListLines.push('  ' + p.name + '  —  ' + p.rowCount + ' rows (part of ' + f.fileName + ')'));
+        } else {
+          fileListLines.push('  ' + f.fileName.replace(/\.csv$/i, '') + '_safe.csv  —  Corrected CSV');
+        }
+        fileListLines.push('  ' + f.fileName.replace(/\.csv$/i, '') + '_change_log.csv  —  Changes made to ' + f.fileName);
+      });
+      fileListLines.push('  ' + reportName + '  —  ' + (state.files.length === 1 ? 'The full readiness report' : 'Combined report across all files'));
 
       folder.file('README.txt', [
         'Autonom Shopify Guard — corrected package', '',
         'Files in this archive:',
-        ...fileList,
-        '  ' + logName + '  —  Every change Autonom made, in plain language.',
-        '  ' + reportName + '  —  The full readiness report.', '',
-        ...splitNote,
+        ...fileListLines, '',
         'Before importing:',
         '  1. Keep a current Shopify export as a backup.',
         '  2. Resolve any critical issues still listed in the report.',
@@ -2781,18 +3657,470 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = base + '_autonom_safe.zip';
+      a.download = baseFolder + '.zip';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (err) {
-      downloadBlob(csv, csvName, 'text/csv;charset=utf-8');
-      setTimeout(() => downloadBlob(log, logName, 'text/csv;charset=utf-8'), 300);
-      setTimeout(() => downloadBlob(report, reportName, 'text/html;charset=utf-8'), 600);
+      LOG('ZIP generation failed', err);
+      state.files.forEach((f, i) => {
+        const safeName = f.fileName.replace(/\.csv$/i, '') + '_safe.csv';
+        setTimeout(() => downloadBlob(f.correctedCSV || '', safeName, 'text/csv;charset=utf-8'), i * 400);
+      });
     }
   }
 
-  /* ---------------- Reset ---------------- */
+  /* ---------- COMPARISON MODE ---------- */
+
+  function startCompareMode() {
+    state.compareMode = true;
+    state.compareStoreFile = null;
+    state.compareUpdateFile = null;
+    state.compareResult = null;
+    renderCompareSetup();
+    showScreen('compare-setup');
+  }
+
+  function renderCompareSetup() {
+    updateCompareSlot('store', state.compareStoreFile);
+    updateCompareSlot('update', state.compareUpdateFile);
+  }
+
+  function updateCompareSlot(slot, entry) {
+    const dropzone = document.getElementById('asg-compare-' + slot + '-dropzone');
+    const info = document.getElementById('asg-compare-' + slot + '-info');
+    if (!dropzone || !info) return;
+    if (entry) {
+      dropzone.classList.add('has-file');
+      info.hidden = false;
+      let rowCount = '—';
+      try { rowCount = Math.max(0, entry.rows.length).toLocaleString(); } catch (e) {}
+      info.innerHTML =
+        '<span class="asg-compare-file-info-icon">' + (slot === 'store' ? '📦' : '📄') + '</span>' +
+        '<div class="asg-compare-file-info-body">' +
+          '<div class="asg-compare-file-info-name">' + escapeHtml(entry.fileName) + '</div>' +
+          '<div class="asg-compare-file-info-meta">' + formatBytes(entry.fileSize) + ' · ' + rowCount + ' rows · ' + entry.detectedEncoding + '</div>' +
+        '</div>' +
+        '<button type="button" class="asg-compare-file-remove" data-slot="' + slot + '" aria-label="Remove">✕</button>';
+      info.querySelector('.asg-compare-file-remove').addEventListener('click', () => {
+        if (slot === 'store') state.compareStoreFile = null;
+        else state.compareUpdateFile = null;
+        renderCompareSetup();
+      });
+    } else {
+      dropzone.classList.remove('has-file');
+      info.hidden = true;
+      info.innerHTML = '';
+    }
+  }
+
+  async function handleCompareFile(slot, file) {
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') {
+      alert('Please drop a CSV file.');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File is larger than 50MB.');
+      return;
+    }
+
+    let entry = null;
+
+    try {
+      const { text, hasBOM, encoding } = await readFileAsText(file);
+      const delimiter = detectDelimiter(text);
+      let parseText = text;
+      if (delimiter !== ',') parseText = convertDelimiter(text, delimiter, ',');
+      const parsed = fallbackParseCSV(parseText);
+      const detection = detectMode(parsed.fields, parsed.data);
+
+      entry = {
+        file: file,
+        fileName: file.name,
+        fileSize: file.size,
+        fileText: text,
+        hasBOM: hasBOM,
+        detectedEncoding: encoding,
+        detectedDelimiter: delimiter,
+        headers: parsed.fields,
+        rows: parsed.data,
+        mapped: false,
+        mapping: null,
+        detectedMode: detection.mode,
+        detectedConfidence: detection.confidence,
+        detectedReason: detection.reason
+      };
+    } catch (err) {
+      LOG('Could not read comparison file', err);
+      alert('Could not read ' + file.name + ': ' + (err && err.message ? err.message : err));
+      return;
+    }
+
+    if (slot === 'store') state.compareStoreFile = entry;
+    else state.compareUpdateFile = entry;
+
+    renderCompareSetup();
+
+    if (state.compareStoreFile && state.compareUpdateFile) {
+      try {
+        runComparison();
+      } catch (err) {
+        LOG('Comparison failed', err);
+        console.error('[Autonom SG] Comparison error details:', err);
+        alert('Comparison failed: ' + (err && err.message ? err.message : err));
+      }
+    }
+  }
+
+  function normalizeHandle(h) {
+    return String(h == null ? '' : h).trim().toLowerCase();
+  }
+
+  function runComparison() {
+    const store = state.compareStoreFile;
+    const update = state.compareUpdateFile;
+    if (!store || !update) return;
+
+    const commonFields = [];
+    const seen = {};
+    update.headers.forEach(h => {
+      if (store.headers.indexOf(h) !== -1 && !seen[h]) {
+        commonFields.push(h);
+        seen[h] = true;
+      }
+    });
+
+    const storeByHandle = {};
+    store.rows.forEach(row => {
+      const h = normalizeHandle(row['Handle']);
+      if (!h) return;
+      if (!storeByHandle[h]) storeByHandle[h] = row;
+    });
+
+    const updateByHandle = {};
+    update.rows.forEach(row => {
+      const h = normalizeHandle(row['Handle']);
+      if (!h) return;
+      if (!updateByHandle[h]) updateByHandle[h] = row;
+    });
+
+    const result = {
+      storeFileName: store.fileName,
+      updateFileName: update.fileName,
+      commonFields: commonFields,
+      matched: [],
+      newProducts: [],
+      unchanged: [],
+      fieldChanges: {},
+      blankOverwrites: []
+    };
+
+    Object.keys(updateByHandle).forEach(h => {
+      const updateRow = updateByHandle[h];
+      const storeRow = storeByHandle[h];
+      const updateTitle = updateRow['Title'] || updateRow['Variant SKU'] || h;
+
+      if (!storeRow) {
+        result.newProducts.push({ handle: h, title: updateTitle });
+        return;
+      }
+
+      const diffs = [];
+      commonFields.forEach(field => {
+        const before = storeRow[field] == null ? '' : String(storeRow[field]).trim();
+        const after = updateRow[field] == null ? '' : String(updateRow[field]).trim();
+        if (before === after) return;
+        const isBlankOverwrite = before !== '' && after === '';
+        diffs.push({ field, before, after, isBlankOverwrite });
+        if (!result.fieldChanges[field]) result.fieldChanges[field] = 0;
+        result.fieldChanges[field]++;
+        if (isBlankOverwrite) {
+          result.blankOverwrites.push({ handle: h, title: updateTitle, field, before });
+        }
+      });
+
+      if (diffs.length > 0) {
+        result.matched.push({ handle: h, title: updateTitle, diffs, storeRow, updateRow });
+      } else {
+        result.unchanged.push({ handle: h, title: updateTitle });
+      }
+    });
+
+    state.compareResult = result;
+    renderCompareReport();
+    showScreen('compare-report');
+  }
+
+  function renderCompareReport() {
+    const r = state.compareResult;
+    if (!r) return;
+
+    const totalChanged = r.matched.length;
+    const totalNew = r.newProducts.length;
+    const totalUnchanged = r.unchanged.length;
+    const totalMatched = totalChanged + totalUnchanged;
+
+    document.getElementById('asg-compare-matched').textContent = totalMatched;
+    document.getElementById('asg-compare-new').textContent = totalNew;
+    document.getElementById('asg-compare-changed').textContent = totalChanged;
+    document.getElementById('asg-compare-unchanged').textContent = totalUnchanged;
+
+    const verdict = document.getElementById('asg-compare-verdict');
+    const badge = document.getElementById('asg-compare-verdict-badge');
+    const title = document.getElementById('asg-compare-verdict-title');
+    const sub = document.getElementById('asg-compare-verdict-sub');
+    verdict.classList.remove('is-critical', 'is-warning', 'is-passed');
+
+    if (r.blankOverwrites.length > 0) {
+      verdict.classList.add('is-critical');
+      badge.textContent = 'Review required';
+      title.textContent = 'This import will erase existing data';
+      sub.textContent = r.blankOverwrites.length + ' field' + (r.blankOverwrites.length === 1 ? '' : 's') + ' would be cleared in your store.';
+    } else if (totalChanged > 0) {
+      verdict.classList.add('is-warning');
+      badge.textContent = 'Changes detected';
+      title.textContent = 'This import will change ' + totalChanged + ' product' + (totalChanged === 1 ? '' : 's');
+      sub.textContent = totalNew > 0
+        ? 'Plus ' + totalNew + ' new product' + (totalNew === 1 ? '' : 's') + '.'
+        : 'No new products. ' + totalUnchanged + ' product' + (totalUnchanged === 1 ? '' : 's') + ' unchanged.';
+    } else {
+      verdict.classList.add('is-passed');
+      badge.textContent = 'No changes';
+      title.textContent = 'This import will not change anything';
+      sub.textContent = totalNew > 0
+        ? 'But ' + totalNew + ' new product' + (totalNew === 1 ? '' : 's') + ' will be created.'
+        : 'All matched products already match.';
+    }
+
+    const impactEl = document.getElementById('asg-compare-impact');
+    const impactList = document.getElementById('asg-compare-impact-list');
+    const impactFields = Object.keys(r.fieldChanges).sort((a, b) => r.fieldChanges[b] - r.fieldChanges[a]);
+    if (impactFields.length > 0) {
+      impactEl.hidden = false;
+      impactList.innerHTML = '';
+      impactFields.forEach(field => {
+        const cat = COMPARE_FIELD_CATEGORIES[field];
+        const label = cat ? cat.label : field;
+        const count = r.fieldChanges[field];
+        const li = document.createElement('li');
+        li.innerHTML = '<span>Changes to <strong>' + escapeHtml(label) + '</strong></span><strong>' + count + '</strong>';
+        impactList.appendChild(li);
+      });
+    } else {
+      impactEl.hidden = true;
+    }
+
+    const blankWarn = document.getElementById('asg-compare-blank-warning');
+    const blankIntro = document.getElementById('asg-compare-blank-intro');
+    const blankList = document.getElementById('asg-compare-blank-list');
+    if (r.blankOverwrites.length > 0) {
+      blankWarn.hidden = false;
+      blankIntro.textContent = 'These fields are currently set in your store but the update file leaves them blank. Shopify will clear them.';
+      blankList.innerHTML = '';
+      r.blankOverwrites.slice(0, 20).forEach(b => {
+        const cat = COMPARE_FIELD_CATEGORIES[b.field];
+        const label = cat ? cat.label : b.field;
+        const li = document.createElement('li');
+        li.innerHTML = '<strong>' + escapeHtml(b.title) + '</strong> (' + escapeHtml(b.handle) + ') — <em>' + escapeHtml(label) + '</em> would be cleared. Current value: <code>' + escapeHtml(String(b.before).substring(0, 80)) + '</code>';
+        blankList.appendChild(li);
+      });
+      if (r.blankOverwrites.length > 20) {
+        const li = document.createElement('li');
+        li.textContent = '… and ' + (r.blankOverwrites.length - 20) + ' more.';
+        blankList.appendChild(li);
+      }
+    } else {
+      blankWarn.hidden = true;
+    }
+
+    const diffList = document.getElementById('asg-compare-diff-list');
+    const noDiffs = document.getElementById('asg-compare-no-diffs');
+    diffList.innerHTML = '';
+
+    if (r.matched.length === 0 && r.newProducts.length === 0) {
+      noDiffs.hidden = false;
+    } else {
+      noDiffs.hidden = true;
+
+      r.newProducts.forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'asg-issue is-info';
+        el.innerHTML = '<div class="asg-issue-head"><span class="asg-issue-marker">+</span><h4 class="asg-issue-title">NEW: ' + escapeHtml(p.title) + '</h4><span class="asg-issue-toggle">▾</span></div>' +
+          '<div class="asg-issue-body" hidden><p>Handle: <code>' + escapeHtml(p.handle) + '</code></p><p>This product will be created.</p></div>';
+        const head = el.querySelector('.asg-issue-head');
+        const body = el.querySelector('.asg-issue-body');
+        head.addEventListener('click', () => {
+          body.hidden = !body.hidden;
+          head.classList.toggle('is-open', !body.hidden);
+        });
+        diffList.appendChild(el);
+      });
+
+      r.matched.forEach(m => {
+        const el = document.createElement('div');
+        el.className = 'asg-issue is-warning';
+        const rowsHtml = m.diffs.map(d => {
+          const cat = COMPARE_FIELD_CATEGORIES[d.field];
+          const label = cat ? cat.label : d.field;
+          const warn = d.isBlankOverwrite ? ' <strong style="color:#d92b2b;">⚠ will erase</strong>' : '';
+          return '<tr><td>' + escapeHtml(label) + warn + '</td>' +
+            '<td class="asg-diff-cell-before">' + escapeHtml(d.before || '(blank)') + '</td>' +
+            '<td class="asg-diff-cell-after">' + escapeHtml(d.after || '(blank)') + '</td></tr>';
+        }).join('');
+        el.innerHTML = '<div class="asg-issue-head"><span class="asg-issue-marker">!</span><h4 class="asg-issue-title">' + escapeHtml(m.title) + ' <span style="font-family:var(--asg-mono);font-size:12px;color:var(--asg-text-muted);font-weight:400;">(' + escapeHtml(m.handle) + ')</span></h4><span class="asg-issue-toggle">▾</span></div>' +
+          '<div class="asg-issue-body" hidden>' +
+          '<table class="asg-diff-compact" style="width:100%;"><thead><tr><th>Field</th><th>In your store</th><th>After import</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+          '</div>';
+        const head = el.querySelector('.asg-issue-head');
+        const body = el.querySelector('.asg-issue-body');
+        head.addEventListener('click', () => {
+          body.hidden = !body.hidden;
+          head.classList.toggle('is-open', !body.hidden);
+        });
+        diffList.appendChild(el);
+      });
+    }
+  }
+
+  function buildCompareReportHTML() {
+    const r = state.compareResult;
+    if (!r) return '';
+    let h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Autonom Shopify Guard — Comparison Report</title>';
+    h += '<style>body{font-family:-apple-system,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#1a1d23;line-height:1.55;}h1{border-bottom:2px solid #1a1d23;padding-bottom:10px;}h2{margin-top:32px;font-size:18px;}table{width:100%;border-collapse:collapse;margin:12px 0;}th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #e1e4e9;font-size:13px;}th{background:#f7f8fa;}.critical{color:#d92b2b;font-weight:600;}.warning{color:#c47a00;font-weight:600;}.passed{color:#17864a;}.new-badge{color:#17864a;font-weight:700;}.erase{color:#d92b2b;font-weight:600;}</style></head><body>';
+    h += '<h1>Autonom Shopify Guard — Comparison Report</h1>';
+    h += '<p><strong>Store export:</strong> ' + escapeHtml(r.storeFileName) + '</p>';
+    h += '<p><strong>Update file:</strong> ' + escapeHtml(r.updateFileName) + '</p>';
+    h += '<p><strong>Generated:</strong> ' + new Date().toISOString() + '</p>';
+    h += '<p><strong>Tool version:</strong> 2.0.1</p>';
+
+    h += '<h2>Summary</h2><ul>';
+    h += '<li>Matched products: ' + (r.matched.length + r.unchanged.length) + '</li>';
+    h += '<li>Products with changes: ' + r.matched.length + '</li>';
+    h += '<li>New products: ' + r.newProducts.length + '</li>';
+    h += '<li>Unchanged: ' + r.unchanged.length + '</li>';
+    if (r.blankOverwrites.length > 0) {
+      h += '<li class="erase">Fields that will be erased: ' + r.blankOverwrites.length + '</li>';
+    }
+    h += '</ul>';
+
+    const impactFields = Object.keys(r.fieldChanges).sort((a, b) => r.fieldChanges[b] - r.fieldChanges[a]);
+    if (impactFields.length > 0) {
+      h += '<h2>What changes</h2><ul>';
+      impactFields.forEach(field => {
+        const cat = COMPARE_FIELD_CATEGORIES[field];
+        const label = cat ? cat.label : field;
+        h += '<li>' + escapeHtml(label) + ': <strong>' + r.fieldChanges[field] + '</strong></li>';
+      });
+      h += '</ul>';
+    }
+
+    if (r.blankOverwrites.length > 0) {
+      h += '<h2 class="critical">⚠ Fields that will be erased</h2>';
+      h += '<p>These fields are currently set in your store, but the update file leaves them blank. Shopify will clear them.</p><ul>';
+      r.blankOverwrites.forEach(b => {
+        const cat = COMPARE_FIELD_CATEGORIES[b.field];
+        const label = cat ? cat.label : b.field;
+        h += '<li><strong>' + escapeHtml(b.title) + '</strong> (' + escapeHtml(b.handle) + ') — ' + escapeHtml(label) + ' would be cleared. Current: <code>' + escapeHtml(String(b.before).substring(0, 80)) + '</code></li>';
+      });
+      h += '</ul>';
+    }
+
+    if (r.newProducts.length > 0) {
+      h += '<h2>New products (' + r.newProducts.length + ')</h2><ul>';
+      r.newProducts.forEach(p => {
+        h += '<li><span class="new-badge">NEW</span> ' + escapeHtml(p.title) + ' <code>' + escapeHtml(p.handle) + '</code></li>';
+      });
+      h += '</ul>';
+    }
+
+    if (r.matched.length > 0) {
+      h += '<h2>Field-by-field changes</h2>';
+      r.matched.forEach(m => {
+        h += '<h3>' + escapeHtml(m.title) + ' <code>' + escapeHtml(m.handle) + '</code></h3>';
+        h += '<table><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>';
+        m.diffs.forEach(d => {
+          const cat = COMPARE_FIELD_CATEGORIES[d.field];
+          const label = cat ? cat.label : d.field;
+          const warn = d.isBlankOverwrite ? ' <span class="erase">⚠</span>' : '';
+          h += '<tr><td>' + escapeHtml(label) + warn + '</td><td>' + escapeHtml(d.before || '(blank)') + '</td><td>' + escapeHtml(d.after || '(blank)') + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      });
+    }
+
+    h += '<h2>Limitations</h2>';
+    h += '<p>This comparison is against the store export you provided. If your store changed since that export, values may differ. Autonom does not connect to your store and cannot verify current values.</p>';
+    h += '<hr><p style="color:#8a94a3;font-size:12px;">Generated locally in your browser.</p>';
+    h += '</body></html>';
+    return h;
+  }
+
+  function buildCompareDiffCSV() {
+    const r = state.compareResult;
+    if (!r) return '';
+    const lines = ['Handle,Title,Change,Field,Before,After'];
+    const esc = val => '"' + String(val == null ? '' : val).replace(/"/g, '""') + '"';
+    r.newProducts.forEach(p => {
+      lines.push([p.handle, p.title, 'NEW', '', '', ''].map(esc).join(','));
+    });
+    r.matched.forEach(m => {
+      m.diffs.forEach(d => {
+        lines.push([m.handle, m.title, 'CHANGE', d.field, d.before, d.after].map(esc).join(','));
+      });
+    });
+    return lines.join('\n');
+  }
+
+  function downloadCompareReport() {
+    const r = state.compareResult;
+    if (!r) return;
+    const html = buildCompareReportHTML();
+    const csv = buildCompareDiffCSV();
+    const baseName = r.updateFileName.replace(/\.csv$/i, '') + '_comparison';
+
+    if (typeof JSZip !== 'undefined') {
+      const zip = new JSZip();
+      const folder = zip.folder(baseName);
+      folder.file('comparison_report.html', html);
+      folder.file('comparison_diff.csv', csv);
+      folder.file('README.txt', [
+        'Autonom Shopify Guard — comparison package', '',
+        'Files:',
+        '  comparison_report.html  —  Full side-by-side comparison',
+        '  comparison_diff.csv     —  Machine-readable list of changes', '',
+        'Store export: ' + r.storeFileName,
+        'Update file:  ' + r.updateFileName, '',
+        'This comparison was generated locally in your browser.',
+        'Autonom does not know your store\'s current data. If your store changed since the export, values may differ.', ''
+      ].join('\n'));
+      zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = baseName + '.zip';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      });
+    } else {
+      downloadBlob(html, baseName + '_report.html', 'text/html;charset=utf-8');
+      setTimeout(() => downloadBlob(csv, baseName + '_diff.csv', 'text/csv;charset=utf-8'), 400);
+    }
+  }
+
   function resetToLanding() {
+    state.files = [];
+    state.currentFileIndex = 0;
+    state.batchMode = null;
+    state.batchDetectedMode = null;
+    state.batchDetectedConfidence = null;
+    state.batchDetectedReason = '';
+    state.pendingMappingIndices = [];
+    state.currentMappingIndex = 0;
+    state.mappingDraft = {};
+    state.compareMode = false;
+    state.compareStoreFile = null;
+    state.compareUpdateFile = null;
+    state.compareResult = null;
     state.file = null; state.fileName = ''; state.fileSize = 0; state.fileText = '';
     state.headers = []; state.rows = []; state.mode = null;
     state.detectedMode = null; state.detectedConfidence = null; state.detectedReason = '';
@@ -2804,14 +4132,16 @@
     state.showRowContext = {};
     state.diffViewMode = 'detailed';
     state.parseFieldMismatches = 0;
+
     const fi = document.getElementById('asg-file-input');
     if (fi) fi.value = '';
-    $$('.asg-mode-card').forEach(c => c.classList.remove('is-selected'));
-    $$('.asg-issue').forEach(el => el.hidden = false);
-    $$('.asg-filter-btn').forEach(b => b.classList.remove('is-active'));
+    document.querySelectorAll('.asg-mode-card').forEach(c => c.classList.remove('is-selected'));
+    document.querySelectorAll('.asg-issue').forEach(el => el.hidden = false);
+    document.querySelectorAll('.asg-filter-btn').forEach(b => b.classList.remove('is-active'));
     const allF = document.querySelector('.asg-filter-btn[data-filter="all"]');
     if (allF) allF.classList.add('is-active');
-    $$('.asg-scan-steps li').forEach(el => el.classList.remove('is-running', 'is-done'));
+    document.querySelectorAll('.asg-scan-steps li').forEach(el => el.classList.remove('is-running', 'is-done'));
+
     const oldWarn = document.querySelector('.asg-export-warning');
     if (oldWarn) oldWarn.remove();
     const oldSplit = document.querySelector('.asg-export-split');
@@ -2832,6 +4162,34 @@
     if (delimBanner) delimBanner.hidden = true;
     const grid = document.getElementById('asg-mode-grid');
     if (grid) grid.classList.remove('is-hidden');
+    const batchFiles = document.getElementById('asg-batch-files');
+    if (batchFiles) { batchFiles.hidden = true; batchFiles.innerHTML = ''; }
+    const batchList = document.getElementById('asg-batch-list');
+    if (batchList) batchList.innerHTML = '';
+    const exportFiles = document.getElementById('asg-export-files');
+    if (exportFiles) exportFiles.innerHTML = '';
+    const mappingList = document.getElementById('asg-mapping-list');
+    if (mappingList) mappingList.innerHTML = '';
+    const mappingBanner = document.getElementById('asg-mapping-banner');
+    if (mappingBanner) mappingBanner.hidden = true;
+    const mappingWarning = document.getElementById('asg-mapping-warning');
+    if (mappingWarning) mappingWarning.hidden = true;
+
+    const compareStoreInfo = document.getElementById('asg-compare-store-info');
+    if (compareStoreInfo) { compareStoreInfo.hidden = true; compareStoreInfo.innerHTML = ''; }
+    const compareUpdateInfo = document.getElementById('asg-compare-update-info');
+    if (compareUpdateInfo) { compareUpdateInfo.hidden = true; compareUpdateInfo.innerHTML = ''; }
+    const compareStoreDz = document.getElementById('asg-compare-store-dropzone');
+    if (compareStoreDz) compareStoreDz.classList.remove('has-file');
+    const compareUpdateDz = document.getElementById('asg-compare-update-dropzone');
+    if (compareUpdateDz) compareUpdateDz.classList.remove('has-file');
+    const compareDiffList = document.getElementById('asg-compare-diff-list');
+    if (compareDiffList) compareDiffList.innerHTML = '';
+    const compareBlankWarn = document.getElementById('asg-compare-blank-warning');
+    if (compareBlankWarn) compareBlankWarn.hidden = true;
+    const compareImpact = document.getElementById('asg-compare-impact');
+    if (compareImpact) compareImpact.hidden = true;
+
     showScreen('landing');
   }
 
@@ -2863,12 +4221,10 @@
       'inv-no-qty,Inv No Qty,"<p>Test.</p>",Acme,Shirts,"test",TRUE,Size,Small,,,INQ-001,9.99,12.99,shopify,,https://cdn.example.com/inq.jpg,active,Shirts',
       ''
     ].join('\n');
-
     const withBOM = '\uFEFF' + sample;
     downloadBlob(withBOM, 'autonom-sample-shopify-products.csv', 'text/csv;charset=utf-8');
   }
 
-  /* ---------------- Wiring ---------------- */
   function wireEvents() {
     const dropzone = document.getElementById('asg-dropzone');
     const fileInput = document.getElementById('asg-file-input');
@@ -2876,6 +4232,7 @@
     const privacyPanel = document.getElementById('asg-privacy-panel');
     const newScanBtn = document.getElementById('asg-new-scan-btn');
     const sampleBtn = document.getElementById('asg-download-sample-btn');
+    const compareStartBtn = document.getElementById('asg-compare-start-btn');
     const removeFileBtn = document.getElementById('asg-remove-file-btn');
     const detectOverride = document.getElementById('asg-detect-override');
     const toggleSample = document.getElementById('asg-toggle-sample');
@@ -2893,18 +4250,18 @@
     ['dragenter', 'dragover'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('is-dragover'); }));
     ['dragleave', 'drop'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('is-dragover'); }));
     dropzone.addEventListener('drop', e => {
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) handleFile(f);
+      const files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length) handleFiles(files);
     });
     fileInput.addEventListener('change', e => {
-      const f = e.target.files && e.target.files[0];
-      if (f) handleFile(f);
+      const files = e.target.files;
+      if (files && files.length) handleFiles(files);
       fileInput.value = '';
     });
 
-    $$('.asg-mode-card').forEach(card => {
+    document.querySelectorAll('#asg-mode-grid .asg-mode-card').forEach(card => {
       card.addEventListener('click', () => {
-        $$('.asg-mode-card').forEach(c => c.classList.remove('is-selected'));
+        document.querySelectorAll('#asg-mode-grid .asg-mode-card').forEach(c => c.classList.remove('is-selected'));
         card.classList.add('is-selected');
         state.mode = card.dataset.mode;
         state.detectedMode = null;
@@ -2919,6 +4276,15 @@
           document.getElementById('asg-detect-sub').textContent = 'You selected this.';
         }
         updateActionBar('setup');
+      });
+    });
+
+    document.querySelectorAll('#asg-batch-mode-grid .asg-mode-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('#asg-batch-mode-grid .asg-mode-card').forEach(c => c.classList.remove('is-selected'));
+        card.classList.add('is-selected');
+        state.batchMode = card.dataset.mode;
+        updateActionBar('batch-queue');
       });
     });
 
@@ -2964,20 +4330,17 @@
       });
     }
 
-    if (selectAllBtn) {
-      selectAllBtn.addEventListener('click', () => {
-        $$('#asg-repair-review-list input[data-accept]').forEach(i => { i.checked = true; });
-      });
-    }
-    if (deselectAllBtn) {
-      deselectAllBtn.addEventListener('click', () => {
-        $$('#asg-repair-review-list input[data-accept]').forEach(i => { i.checked = false; });
-      });
-    }
+    if (selectAllBtn) selectAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('#asg-repair-review-list input[data-accept]').forEach(i => { i.checked = true; });
+    });
+    if (deselectAllBtn) deselectAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('#asg-repair-review-list input[data-accept]').forEach(i => { i.checked = false; });
+    });
 
     if (newScanBtn) newScanBtn.addEventListener('click', resetToLanding);
     if (sampleBtn) sampleBtn.addEventListener('click', downloadSampleCSV);
     if (removeFileBtn) removeFileBtn.addEventListener('click', resetToLanding);
+    if (compareStartBtn) compareStartBtn.addEventListener('click', startCompareMode);
 
     if (privacyToggle && privacyPanel) {
       privacyToggle.addEventListener('click', () => {
@@ -2987,25 +4350,82 @@
       });
     }
 
-    $$('.asg-filter-btn').forEach(btn => {
+    document.querySelectorAll('.asg-filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const filter = btn.dataset.filter;
-        $$('.asg-filter-btn').forEach(b => b.classList.remove('is-active'));
+        document.querySelectorAll('.asg-filter-btn').forEach(b => b.classList.remove('is-active'));
         btn.classList.add('is-active');
-        $$('.asg-issue').forEach(el => {
+        document.querySelectorAll('.asg-issue').forEach(el => {
           el.hidden = !(filter === 'all' || el.dataset.severity === filter);
         });
       });
     });
+
+    const compareStoreDz = document.getElementById('asg-compare-store-dropzone');
+    const compareStoreInput = document.getElementById('asg-compare-store-input');
+    const compareUpdateDz = document.getElementById('asg-compare-update-dropzone');
+    const compareUpdateInput = document.getElementById('asg-compare-update-input');
+
+    if (compareStoreDz && compareStoreInput) {
+      compareStoreDz.addEventListener('click', () => compareStoreInput.click());
+      compareStoreDz.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); compareStoreInput.click(); }
+      });
+      ['dragenter', 'dragover'].forEach(ev => compareStoreDz.addEventListener(ev, e => { e.preventDefault(); compareStoreDz.classList.add('is-dragover'); }));
+      ['dragleave', 'drop'].forEach(ev => compareStoreDz.addEventListener(ev, e => { e.preventDefault(); compareStoreDz.classList.remove('is-dragover'); }));
+      compareStoreDz.addEventListener('drop', e => {
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) handleCompareFile('store', files[0]);
+      });
+      compareStoreInput.addEventListener('change', e => {
+        const files = e.target.files;
+        if (files && files.length) handleCompareFile('store', files[0]);
+        compareStoreInput.value = '';
+      });
+    }
+
+    if (compareUpdateDz && compareUpdateInput) {
+      compareUpdateDz.addEventListener('click', () => compareUpdateInput.click());
+      compareUpdateDz.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); compareUpdateInput.click(); }
+      });
+      ['dragenter', 'dragover'].forEach(ev => compareUpdateDz.addEventListener(ev, e => { e.preventDefault(); compareUpdateDz.classList.add('is-dragover'); }));
+      ['dragleave', 'drop'].forEach(ev => compareUpdateDz.addEventListener(ev, e => { e.preventDefault(); compareUpdateDz.classList.remove('is-dragover'); }));
+      compareUpdateDz.addEventListener('drop', e => {
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) handleCompareFile('update', files[0]);
+      });
+      compareUpdateInput.addEventListener('change', e => {
+        const files = e.target.files;
+        if (files && files.length) handleCompareFile('update', files[0]);
+        compareUpdateInput.value = '';
+      });
+    }
   }
 
-  /* ---------------- Init ---------------- */
+  function wireExtraUI() {
+    const compareBackBtn = document.getElementById('asg-compare-back-btn');
+    const compareExitBtn = document.getElementById('asg-compare-exit-btn');
+    const exportNewScanBtn = document.getElementById('asg-export-new-scan-btn');
+
+    if (compareBackBtn) {
+      compareBackBtn.addEventListener('click', resetToLanding);
+    }
+    if (compareExitBtn) {
+      compareExitBtn.addEventListener('click', resetToLanding);
+    }
+    if (exportNewScanBtn) {
+      exportNewScanBtn.addEventListener('click', resetToLanding);
+    }
+  }
+
   function init() {
     if (!document.getElementById('autonom-shopify-guard')) return;
     initPrivacyMonitor();
     wireEvents();
+    wireExtraUI();
     showScreen('landing');
-    LOG('Init complete — v1.8.2');
+    LOG('Init complete — v2.0.1 (Batch + Mapping + Comparison + UX)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
