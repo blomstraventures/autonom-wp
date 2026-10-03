@@ -1,0 +1,392 @@
+<!-- ==========================================================================
+     AUTONOM SHOPIFY GUARD — Product Page Content
+     Site header and footer are handled by WordPress.
+     ========================================================================== -->
+
+<div class="autonom-page">
+
+<!-- ============================ HERO ============================ -->
+<section class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Ready · Shopify Guard
+    </div>
+    <h1 class="autonom-hero-title">
+      Check your Shopify CSV<br>
+      <em>before it changes your store.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      A CSV can pass Shopify's syntax check and still wipe your prices, variants,
+      or descriptions. Autonom scans for the destructive issues Shopify's own
+      documentation warns about — and shows you exactly what would change before
+      you import.
+    </p>
+    <ul class="autonom-hero-trust">
+      <li><span class="autonom-hero-trust-check">✓</span> 100% local processing</li>
+      <li><span class="autonom-hero-trust-check">✓</span> No account required</li>
+      <li><span class="autonom-hero-trust-check">✓</span> Free forever</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ THE TOOL ============================ -->
+<section class="autonom-tool-wrap">
+  <div class="autonom-tool-wrap-inner">
+    [autonom_shopify_guard]
+  </div>
+</section>
+
+<!-- ============================ THE PROBLEM ============================ -->
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+    <h2 class="autonom-section-title">Why Shopify CSV imports break live stores</h2>
+    <p class="autonom-section-lead">
+      The Shopify importer is designed to update existing products. That's what
+      makes it useful. It's also what makes it dangerous. A CSV can pass syntax
+      validation and still silently clear prices, drop variants, or overwrite
+      descriptions.
+    </p>
+
+    <div class="autonom-problem-grid">
+      <div class="autonom-problem-card">
+        <div class="autonom-problem-icon">⚠</div>
+        <h3>Blank cells clear live data</h3>
+        <p>
+          If you include a column like <code>Variant Price</code> but leave cells
+          empty, Shopify treats the blanks as intentional overwrites. Existing
+          products with matching handles may have their prices cleared.
+        </p>
+      </div>
+      <div class="autonom-problem-card">
+        <div class="autonom-problem-icon">⚠</div>
+        <h3>Handles overwrite quietly</h3>
+        <p>
+          Shopify matches rows to products by <code>Handle</code>. A matching
+          handle means every included column in that row replaces the live value.
+        </p>
+      </div>
+      <div class="autonom-problem-card">
+        <div class="autonom-problem-icon">⚠</div>
+        <h3>Variants disappear silently</h3>
+        <p>
+          If a product has three variants in your store but the CSV only includes
+          one, Shopify may delete the other two. No warning. No undo.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ WHAT IT CHECKS ============================ -->
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+    <h2 class="autonom-section-title">What Shopify Guard checks</h2>
+    <p class="autonom-section-lead">
+      Over thirty validation rules. Every issue sorted by severity. Every fix
+      classified by safety.
+    </p>
+
+    <div class="autonom-checks-grid">
+      <div class="autonom-checks-card">
+        <h3>Product structure</h3>
+        <ul>
+          <li>Missing or duplicate headers</li>
+          <li>Unknown columns Shopify will ignore</li>
+          <li>CSV parsing errors</li>
+        </ul>
+      </div>
+      <div class="autonom-checks-card">
+        <h3>Identity</h3>
+        <ul>
+          <li>Missing or duplicate handles</li>
+          <li>Non-standard handle formats</li>
+          <li>Missing product titles</li>
+        </ul>
+      </div>
+      <div class="autonom-checks-card">
+        <h3>Variants</h3>
+        <ul>
+          <li>Orphaned variant rows</li>
+          <li>Duplicate option combinations</li>
+          <li>Incomplete option pairs</li>
+          <li>Column inconsistency across variants</li>
+        </ul>
+      </div>
+      <div class="autonom-checks-card">
+        <h3>Prices &amp; inventory</h3>
+        <ul>
+          <li>Non-numeric or negative values</li>
+          <li>Currency symbols and comma decimals</li>
+          <li>Compare-at price errors</li>
+          <li>Inventory tracker mismatches</li>
+        </ul>
+      </div>
+      <div class="autonom-checks-card">
+        <h3>Content &amp; encoding</h3>
+        <ul>
+          <li>UTF-8 BOM and encoding issues</li>
+          <li>Smart quotes from Word</li>
+          <li>Unclosed or dangerous HTML</li>
+          <li>Category format problems</li>
+        </ul>
+      </div>
+      <div class="autonom-checks-card">
+        <h3>Images &amp; file</h3>
+        <ul>
+          <li>HTTP or malformed URLs</li>
+          <li>Private CDN addresses</li>
+          <li>Duplicate image rows</li>
+          <li>Oversized files (split automatically)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ THREE TIERS ============================ -->
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+    <h2 class="autonom-section-title">Three tiers of repair — and complete transparency</h2>
+    <p class="autonom-section-lead">
+      Autonom separates every issue into one of three classes. The distinction
+      matters because it tells you exactly what changed, and what didn't.
+    </p>
+
+    <div class="autonom-tiers">
+      <div class="autonom-tier autonom-tier-safe">
+        <div class="autonom-tier-badge">Safe</div>
+        <h3>Automatic fixes</h3>
+        <p>
+          Deterministic corrections that cannot lose information. Applied
+          without asking, listed in the change log.
+        </p>
+        <ul>
+          <li>BOM and encoding fixes</li>
+          <li>Smart quote replacement</li>
+          <li>Whitespace trimming</li>
+          <li>Currency symbol stripping</li>
+          <li>Handle normalization</li>
+        </ul>
+      </div>
+      <div class="autonom-tier autonom-tier-review">
+        <div class="autonom-tier-badge">Review</div>
+        <h3>Fixes that need your approval</h3>
+        <p>
+          Changes that might collide with your conventions. Each has a checkbox,
+          a preview, and a plain-language reason.
+        </p>
+        <ul>
+          <li>Handle generation from titles</li>
+          <li>HTTPS upgrades</li>
+          <li>HTML tag repair</li>
+          <li>File splitting for oversized CSVs</li>
+          <li>Duplicate SKU suffixing</li>
+        </ul>
+      </div>
+      <div class="autonom-tier autonom-tier-never">
+        <div class="autonom-tier-badge">Flagged</div>
+        <h3>What Autonom will not change</h3>
+        <p>
+          Missing values, ambiguous data, and things that require your judgment.
+          We flag them — we never invent them.
+        </p>
+        <ul>
+          <li>Missing product titles</li>
+          <li>Non-numeric prices</li>
+          <li>Orphaned variants</li>
+          <li>Invalid status values</li>
+          <li>Dangerous HTML tags</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ HOW IT WORKS ============================ -->
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+    <h2 class="autonom-section-title">How it works</h2>
+
+    <div class="autonom-steps">
+      <div class="autonom-step">
+        <div class="autonom-step-num">1</div>
+        <div class="autonom-step-body">
+          <h3>Drop your CSV</h3>
+          <p>Autonom reads the file in your browser. Nothing is uploaded.</p>
+        </div>
+      </div>
+      <div class="autonom-step">
+        <div class="autonom-step-num">2</div>
+        <div class="autonom-step-body">
+          <h3>Review the readiness report</h3>
+          <p>
+            Every issue is grouped by severity. Each one tells you what's wrong,
+            why it matters, and which rows are affected.
+          </p>
+        </div>
+      </div>
+      <div class="autonom-step">
+        <div class="autonom-step-num">3</div>
+        <div class="autonom-step-body">
+          <h3>Decide what to fix</h3>
+          <p>
+            Safe fixes are automatic. Review fixes have checkboxes. Anything
+            Autonom won't touch is flagged for you.
+          </p>
+        </div>
+      </div>
+      <div class="autonom-step">
+        <div class="autonom-step-num">4</div>
+        <div class="autonom-step-body">
+          <h3>Download your files</h3>
+          <p>
+            One ZIP with your corrected CSV (or split parts), a change log, a
+            full report, and an import checklist.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PRIVACY ============================ -->
+<section class="autonom-section autonom-section-privacy">
+  <div class="autonom-section-inner">
+    <h2 class="autonom-section-title">Your file never leaves your browser</h2>
+    <p class="autonom-section-lead">
+      Autonom processes everything locally using JavaScript. No server. No
+      account. No tracking of file contents.
+    </p>
+    <p>
+      You can verify this yourself. Open your browser's DevTools, watch the
+      Network tab during a scan, and you will see zero outbound requests for
+      your CSV. The tool displays a live privacy monitor during processing.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ PRO TEASER ============================ -->
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+    <div class="autonom-pro-teaser">
+      <div class="autonom-pro-teaser-icon">⚡</div>
+      <div class="autonom-pro-teaser-body">
+        <h3>Managing a large catalog or multiple suppliers?</h3>
+        <p>Autonom Pro will add batch processing, supplier column mapping, and a CSV history log so you can track what changed between imports. Everything you see today stays free.</p>
+      </div>
+      <button type="button" class="autonom-pro-teaser-cta" disabled="">Pro Access — Coming Soon</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ THE SUITE ============================ -->
+<section class="autonom-section autonom-section-suite">
+  <div class="autonom-section-inner">
+    <div class="autonom-suite-eyebrow">The Autonom Suite</div>
+    <h2 class="autonom-section-title">More readiness tools, coming soon</h2>
+    <p class="autonom-section-lead">
+      Every Autonom tool follows the same rule: destination-specific readiness,
+      local processing, honest reports.
+    </p>
+
+    <div class="autonom-suite-grid">
+      <div class="autonom-suite-card">
+        <div class="autonom-suite-icon">🖼️</div>
+        <h3>Image Fit</h3>
+        <p>Exact-KB compression for portals that reject files over a specific size.</p>
+        <span class="autonom-suite-status autonom-suite-status-live">Available now</span>
+      </div>
+      <div class="autonom-suite-card">
+        <div class="autonom-suite-icon">🎨</div>
+        <h3>Brand Kit</h3>
+        <p>One logo → every social and web asset in a single ZIP.</p>
+        <span class="autonom-suite-status autonom-suite-status-live">Available now</span>
+      </div>
+      <div class="autonom-suite-card">
+        <div class="autonom-suite-icon">📄</div>
+        <h3>PDF Preflight</h3>
+        <p>Print and submission readiness for KDP, academic, and commercial press.</p>
+        <span class="autonom-suite-status autonom-suite-status-soon">Coming soon</span>
+      </div>
+      <div class="autonom-suite-card">
+        <div class="autonom-suite-icon">🔒</div>
+        <h3>PromptSafe</h3>
+        <p>Scrub API keys and PII from text before sending to an AI.</p>
+        <span class="autonom-suite-status autonom-suite-status-soon">Coming soon</span>
+      </div>
+      <div class="autonom-suite-card">
+        <div class="autonom-suite-icon">📊</div>
+        <h3>ContextClean</h3>
+        <p>Clean PDF text extraction into token-optimized context.</p>
+        <span class="autonom-suite-status autonom-suite-status-soon">Coming soon</span>
+      </div>
+      <div class="autonom-suite-card">
+        <div class="autonom-suite-icon">📁</div>
+        <h3>DeliveryBox</h3>
+        <p>Clean project folder handoffs with a manifest and no system junk.</p>
+        <span class="autonom-suite-status autonom-suite-status-soon">Coming soon</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FAQ ============================ -->
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+    <h2 class="autonom-section-title">Frequently asked questions</h2>
+
+    <div class="autonom-faq">
+      <details>
+        <summary>Is my file uploaded to Autonom?</summary>
+        <p>No. Everything runs in your browser. Your CSV is never sent to a server. You can verify this in your browser's DevTools Network tab.</p>
+      </details>
+      <details>
+        <summary>Is this free?</summary>
+        <p>Yes. Every feature is free. No account. No paywall. No watermark.</p>
+      </details>
+      <details>
+        <summary>Does Autonom connect to my Shopify store?</summary>
+        <p>No. Autonom never connects to your Shopify store. It generates a corrected file you choose to import yourself.</p>
+      </details>
+      <details>
+        <summary>Can Autonom guarantee my import will succeed?</summary>
+        <p>No. We don't know your store's current data. We check what we can check and tell you what we can't.</p>
+      </details>
+      <details>
+        <summary>What happens if my file is over 15 MB?</summary>
+        <p>Autonom splits it into parts under Shopify's limit. Products stay whole — all variant rows of the same Handle go into the same part.</p>
+      </details>
+      <details>
+        <summary>What if my file uses semicolons instead of commas?</summary>
+        <p>Autonom detects it and offers a one-click conversion. This is common with European Excel exports.</p>
+      </details>
+      <details>
+        <summary>What is a destructive blank?</summary>
+        <p>A blank cell in a column you've included. Shopify treats blanks in included columns as intentional overwrites. Autonom flags them before you import.</p>
+      </details>
+      <details>
+        <summary>Does Autonom modify my Shopify store?</summary>
+        <p>No. Autonom never connects to your store. It generates a corrected file you choose to import yourself.</p>
+      </details>
+      <details>
+        <summary>What file types are supported?</summary>
+        <p>CSV files in Shopify's product export format. Up to 50 MB.</p>
+      </details>
+      <details>
+        <summary>Can I use this on my phone?</summary>
+        <p>Yes. It works in all modern mobile browsers.</p>
+      </details>
+      <details>
+        <summary>How is this different from Shopify's built-in preview?</summary>
+        <p>Shopify's preview runs after you click import. Autonom runs before, on your local machine, with a broader set of checks — including destructive blanks, variant inconsistencies, and file size handling.</p>
+      </details>
+      <details>
+        <summary>Will Autonom fix my file or just tell me what's wrong?</summary>
+        <p>Both. Safe fixes are applied automatically. Review-required fixes need your approval. Issues that would require inventing data are flagged for you to fix in the source.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+</div>
