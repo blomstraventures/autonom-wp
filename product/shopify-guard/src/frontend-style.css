@@ -1,0 +1,549 @@
+/* ============================================================================
+   AUTONOM PRODUCT PAGE — Complete stylesheet
+   Only styles the content between the WordPress header and footer.
+   Prefix: .autonom-
+   ========================================================================= */
+
+.autonom-page {
+  --autonom-bg: #ffffff;
+  --autonom-bg-soft: #f7f8fa;
+  --autonom-border: #e1e4e9;
+  --autonom-text: #1a1d23;
+  --autonom-text-muted: #5b6471;
+  --autonom-text-dim: #8a94a3;
+  --autonom-accent: #2a4fd6;
+  --autonom-accent-hover: #1e3eb8;
+  --autonom-critical: #d92b2b;
+  --autonom-warning: #c47a00;
+  --autonom-passed: #17864a;
+  --autonom-radius: 12px;
+  --autonom-radius-sm: 8px;
+  --autonom-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --autonom-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  font-family: var(--autonom-sans);
+  color: var(--autonom-text);
+  line-height: 1.6;
+  background: var(--autonom-bg);
+  margin: 0;
+  padding: 0;
+}
+.autonom-page *,
+.autonom-page *::before,
+.autonom-page *::after { box-sizing: border-box; }
+.autonom-page p { margin: 0 0 14px; }
+.autonom-page h1,
+.autonom-page h2,
+.autonom-page h3 { margin: 0 0 14px; line-height: 1.25; }
+.autonom-page code {
+  font-family: var(--autonom-mono);
+  background: var(--autonom-bg-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.92em;
+}
+
+/* ============================================================================
+   HERO
+   ========================================================================= */
+
+.autonom-hero {
+  background: linear-gradient(180deg, #f7f8fa 0%, #ffffff 100%);
+  border-bottom: 1px solid var(--autonom-border);
+  padding: 80px 24px 64px;
+}
+.autonom-hero-inner {
+  max-width: 780px;
+  margin: 0 auto;
+}
+.autonom-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--autonom-text-muted);
+  margin-bottom: 24px;
+}
+.autonom-hero-eyebrow-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--autonom-passed);
+  box-shadow: 0 0 0 3px rgba(23,134,74,0.15);
+}
+.autonom-hero-title {
+  font-size: 56px;
+  letter-spacing: -0.025em;
+  margin-bottom: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.autonom-hero-title em {
+  font-style: normal;
+  color: var(--autonom-text-muted);
+}
+.autonom-hero-sub {
+  font-size: 19px;
+  color: var(--autonom-text-muted);
+  max-width: 660px;
+  margin-bottom: 32px;
+  line-height: 1.55;
+}
+.autonom-hero-trust {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--autonom-text-muted);
+}
+.autonom-hero-trust li {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.autonom-hero-trust-check {
+  color: var(--autonom-passed);
+  font-weight: 700;
+}
+
+/* ============================================================================
+   TOOL WRAPPER
+   ========================================================================= */
+
+.autonom-tool-wrap {
+  padding: 40px 24px 20px;
+  background: #fff;
+}
+.autonom-tool-wrap-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ============================================================================
+   GENERIC SECTIONS
+   ========================================================================= */
+
+.autonom-section { padding: 80px 24px; }
+.autonom-section-alt {
+  background: var(--autonom-bg-soft);
+  border-top: 1px solid var(--autonom-border);
+  border-bottom: 1px solid var(--autonom-border);
+}
+.autonom-section-inner { max-width: 1000px; margin: 0 auto; }
+.autonom-section-title {
+  font-size: 36px;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.autonom-section-lead {
+  font-size: 18px;
+  color: var(--autonom-text-muted);
+  margin-bottom: 48px;
+  max-width: 720px;
+  line-height: 1.55;
+}
+
+/* ============================================================================
+   PROBLEM GRID
+   ========================================================================= */
+
+.autonom-problem-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.autonom-problem-card {
+  background: #fff;
+  border: 1px solid var(--autonom-border);
+  border-radius: var(--autonom-radius);
+  padding: 26px 28px;
+}
+.autonom-problem-icon {
+  font-size: 28px;
+  color: var(--autonom-critical);
+  margin-bottom: 14px;
+  line-height: 1;
+}
+.autonom-problem-card h3 {
+  font-size: 17px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.autonom-problem-card p {
+  font-size: 14.5px;
+  color: var(--autonom-text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   CHECKS GRID
+   ========================================================================= */
+
+.autonom-checks-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.autonom-checks-card {
+  background: #fff;
+  border: 1px solid var(--autonom-border);
+  border-radius: var(--autonom-radius);
+  padding: 24px 26px;
+}
+.autonom-checks-card h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--autonom-text-muted);
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+.autonom-checks-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.autonom-checks-card li {
+  font-size: 14px;
+  color: var(--autonom-text);
+  padding: 5px 0 5px 20px;
+  position: relative;
+  line-height: 1.5;
+}
+.autonom-checks-card li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--autonom-accent);
+  font-weight: 700;
+}
+
+/* ============================================================================
+   THREE TIERS
+   ========================================================================= */
+
+.autonom-tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.autonom-tier {
+  border-radius: var(--autonom-radius);
+  padding: 28px 28px;
+  border: 1px solid var(--autonom-border);
+  background: #fff;
+}
+.autonom-tier-safe { border-left: 4px solid var(--autonom-passed); }
+.autonom-tier-review { border-left: 4px solid var(--autonom-warning); }
+.autonom-tier-never { border-left: 4px solid var(--autonom-critical); }
+.autonom-tier-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+.autonom-tier-safe .autonom-tier-badge { background: #eaf6ee; color: var(--autonom-passed); }
+.autonom-tier-review .autonom-tier-badge { background: #fdf6e6; color: var(--autonom-warning); }
+.autonom-tier-never .autonom-tier-badge { background: #fdf1f1; color: var(--autonom-critical); }
+.autonom-tier h3 {
+  font-size: 17px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.autonom-tier > p {
+  font-size: 14px;
+  color: var(--autonom-text-muted);
+  margin-bottom: 18px;
+  line-height: 1.6;
+}
+.autonom-tier ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--autonom-border);
+  padding-top: 16px;
+}
+.autonom-tier li {
+  font-size: 13.5px;
+  padding: 5px 0;
+  color: var(--autonom-text);
+}
+
+/* ============================================================================
+   HOW IT WORKS
+   ========================================================================= */
+
+.autonom-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 720px;
+}
+.autonom-step {
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+}
+.autonom-step-num {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--autonom-accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.autonom-step-body h3 {
+  font-size: 17px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.autonom-step-body p {
+  font-size: 14.5px;
+  color: var(--autonom-text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   PRIVACY
+   ========================================================================= */
+
+.autonom-section-privacy {
+  background: linear-gradient(135deg, #eef3ff 0%, #f7f8fa 100%);
+  border-top: 1px solid var(--autonom-border);
+  border-bottom: 1px solid var(--autonom-border);
+}
+.autonom-section-privacy .autonom-section-title {
+  color: var(--autonom-accent);
+}
+.autonom-section-privacy p {
+  font-size: 15px;
+  color: var(--autonom-text-muted);
+  max-width: 720px;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   PRO TEASER
+   ========================================================================= */
+
+.autonom-pro-teaser {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  background: linear-gradient(135deg, #1a1d23 0%, #2a4fd6 100%);
+  border-radius: var(--autonom-radius);
+  padding: 32px 34px;
+  flex-wrap: wrap;
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(42,79,214,0.18);
+}
+.autonom-pro-teaser-icon {
+  font-size: 44px;
+  flex-shrink: 0;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+.autonom-pro-teaser-body { flex: 1; min-width: 240px; }
+.autonom-pro-teaser-body h3 {
+  font-size: 19px;
+  margin-bottom: 8px;
+  color: #fff;
+  font-weight: 700;
+}
+.autonom-pro-teaser-body p {
+  font-size: 14.5px;
+  color: rgba(255,255,255,0.85);
+  margin: 0;
+  line-height: 1.6;
+}
+.autonom-pro-teaser-cta {
+  flex-shrink: 0;
+  font-size: 14px;
+  padding: 14px 26px;
+  background: #fff;
+  color: #2a4fd6 !important;
+  border: 2px solid #fff;
+  border-radius: var(--autonom-radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 1 !important;
+  font-family: inherit;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.autonom-pro-teaser-cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+/* ============================================================================
+   SUITE
+   ========================================================================= */
+
+.autonom-section-suite {
+  background: #1a1d23;
+  color: #fff;
+}
+.autonom-section-suite .autonom-section-title { color: #fff; }
+.autonom-section-suite .autonom-section-lead { color: rgba(255,255,255,0.72); }
+.autonom-suite-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 14px;
+}
+.autonom-suite-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.autonom-suite-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--autonom-radius);
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+}
+.autonom-suite-icon {
+  font-size: 28px;
+  margin-bottom: 14px;
+  line-height: 1;
+}
+.autonom-suite-card h3 {
+  font-size: 17px;
+  margin-bottom: 8px;
+  color: #fff;
+  font-weight: 600;
+}
+.autonom-suite-card p {
+  font-size: 13.5px;
+  color: rgba(255,255,255,0.68);
+  margin: 0 0 18px;
+  flex: 1;
+  line-height: 1.55;
+}
+.autonom-suite-status {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+.autonom-suite-status-live {
+  background: rgba(23,134,74,0.18);
+  color: #6ecf94;
+}
+.autonom-suite-status-soon {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.6);
+}
+
+/* ============================================================================
+   FAQ
+   ========================================================================= */
+
+.autonom-faq {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--autonom-border);
+}
+.autonom-faq details {
+  border-bottom: 1px solid var(--autonom-border);
+  padding: 20px 0;
+}
+.autonom-faq summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.autonom-faq summary::after {
+  content: "+";
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--autonom-text-dim);
+  flex-shrink: 0;
+  transition: transform 140ms ease;
+}
+.autonom-faq details[open] summary::after { content: "−"; }
+.autonom-faq summary::-webkit-details-marker { display: none; }
+.autonom-faq p {
+  margin: 14px 0 0;
+  color: var(--autonom-text-muted);
+  font-size: 14.5px;
+  line-height: 1.6;
+  max-width: 780px;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ========================================================================= */
+
+@media (max-width: 860px) {
+  .autonom-hero { padding: 60px 20px 48px; }
+  .autonom-hero-title { font-size: 40px; }
+  .autonom-hero-sub { font-size: 17px; }
+  .autonom-section { padding: 60px 20px; }
+  .autonom-section-title { font-size: 28px; }
+  .autonom-section-lead { font-size: 16px; margin-bottom: 36px; }
+  .autonom-problem-grid,
+  .autonom-checks-grid,
+  .autonom-tiers,
+  .autonom-suite-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+  .autonom-hero { padding: 48px 20px 40px; }
+  .autonom-hero-title { font-size: 32px; letter-spacing: -0.02em; }
+  .autonom-hero-sub { font-size: 16px; }
+  .autonom-hero-trust { flex-direction: column; gap: 10px; }
+  .autonom-section { padding: 48px 20px; }
+  .autonom-section-title { font-size: 24px; }
+  .autonom-section-lead { font-size: 15px; }
+  .autonom-problem-grid,
+  .autonom-checks-grid,
+  .autonom-tiers,
+  .autonom-suite-grid { grid-template-columns: 1fr; }
+  .autonom-pro-teaser { flex-direction: column; align-items: flex-start; padding: 26px 24px; }
+  .autonom-pro-teaser-cta { width: 100%; justify-content: center; }
+  .autonom-step { gap: 16px; }
+  .autonom-step-num { width: 38px; height: 38px; font-size: 15px; }
+}
+
+/* ============================================================================
+   HIDE THEME DEFAULTS ON THIS PAGE (if the theme injects its own paddings)
+   Optional — uncomment if you see doubled spacing.
+   ========================================================================= */
+
+/*
+.autonom-page > section:first-child { margin-top: 0 !important; }
+.autonom-page { max-width: none; }
+*/
