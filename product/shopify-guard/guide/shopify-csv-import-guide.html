@@ -1,0 +1,373 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Shopify CSV Import
+    </div>
+    <h1 class="autonom-hero-title">
+      Shopify CSV Import Guide<br>
+      <em>The complete reference — for merchants who can't afford a broken catalog.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      A Shopify CSV import can update 5,000 products in 30 seconds. It can also
+      silently erase prices, drop variants, and replace descriptions — all
+      while reporting success. The difference between those two outcomes comes
+      down to preparation.
+    </p>
+    <p class="autonom-hero-sub">
+      This guide is the reference we wish existed when we started. It covers
+      how Shopify reads CSVs, what breaks imports, and how to verify your file
+      before you upload it. Every section links to a deeper guide if you need
+      to go further.
+    </p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-info">
+      <span class="autonom-callout-icon">📖</span>
+      <div class="autonom-callout-body">
+        <strong>How to read this guide.</strong>
+        <p>If you're new to Shopify CSVs, read top to bottom. If you have a specific problem, jump to the relevant section — every section has a link to its deep-dive guide.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">What is a Shopify CSV?</h2>
+    <p>
+      A Shopify CSV is a plain text file with comma-separated values. Each
+      line represents a row. Each row has the same set of fields, in the same
+      order, defined by the header line at the top.
+    </p>
+    <p>
+      Shopify uses this format for two things: <strong>exporting</strong>
+      products out of your store and <strong>importing</strong> products into
+      your store. The same file format serves both directions, which is why
+      imports can be used to update existing products, not just create new ones.
+    </p>
+    <p>
+      The typical file has 20-50 columns and anywhere from 1 to 100,000 rows.
+      Each product occupies one or more rows — the first row is the parent,
+      and each subsequent row is a variant or an additional image.
+    </p>
+
+    <h2 class="autonom-section-title">The three core concepts you must understand</h2>
+
+    <h3>1. Handle is the primary key</h3>
+    <p>
+      Handle is the only column Shopify uses to match rows to products. Not SKU.
+      Not barcode. Not title. Handle.
+    </p>
+    <p>
+      If your CSV contains <code>handle: blue-t-shirt</code> and your store
+      already has a product with that handle, Shopify updates it. If not, Shopify
+      creates a new product.
+    </p>
+    <p>
+      <a href="/guide/shopify-csv-import/handle-errors/">→ Read the full handle errors guide</a>
+    </p>
+
+    <h3>2. Blank cells erase data — they don't skip it</h3>
+    <p>
+      If a column is included in your CSV, Shopify treats every blank cell in
+      that column as an intentional instruction to clear the field on matching
+      products.
+    </p>
+    <p>
+      This is the single most dangerous behavior in the format, and it catches
+      merchants off guard because it's the opposite of how Excel works.
+    </p>
+    <p>
+      <a href="/guide/shopify-csv-import/blank-overwrites/">→ Read the full blank overwrites guide</a>
+    </p>
+
+    <h3>3. Variants are identified by option combinations</h3>
+    <p>
+      Every variant of a product shares the same Handle. What makes each variant
+      unique is the combination of Option1 Value + Option2 Value + Option3 Value.
+      "Small/Red" and "Small/Blue" are two variants. "Small/Red" and "Small/Red"
+      is a duplicate — Shopify silently drops one.
+    </p>
+    <p>
+      <a href="/guide/shopify-csv-import/variant-errors/">→ Read the full variant errors guide</a>
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The structure of a Shopify product CSV</h2>
+
+    <h3>Columns</h3>
+    <p>
+      Shopify's CSV format includes over 50 columns. Most are optional; a few
+      are required. The full list breaks into six groups:
+    </p>
+    <ul>
+      <li><strong>Product identity:</strong> Handle, Title, Body (HTML), Vendor, Type, Tags, Published, Status, Product Category, SEO Title, SEO Description</li>
+      <li><strong>Variant options:</strong> Option1 Name, Option1 Value, Option2 Name, Option2 Value, Option3 Name, Option3 Value</li>
+      <li><strong>Variant pricing:</strong> Variant SKU, Variant Price, Variant Compare At Price, Variant Barcode, Cost per item</li>
+      <li><strong>Inventory:</strong> Variant Inventory Tracker, Variant Inventory Qty, Variant Inventory Policy, Variant Fulfillment Service, Variant Weight Unit, Variant Grams</li>
+      <li><strong>Shipping and tax:</strong> Variant Requires Shipping, Variant Taxable, Variant Tax Code, Gift Card</li>
+      <li><strong>Images:</strong> Image Src, Image Position, Image Alt Text, Variant Image</li>
+    </ul>
+    <p>
+      <a href="/guide/shopify-csv-import/csv-template/">→ Download our free CSV template with all columns</a>
+    </p>
+
+    <h3>Rows</h3>
+    <p>
+      A product with no variants and no extra images occupies one row. A product
+      with three variants and two images occupies five rows (one parent, three
+      variants, two images).
+    </p>
+    <p>
+      The first row is the parent — it contains the Title, Body HTML, Vendor,
+      Type, Tags, Published, Status, and any other product-level fields. Every
+      subsequent row of the same product leaves those blank.
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The correct import workflow</h2>
+    <p>
+      The reason most imports go wrong is not bad data. It's bad order of
+      operations. Here's the sequence that minimizes risk.
+    </p>
+
+    <h3>Step 1 — Export a backup of your current products</h3>
+    <p>
+      Go to Shopify Admin → Products → Export → All products → Plain CSV file.
+      Save this file. It's your rollback point.
+    </p>
+    <p>
+      If anything goes wrong with the import, you can re-import this file to
+      restore your catalog to its current state. It takes 30 seconds and it's
+      the single most important safety practice for bulk imports.
+    </p>
+
+    <h3>Step 2 — Prepare your update file</h3>
+    <p>
+      If you're creating new products: build the file from a template. If you're
+      updating existing products: start from a fresh export and edit only the
+      columns you're actually changing.
+    </p>
+    <p>
+      Either way: match Shopify's column names exactly. Don't rename, don't add
+      extra columns, don't reorder unless you have a reason.
+    </p>
+
+    <h3>Step 3 — Validate the file</h3>
+    <p>
+      Run the file through a validator before you upload it. This is what
+      catches the missing handles, blank cells, duplicate combinations, and
+      encoding issues before they hit your store.
+    </p>
+    <p>
+      <a href="/guide/shopify-csv-import/before-import/">→ See the full before-import checklist</a>
+    </p>
+
+    <h3>Step 4 — Test-import a small batch</h3>
+    <p>
+      Create a smaller version of your CSV with 2-5 products. Import it first.
+      Verify the results on the storefront. If the test batch works, run the
+      full import.
+    </p>
+
+    <h3>Step 5 — Import the full file</h3>
+    <p>
+      Shopify Admin → Products → Import → choose your file. Shopify shows a
+      preview; review it before confirming. The import itself takes seconds for
+      small files and minutes for large ones.
+    </p>
+
+    <h3>Step 6 — Verify a sample of the results</h3>
+    <p>
+      Pick 5-10 products that were affected by the import. Check prices, variants,
+      images, and descriptions. Look for anything unexpected. If something is
+      wrong, re-import your backup.
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The six categories of import errors</h2>
+    <p>
+      Everything that breaks a Shopify CSV import falls into one of these six
+      categories. Each has a dedicated guide.
+    </p>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card">
+        <h3>1. Handle errors</h3>
+        <p>
+          Missing, duplicate, or malformed handles. The most common cause of
+          failed updates and silent duplicates.
+        </p>
+        <p><a href="/guide/shopify-csv-import/handle-errors/">Read the handle errors guide →</a></p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>2. Blank overwrites</h3>
+        <p>
+          Empty cells in included columns. Shopify treats these as intentional
+          clears. This is the error that quietly wipes prices and inventory.
+        </p>
+        <p><a href="/guide/shopify-csv-import/blank-overwrites/">Read the blank overwrites guide →</a></p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>3. Variant errors</h3>
+        <p>
+          Orphaned rows, duplicate option combinations, incomplete pairs. Silent
+          product collapses that you only notice weeks later.
+        </p>
+        <p><a href="/guide/shopify-csv-import/variant-errors/">Read the variant errors guide →</a></p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>4. Encoding errors</h3>
+        <p>
+          UTF-8 BOM, smart quotes, wrong delimiters, non-UTF-8 character sets.
+          Invisible problems that break imports before they start.
+        </p>
+        <p><a href="/guide/shopify-csv-import/encoding-errors/">Read the encoding errors guide →</a></p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>5. Template and structure errors</h3>
+        <p>
+          Missing required columns, renamed headers, extra columns Shopify
+          ignores, wrong file format.
+        </p>
+        <p><a href="/guide/shopify-csv-import/csv-template/">Download the correct CSV template →</a></p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>6. Pre-import verification gaps</h3>
+        <p>
+          No backup, no test batch, no validation. The workflow mistakes that
+          turn a small problem into a catalog-wide failure.
+        </p>
+        <p><a href="/guide/shopify-csv-import/before-import/">See the pre-import checklist →</a></p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The tool that catches all of this</h2>
+    <p>
+      Manually checking 20 columns across 2,000 rows is not realistic. The eye
+      misses things. Excel filters only catch one column at a time. And the
+      errors that break imports — missing handles, blank cells, duplicate
+      combinations — require looking at relationships between rows, not just
+      cells.
+    </p>
+    <p>
+      Autonom Shopify Guard is a free browser-based validator that scans your
+      CSV for every error category in this guide. It shows you exactly which
+      rows and columns are affected, sorts issues by severity, and lets you fix
+      the safe ones automatically.
+    </p>
+    <p>
+      It runs entirely in your browser — nothing is uploaded, no account is
+      required. You can verify this by watching the Network tab in your
+      browser's DevTools during a scan.
+    </p>
+
+    <div class="autonom-cta-box">
+      <h3>Validate your CSV before you import</h3>
+      <p>Free, browser-based, no account. Checks 30+ issues including every category in this guide.</p>
+      <a href="https://autonom.app/ready/shopify-guard/" class="autonom-cta-btn">Open Shopify CSV Validator →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Deeper guides</h2>
+    <p>
+      Every section above has a longer companion guide. Start here for the
+      overview; dig into the specific ones when you hit a problem.
+    </p>
+
+    <ul class="autonom-related-list">
+      <li><a href="/guide/shopify-csv-import/handle-errors/">Shopify CSV handle errors</a> — Missing, duplicate, and malformed handles</li>
+      <li><a href="/guide/shopify-csv-import/blank-overwrites/">Shopify CSV blank overwrites</a> — How empty cells erase live data</li>
+      <li><a href="/guide/shopify-csv-import/variant-errors/">Shopify CSV variant errors</a> — Orphaned rows and duplicate combinations</li>
+      <li><a href="/guide/shopify-csv-import/encoding-errors/">Shopify CSV encoding errors</a> — BOM, smart quotes, delimiters</li>
+      <li><a href="/guide/shopify-csv-import/csv-template/">Shopify CSV template</a> — Free download with every column</li>
+      <li><a href="/guide/shopify-csv-import/before-import/">Shopify CSV import checklist</a> — 15 checks before you upload</li>
+      <li><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">Shopify's official CSV documentation</a> (external)</li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details>
+        <summary>What file format does Shopify accept for product imports?</summary>
+        <p>Shopify only accepts CSV files — specifically UTF-8 encoded, comma-delimited files with the .csv extension. Files saved as .xlsx, .xls, .numbers, or with semicolon delimiters will be rejected.</p>
+      </details>
+      <details>
+        <summary>How many products can I import at once?</summary>
+        <p>Shopify doesn't limit the number of products, but it does limit file size to 15 MB. If your file exceeds that, split it into multiple files. Each file imports independently.</p>
+      </details>
+      <details>
+        <summary>Will importing a CSV delete my existing products?</summary>
+        <p>No. A CSV import never deletes products. It creates new ones or updates existing ones. However, if you include a column in your update CSV and leave cells blank, Shopify will clear those fields on matching products — which can feel like deletion.</p>
+      </details>
+      <details>
+        <summary>How do I know if an import succeeded?</summary>
+        <p>Shopify shows an import summary at the end of the process. It lists how many products were created, updated, or skipped. But "success" doesn't mean the data is correct — always verify a sample of the results on the storefront.</p>
+      </details>
+      <details>
+        <summary>Can I import products that don't have handles yet?</summary>
+        <p>Yes, but not recommended. Shopify will auto-generate a handle from the title. The generated handles are sometimes unpredictable, especially for titles with special characters. Always define handles explicitly.</p>
+      </details>
+      <details>
+        <summary>What happens if my CSV has extra columns Shopify doesn't recognize?</summary>
+        <p>Shopify ignores unknown columns silently. Your import still succeeds, but the data in those columns is not stored anywhere. If you need to store extra data, use tags or metafields.</p>
+      </details>
+      <details>
+        <summary>Do I need to include every column in my CSV?</summary>
+        <p>No. Include only the columns you're actively importing. This is safer than including columns you don't need, because any column you include triggers the blank overwrite behavior for its blank cells.</p>
+      </details>
+      <details>
+        <summary>How do I backup my Shopify products before importing?</summary>
+        <p>Shopify Admin → Products → Export → All products → Plain CSV file. Save the resulting file. If your import goes wrong, re-import this file to restore your products to their previous state.</p>
+      </details>
+      <details>
+        <summary>What's the difference between creating and updating products via CSV?</summary>
+        <p>The format is identical. The difference is whether the Handle matches an existing product. If it does, Shopify updates. If it doesn't, Shopify creates. You don't tell Shopify which mode to use — it decides based on the handles in your file.</p>
+      </details>
+      <details>
+        <summary>Can I roll back an import if something goes wrong?</summary>
+        <p>Only if you exported a backup before importing. Shopify doesn't offer built-in version history for products. Re-importing the backup file restores the previous state for the fields it contains.</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
