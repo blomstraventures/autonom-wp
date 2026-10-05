@@ -1,0 +1,274 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Shopify CSV Handle Errors
+    </div>
+    <h1 class="autonom-hero-title">
+      Shopify CSV Handle Errors<br>
+      <em>How to fix missing, duplicate, and invalid handles.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      We've watched this happen in real time. A merchant uploads a 2,000-row CSV
+      to Shopify. Shopify accepts it without complaint. They click import, see
+      a green success message, and move on.
+    </p>
+    <p class="autonom-hero-sub">
+      Two weeks later they notice their sitemap has URLs like
+      <code>/products/product-1</code> and <code>/products/unnamed-item-3</code>.
+      Google traffic is down 40%. Every one of those products was supposed to
+      have a clean, keyword-rich URL.
+    </p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-warn">
+      <span class="autonom-callout-icon">⚠</span>
+      <div class="autonom-callout-body">
+        <strong>Handle errors don't crash imports. They damage them silently.</strong>
+        <p>By the time you notice, the products are live, indexed, and linked. Fixing them means breaking URLs.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">What is a Handle in a Shopify CSV?</h2>
+    <p>
+      A handle is the URL slug for a product. When you create a product called
+      "Blue Cotton T-Shirt," Shopify generates a handle like
+      <code>blue-cotton-t-shirt</code>. That handle becomes the product's
+      permanent URL: <code>https://yourstore.com/products/blue-cotton-t-shirt</code>.
+    </p>
+    <p>
+      In the CSV, <strong>Handle is the column Shopify uses to match rows to
+      products</strong>. It's the only column Shopify uses for matching.
+      Not SKU. Not barcode. Not title. Handle.
+    </p>
+    <p>
+      This means two important things:
+    </p>
+    <ul>
+      <li>If the handle is wrong, Shopify either creates a duplicate product or fails to update the one you meant to update.</li>
+      <li>If the handle is blank on an update import, Shopify matches it to nothing — and either skips the row or creates a new product with a garbage URL.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The three handle errors that break imports</h2>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card">
+        <h3>1. Missing handles</h3>
+        <p>The most common. Your CSV has rows with nothing in the Handle column.</p>
+        <p>
+          <strong>On a new-product import:</strong> Shopify creates the product, but
+          generates a placeholder handle from the title. If the title contains
+          special characters (like <code>—</code>, <code>&amp;</code>, or
+          non-English letters), the generated handle can be unpredictable. If
+          the title is also blank, the handle becomes <code>product-1</code>,
+          <code>product-2</code>, etc.
+        </p>
+        <p>
+          <strong>On an update import:</strong> Shopify can't match the row to
+          anything. Depending on your CSV structure, it either skips the row entirely
+          or creates a duplicate product. This is how merchants end up with two
+          versions of the same product in their store — one clean, one from the CSV.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>2. Duplicate handles</h3>
+        <p>Two rows with the same handle. What happens next depends on the titles.</p>
+        <p>
+          <strong>Same title on both rows:</strong> Shopify treats them as variants
+          of the same product. This works if you're actually importing variants
+          (Size: Small, Size: Medium, etc.). If you accidentally duplicated a row,
+          one variant silently overwrites the other.
+        </p>
+        <p>
+          <strong>Different titles on both rows:</strong> Shopify merges them into a
+          single product. The last row's values win. If both rows had different
+          prices, only one survives — and you have no idea which.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>3. Invalid handle format</h3>
+        <p>
+          Shopify handles must be lowercase, use hyphens between words, and contain
+          only letters, numbers, and hyphens. No spaces, no underscores, no uppercase,
+          no accents.
+        </p>
+        <p>
+          If your CSV has <code>Blue T-Shirt</code> in the Handle column, Shopify will
+          reject the row or auto-fix it depending on the import method. If it's
+          <code>blue_t_shirt</code> (underscores), Shopify may accept it but the URL
+          breaks in some browsers. If it has special characters like
+          <code>café-mug</code>, the handle survives import but breaks links elsewhere.
+        </p>
+        <p>
+          The rule: <code>^[a-z0-9]+(-[a-z0-9]+)*$</code> — lowercase letters,
+          numbers, hyphens between. Nothing else.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How to fix each error</h2>
+
+    <h3>Fixing missing handles</h3>
+    <p>The safest fix is to generate them from the product title. The logic:</p>
+    <ol>
+      <li>Take the Title</li>
+      <li>Convert to lowercase</li>
+      <li>Replace spaces with hyphens</li>
+      <li>Remove any character that isn't a letter, number, or hyphen</li>
+      <li>Collapse multiple hyphens into one</li>
+      <li>Trim leading and trailing hyphens</li>
+    </ol>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">Blue Cotton T-Shirt — Premium</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">blue-cotton-t-shirt-premium</div>
+    </div>
+
+    <p>Edge cases worth knowing:</p>
+    <ul>
+      <li><strong>Non-English characters:</strong> <code>Café</code> should become <code>cafe</code> (accents stripped and transliterated, not dropped). Some tools produce <code>caf</code>, which looks broken in URLs.</li>
+      <li><strong>Emoji in titles:</strong> strip them entirely. Shopify will reject emoji in handles.</li>
+      <li><strong>Duplicate titles:</strong> append <code>-2</code>, <code>-3</code> to make handles unique. Otherwise Shopify silently merges the products.</li>
+    </ul>
+
+    <h3>Fixing duplicate handles</h3>
+    <p>If two rows share a handle, figure out which case you're in:</p>
+    <ul>
+      <li><strong>They're actual variants</strong> (Size: Small, Size: Medium). Then it's not an error — keep the same handle on both rows and make sure the variant columns (Option1 Name, Option1 Value) are correctly filled.</li>
+      <li><strong>They're two different products</strong> that got the same handle by mistake. Rename one. If <code>blue-tee</code> appears twice with different titles, the second one becomes <code>blue-tee-v2</code> or something specific to its actual content.</li>
+      <li><strong>One is a duplicate paste.</strong> Delete the duplicate row.</li>
+    </ul>
+
+    <div class="autonom-callout autonom-callout-danger">
+      <span class="autonom-callout-icon">🛑</span>
+      <div class="autonom-callout-body">
+        <strong>Shopify won't warn you.</strong>
+        <p>Duplicate handles either merge or drop without notification. The import still reports "success." You only notice days later when products are missing.</p>
+      </div>
+    </div>
+
+    <h3>Fixing invalid handle format</h3>
+    <p>Normalize using the same transform you'd use for generating a handle:</p>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">Blue T-Shirt</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">blue-t-shirt</div>
+    </div>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">blue_shirt</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">blue-shirt</div>
+    </div>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">Café Mug</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">cafe-mug</div>
+    </div>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">mug---large</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">mug-large</div>
+    </div>
+
+    <div class="autonom-callout autonom-callout-info">
+      <span class="autonom-callout-icon">💡</span>
+      <div class="autonom-callout-body">
+        <strong>Normalize before your first import. Never after.</strong>
+        <p>If you already imported a product with handle <code>blue-t-shirt</code> and now update it with a row containing <code>Blue T-Shirt</code>, the handles don't match. Shopify sees them as different products. You'll get a duplicate. Fix handles on the source file, not after import.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How to prevent handle errors before import</h2>
+    <p>Before any import, check your CSV for:</p>
+    <ol>
+      <li><strong>Rows with blank Handle cells</strong> — these will create or merge unpredictably.</li>
+      <li><strong>Duplicate handles with different titles</strong> — these will merge into one product.</li>
+      <li><strong>Handles with spaces, uppercase, underscores, or special characters</strong> — these will break URLs.</li>
+    </ol>
+    <p>
+      You can do this manually with Excel filters. Or you can scan the file once
+      with a tool that does all three checks in a single pass.
+    </p>
+
+    <div class="autonom-cta-box">
+      <h3>Check your CSV handles in 30 seconds</h3>
+      <p>Autonom Shopify Guard scans every handle in your file — missing, duplicate, or invalid — before you upload it. Free, browser-based, no account needed.</p>
+      <a href="https://autonom.app/ready/shopify-guard/" class="autonom-cta-btn">Open Shopify CSV Validator →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guides/shopify-csv-import/blank-overwrites/">Destructive blank overwrites in Shopify CSVs</a></li>
+      <li><a href="/guides/shopify-csv-import/variant-errors/">Shopify CSV variant errors</a></li>
+      <li><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">Shopify's official CSV documentation</a> (external)</li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details>
+        <summary>Can I leave the Handle column blank on a new-product import?</summary>
+        <p>Yes, but not recommended. Shopify will auto-generate a handle from the title, which sometimes produces unexpected slugs. Always define handles explicitly.</p>
+      </details>
+      <details>
+        <summary>What happens if I import a CSV with handles that don't match any existing product?</summary>
+        <p>Shopify creates a new product. It does not fail the import. This is how merchants accidentally create duplicates when they meant to update.</p>
+      </details>
+      <details>
+        <summary>Can I change a product's handle after it's been imported?</summary>
+        <p>Yes, but the old URL will 404. Shopify automatically redirects some cases but not all. If your product has external links pointing to it, consider whether the handle change is worth breaking them.</p>
+      </details>
+      <details>
+        <summary>Are Shopify handles case-sensitive?</summary>
+        <p>No. <code>Blue-Tee</code> and <code>blue-tee</code> resolve to the same URL. But Shopify normalizes on import, so always use lowercase to avoid surprises.</p>
+      </details>
+      <details>
+        <summary>What's the difference between Handle and URL?</summary>
+        <p>Handle is the CSV column name. URL is the full address (<code>yourstore.com/products/handle</code>). Same concept, different context.</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
