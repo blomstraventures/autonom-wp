@@ -1,0 +1,307 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Shopify CSV Encoding Errors
+    </div>
+    <h1 class="autonom-hero-title">
+      Shopify CSV Encoding Errors<br>
+      <em>Invisible problems that break imports before they start.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      Encoding errors are the sneakiest failure mode in Shopify CSV imports.
+      The file looks fine in Excel. Every row is correct. Every column is
+      spelled right. But when you upload it, Shopify either rejects it outright
+      or reads the wrong data — because of characters you can't see.
+    </p>
+    <p class="autonom-hero-sub">
+      This guide covers the four encoding problems that break imports, why
+      they happen, and how to fix each one.
+    </p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-warn">
+      <span class="autonom-callout-icon">👁️</span>
+      <div class="autonom-callout-body">
+        <strong>You can't see encoding problems by looking at the file.</strong>
+        <p>They live in the raw bytes of the file. Excel hides them. Google Sheets hides them. The only way to catch them is with a tool that reads the raw bytes.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">Why encoding matters for Shopify</h2>
+    <p>
+      A CSV is just text. But "text" isn't one thing. Every character in your
+      file is stored as one or more bytes. Which bytes represent which character
+      depends on the <strong>encoding</strong>.
+    </p>
+    <p>
+      Shopify expects UTF-8 encoded files. UTF-8 is a universal standard that
+      represents every character on Earth — English letters, accented
+      characters (é, ñ, ü), emoji, and symbols (™, ©, ½).
+    </p>
+    <p>
+      When your file isn't UTF-8, or when UTF-8 contains hidden "control"
+      characters at the start, Shopify misreads the file. Sometimes it fails
+      loudly. More often it fails silently — the import "succeeds" but the data
+      is wrong.
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The four encoding errors that break imports</h2>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card">
+        <h3>1. UTF-8 BOM (Byte Order Mark)</h3>
+        <p>
+          A BOM is a special three-byte marker (<code>EF BB BF</code>) at the
+          very start of a file. It tells programs "this is a UTF-8 file." But
+          most software — including Shopify — treats it as invisible data.
+        </p>
+        <p>
+          <strong>What happens:</strong> If your CSV starts with a BOM, Shopify
+          reads the first column header as <code>﻿Handle</code>
+          instead of <code>Handle</code>. It doesn't recognize the column. Every
+          row's handle is treated as blank. The entire import misfires.
+        </p>
+        <p>
+          <strong>How to check:</strong> Open the CSV in a hex editor or use the
+          <code>file</code> command. If the first three bytes are <code>EF BB BF</code>,
+          you have a BOM.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>2. Smart quotes (curly quotes)</h3>
+        <p>
+          When you type quotes, apostrophes, or dashes in Word, Google Docs, or
+          macOS Notes, they get replaced with "smart" versions: <code>"</code>
+          becomes <code>"</code>, <code>'</code> becomes <code>'</code>, and
+          <code>--</code> becomes <code>—</code>.
+        </p>
+        <p>
+          <strong>What happens:</strong> Shopify's CSV parser expects straight
+          quotes for quoting field values. Smart quotes are technically different
+          characters. If your Tags field contains <code>"summer, sale"</code> with
+          smart quotes, Shopify may see the field as ending early and treat
+          everything after as a new column — shifting all subsequent data.
+        </p>
+        <p>
+          <strong>How to check:</strong> Search your CSV for the characters
+          <code>"</code>, <code>"</code>, <code>'</code>, <code>'</code>,
+          <code>—</code>, or <code>…</code>. Any of them will break imports.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>3. Non-UTF-8 encoding (Windows-1252, ISO-8859-1, UTF-16)</h3>
+        <p>
+          If you export a CSV from certain software, it may use a legacy
+          encoding instead of UTF-8. Windows-1252 and ISO-8859-1 are common in
+          older Excel versions. UTF-16 is used by some enterprise tools.
+        </p>
+        <p>
+          <strong>What happens:</strong> Accented characters (<code>é</code>,
+          <code>ñ</code>, <code>ü</code>) and special symbols get garbled.
+          <code>Café</code> becomes <code>CafÃ©</code>. <code>Naïve</code>
+          becomes <code>NaÃ¯ve</code>. If Shopify can't decode the bytes, the
+          whole file may be rejected.
+        </p>
+        <p>
+          <strong>How to check:</strong> Open the CSV in a text editor that
+          shows encoding (Notepad++ bottom-right, Sublime Status Bar). If it
+          says anything other than "UTF-8", you need to convert it.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>4. Wrong delimiter (semicolons, tabs, pipes)</h3>
+        <p>
+          Shopify expects comma-separated values. Many countries use semicolons
+          as the default delimiter in Excel — particularly Germany, France,
+          Spain, and Italy. Some tools use tabs or pipes.
+        </p>
+        <p>
+          <strong>What happens:</strong> Shopify reads the whole row as a single
+          column. Every product ends up with its entire row of data dumped into
+          the <code>Handle</code> field. Or the import fails outright.
+        </p>
+        <p>
+          <strong>How to check:</strong> Open the CSV in a plain text editor. If
+          the first line looks like <code>Handle;Title;Vendor</code> instead of
+          <code>Handle,Title,Vendor</code>, your file uses the wrong delimiter.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How to fix each encoding error</h2>
+
+    <h3>Fixing a UTF-8 BOM</h3>
+    <p>
+      The BOM is invisible but removable. The fix depends on your tool:
+    </p>
+    <ul>
+      <li><strong>Notepad++:</strong> Encoding menu → Convert to UTF-8 (not "UTF-8 with BOM"). Save.</li>
+      <li><strong>VS Code:</strong> Bottom-right corner shows the encoding. Click it → "Save with Encoding" → "UTF-8" (no BOM).</li>
+      <li><strong>Sublime Text:</strong> File → Save with Encoding → UTF-8.</li>
+      <li><strong>Command line (macOS/Linux):</strong> <code>sed -i '1s/^\xEF\xBB\xBF//' file.csv</code></li>
+    </ul>
+    <p>
+      A validator can also strip the BOM automatically and save you the manual
+      step.
+    </p>
+
+    <h3>Fixing smart quotes</h3>
+    <p>
+      Replace every smart quote with its straight-quote equivalent:
+    </p>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">"Premium" quality</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">"Premium" quality</div>
+    </div>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">It's a great mug</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">It's a great mug</div>
+    </div>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">Premium — Limited</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">Premium - Limited</div>
+    </div>
+
+    <p>
+      In Excel or Google Sheets, use Find &amp; Replace:
+    </p>
+    <ul>
+      <li>Find <code>"</code> → Replace with <code>"</code></li>
+      <li>Find <code>"</code> → Replace with <code>"</code></li>
+      <li>Find <code>'</code> → Replace with <code>'</code></li>
+      <li>Find <code>'</code> → Replace with <code>'</code></li>
+      <li>Find <code>—</code> → Replace with <code>-</code></li>
+    </ul>
+
+    <h3>Fixing non-UTF-8 encoding</h3>
+    <p>
+      Convert the file to UTF-8 without changing any data:
+    </p>
+    <ul>
+      <li><strong>Notepad++:</strong> Encoding → Convert to UTF-8. Save.</li>
+      <li><strong>Excel:</strong> Save As → CSV UTF-8 (Comma delimited)</li>
+      <li><strong>Google Sheets:</strong> File → Download → CSV. Sheets always exports UTF-8.</li>
+      <li><strong>Command line:</strong> <code>iconv -f WINDOWS-1252 -t UTF-8 file.csv -o file-utf8.csv</code></li>
+    </ul>
+    <p>
+      Always save CSV from Excel as "CSV UTF-8" — not the default "CSV (Comma
+      delimited)" which uses your system encoding.
+    </p>
+
+    <h3>Fixing the delimiter</h3>
+    <p>
+      Simplest fix: re-export from your source tool with comma as the delimiter.
+      If that isn't possible:
+    </p>
+    <ul>
+      <li><strong>Google Sheets:</strong> File → Download → CSV. Always uses commas.</li>
+      <li><strong>Excel (Windows):</strong> File → Save As → CSV UTF-8. Uses your locale's delimiter. May need to change Windows regional settings temporarily.</li>
+      <li><strong>Validator:</strong> Converts the file for you in one click.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Why these errors are hard to catch manually</h2>
+    <p>
+      Every one of these problems is invisible at a glance.
+    </p>
+    <ul>
+      <li><strong>BOM</strong> — a hidden 3-byte sequence. You only see the effect (broken Handle column), not the cause.</li>
+      <li><strong>Smart quotes</strong> — the character <code>"</code> looks almost identical to <code>"</code> in most fonts. You'll only notice if you zoom in.</li>
+      <li><strong>Non-UTF-8 encoding</strong> — the file opens fine in Excel. Garbled characters only appear when Shopify tries to decode it.</li>
+      <li><strong>Wrong delimiter</strong> — Excel displays semicolon-separated files the same way it displays comma-separated files if the setting matches. You have to look at the raw text.</li>
+    </ul>
+    <p>
+      Catching these manually requires opening the file in a hex editor or text
+      editor with encoding display. Not something you want to do for every
+      import.
+    </p>
+
+    <div class="autonom-cta-box">
+      <h3>Check every encoding issue in 30 seconds</h3>
+      <p>Autonom Shopify Guard scans your CSV for BOM, smart quotes, non-UTF-8 encoding, and wrong delimiters — and fixes the safe ones automatically. Free, browser-based, no account needed.</p>
+      <a href="https://autonom.app/ready/shopify-guard/" class="autonom-cta-btn">Open Shopify CSV Validator →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guide/shopify-csv-import/handle-errors/">Shopify CSV handle errors</a></li>
+      <li><a href="/guide/shopify-csv-import/blank-overwrites/">Shopify CSV blank overwrites</a></li>
+      <li><a href="/guide/shopify-csv-import/variant-errors/">Shopify CSV variant errors</a></li>
+      <li><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">Shopify's official CSV documentation</a> (external)</li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details>
+        <summary>What is a UTF-8 BOM and why does it break Shopify imports?</summary>
+        <p>A BOM is a three-byte sequence (<code>EF BB BF</code>) that some software writes at the start of UTF-8 files. Shopify treats these bytes as part of the first column name, so "Handle" becomes "﻿Handle" and no longer matches. The column is effectively ignored.</p>
+      </details>
+      <details>
+        <summary>How do I know if my CSV has a BOM?</summary>
+        <p>Open the file in a text editor with encoding display (Notepad++, VS Code, Sublime Text). If the encoding shows "UTF-8 with BOM" or "UTF-8-BOM," it has one. You can also check the raw bytes with a hex editor.</p>
+      </details>
+      <details>
+        <summary>Why does my Shopify import show garbled characters like "CafÃ©"?</summary>
+        <p>Your file is encoded in a legacy encoding (Windows-1252 or ISO-8859-1) instead of UTF-8. The accented character was stored as one byte, but Shopify reads it as two. Re-save the file as UTF-8 and the characters will display correctly.</p>
+      </details>
+      <details>
+        <summary>Does Excel save CSV files in UTF-8 by default?</summary>
+        <p>No. Excel's default "CSV (Comma delimited)" uses your system's regional encoding — often Windows-1252 in the US. Always choose "CSV UTF-8 (Comma delimited)" when saving a file for Shopify.</p>
+      </details>
+      <details>
+        <summary>What's the difference between commas and semicolons in CSV?</summary>
+        <p>Both are valid CSV delimiters, but Shopify only accepts commas. Semicolons are used by default in Excel for some European locales. The first line of your CSV tells you which delimiter is being used.</p>
+      </details>
+      <details>
+        <summary>Can I fix these errors without opening a hex editor?</summary>
+        <p>Yes. Most encoding issues can be fixed by re-saving the file in a tool that forces UTF-8 without BOM — Notepad++, VS Code, or Google Sheets. For delimiters, re-export as comma-separated. A validator can also detect and fix all of these automatically.</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
