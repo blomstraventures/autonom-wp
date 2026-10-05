@@ -1,0 +1,279 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Shopify CSV Blank Overwrites
+    </div>
+    <h1 class="autonom-hero-title">
+      Shopify CSV Blank Overwrites<br>
+      <em>Why empty cells erase live data — and how to catch it.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      Every merchant who's been burned by a Shopify import describes the same
+      scene. They exported their products, edited one column, and re-imported.
+      Shopify said "success." Then they noticed prices were gone. Inventory
+      was zeroed out. Titles were blank.
+    </p>
+    <p class="autonom-hero-sub">
+      The cause is not a bug. It's a design choice in Shopify's importer that
+      almost nobody warns you about. This guide is about that choice — and how
+      to see it coming before you click import.
+    </p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-danger">
+      <span class="autonom-callout-icon">🛑</span>
+      <div class="autonom-callout-body">
+        <strong>Shopify does not treat blank cells the way Excel does.</strong>
+        <p>In Excel, an empty cell means "no value here." In Shopify's importer, an empty cell in an included column means "clear this field on the existing product." Same cell, opposite outcome.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">What is a destructive blank?</h2>
+    <p>
+      A destructive blank is an empty cell in a CSV column that Shopify is
+      actively matching against your existing products.
+    </p>
+    <p>
+      When you export products from Shopify, the CSV includes every column:
+      <code>Handle</code>, <code>Title</code>, <code>Variant Price</code>,
+      <code>Variant Inventory Qty</code>, <code>Body (HTML)</code>, and so on.
+      Every row has a value in every column.
+    </p>
+    <p>
+      When you edit that file and re-import it, Shopify doesn't know which cells
+      you "changed" and which you "left alone." It only knows what's in the cell
+      right now. If a cell is blank, Shopify assumes you want that field cleared.
+    </p>
+    <p>
+      That's the whole problem. There is no "leave this field alone" option in
+      the CSV format. Blank = erase.
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The scenario that catches merchants</h2>
+    <p>Here's how it happens in practice — it's almost always one of these:</p>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card">
+        <h3>1. You deleted a column you didn't need</h3>
+        <p>
+          You exported 5,000 products. You want to update prices. To make the
+          file smaller, you delete the <code>Body (HTML)</code>,
+          <code>Image Src</code>, and <code>SEO Title</code> columns — reasoning
+          that you're not changing those fields, so why include them?
+        </p>
+        <p>
+          <strong>What actually happens:</strong> Shopify reads the remaining
+          columns as the full set of updates. Since <code>Body (HTML)</code>
+          isn't in the file, Shopify leaves it alone. That part is fine.
+        </p>
+        <p>
+          <strong>But</strong> — if you deleted some columns and left others
+          blank, the blanks in the included columns get treated as clears. It's
+          the mixed case that kills you.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>2. You left cells blank because you didn't know what to put</h3>
+        <p>
+          You're updating inventory for 2,000 products. A few products don't
+          have inventory tracked yet. You leave those cells blank, figuring
+          Shopify will skip them.
+        </p>
+        <p>
+          <strong>What actually happens:</strong> The file includes the
+          <code>Variant Inventory Qty</code> column. For those blank cells,
+          Shopify clears the inventory on matching products. If any of those
+          products had inventory, it's now gone.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>3. A spreadsheet filter or sort left cells empty</h3>
+        <p>
+          You sorted or filtered the CSV in Excel, made changes, then saved. The
+          sort shifted rows but didn't fully preserve the data in every column.
+          A few cells ended up blank without you noticing.
+        </p>
+        <p>
+          <strong>What actually happens:</strong> Those blank cells get treated
+          as deliberate clears on the matching products. The import reports
+          success. The next day, customers see missing prices, zero inventory,
+          or products with no title.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Why Shopify's importer works this way</h2>
+    <p>
+      It's not an oversight. It's how Shopify's CSV format supports bulk updates.
+    </p>
+    <p>
+      If you want to clear a product's compare-at price (because the sale ended),
+      you include the <code>Variant Compare At Price</code> column with that
+      cell blank. Shopify clears the value. That's the intended use.
+    </p>
+    <p>
+      The same mechanism lets you clear tags, descriptions, or images by
+      exporting, removing the values, and re-importing. It's efficient. It
+      just has no safety net.
+    </p>
+    <p>
+      Shopify's own
+      <a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">CSV documentation</a>
+      mentions that blank values in included columns "overwrite" existing data.
+      It's one sentence buried in a large document. Most merchants never read it.
+      The ones who do find out after the fact.
+    </p>
+
+    <div class="autonom-callout autonom-callout-info">
+      <span class="autonom-callout-icon">💡</span>
+      <div class="autonom-callout-body">
+        <strong>The distinction that matters.</strong>
+        <p>Omitted column = Shopify ignores it.<br>Included column with blank cell = Shopify clears the matching field.<br>Included column with a value = Shopify sets the field to that value.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How to find destructive blanks before import</h2>
+    <p>There are three approaches, each with different tradeoffs:</p>
+
+    <h3>Approach 1 — The manual check</h3>
+    <p>Open the CSV in Excel or Google Sheets. For each column you plan to include:</p>
+    <ol>
+      <li>Highlight the column</li>
+      <li>Use "Go to Special → Blanks" (Excel) or a filter for empty cells</li>
+      <li>Count how many are blank</li>
+      <li>Decide: is it intentional or accidental?</li>
+    </ol>
+    <p>
+      This works if you have 50 rows and one column to check. It does not work
+      if you have 2,000 rows and 20 columns. You'll miss cells. You'll get
+      tired. You'll import anyway.
+    </p>
+
+    <h3>Approach 2 — Split the file</h3>
+    <p>
+      Instead of one update file with many columns, create several smaller files,
+      each targeting one field. Export a file with just Handle + Variant Price.
+      Import it. Then export a file with just Handle + Variant Inventory Qty.
+      Import it. Each file has no blanks because every row is being updated.
+    </p>
+    <p>
+      This works. It's also slow, error-prone, and doesn't scale past a few
+      hundred products.
+    </p>
+
+    <h3>Approach 3 — Scan the file first</h3>
+    <p>
+      Run the file through a validator that tells you exactly which cells in
+      included columns are blank. Every row, every column, in one pass.
+    </p>
+
+    <div class="autonom-cta-box">
+      <h3>Find every destructive blank in your CSV</h3>
+      <p>Autonom Shopify Guard scans your file, lists every blank cell in an included column, and shows the current live value that would be erased. Free, browser-based, no account required.</p>
+      <a href="https://autonom.app/ready/shopify-guard/" class="autonom-cta-btn">Check your CSV for blanks →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What a destructive blank looks like in a report</h2>
+    <p>
+      When Autonom detects blanks in included columns, it groups them by column
+      and shows the affected rows. For each one, it tells you:
+    </p>
+    <ul>
+      <li>Which column has the blanks</li>
+      <li>How many rows are affected</li>
+      <li>The current live value that would be cleared</li>
+      <li>Whether the fix should be to fill the cell or remove the column entirely</li>
+    </ul>
+    <p>
+      If the column is entirely blank — no row has a value — Autonom can
+      remove it from your file automatically, since it has no effect on the
+      import anyway.
+    </p>
+    <p>
+      If the column is partially blank, Autonom flags it as a review-required
+      fix. You decide whether to remove the column or fill in the missing cells.
+      It never invents data on your behalf.
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guides/shopify-csv-import/handle-errors/">Shopify CSV handle errors</a></li>
+      <li><a href="/guides/shopify-csv-import/variant-errors/">Shopify CSV variant errors</a></li>
+      <li><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">Shopify's official CSV documentation</a> (external)</li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details>
+        <summary>How do I know if a blank cell will erase data or be ignored?</summary>
+        <p>If the column is included in the CSV header, Shopify treats any blank cells in that column as intentional overwrites for matching products. If the entire column is omitted from the CSV, Shopify leaves the corresponding field alone.</p>
+      </details>
+      <details>
+        <summary>Is there a way to tell Shopify "leave this field alone"?</summary>
+        <p>Yes — omit the column entirely. There is no "skip this cell" value. If a column is present, every blank cell is treated as a clear instruction.</p>
+      </details>
+      <details>
+        <summary>What if I only want to update some products' prices?</summary>
+        <p>Include only the rows for products you want to update. Handle + Variant Price columns are usually enough. Rows for other products shouldn't be in the file at all.</p>
+      </details>
+      <details>
+        <summary>Can I recover from a destructive blank?</summary>
+        <p>Yes, if you have a backup export from before the import. Re-import the original values. Without a backup, you'll need to restore manually. This is why we recommend always exporting a fresh backup before any bulk import.</p>
+      </details>
+      <details>
+        <summary>Does this apply to new-product imports too?</summary>
+        <p>No. New-product imports create products, so there's no existing data to erase. The destructive blank problem is specific to updates and requires the product to already exist in your store.</p>
+      </details>
+      <details>
+        <summary>Are some columns more dangerous than others?</summary>
+        <p>Yes. Price, inventory quantity, title, and status are the highest-impact columns. Clearing a price or an inventory count has immediate customer-facing consequences. Clearing a description is annoying but less urgent. Autonom sorts issues by severity in the report.</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
