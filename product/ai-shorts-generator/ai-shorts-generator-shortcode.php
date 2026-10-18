@@ -1,12 +1,12 @@
 /**
  * Autonom AI Shorts Generator — Shortcode
  * Shortcode: [autonom_ai_shorts_generator]
- * v1.11.0
+ * v1.12.0
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! defined( 'AUTONOM_ASG_VERSION' ) ) {
-    define( 'AUTONOM_ASG_VERSION', '1.11.0' );
+    define( 'AUTONOM_ASG_VERSION', '1.12.0' );
 }
 
 /**
@@ -812,14 +812,18 @@ function autonom_asg_shortcode( $atts ) {
         <button class="asg-step" data-step="export" type="button" disabled><em>6</em><span>Export</span></button>
       </div>
 
+<span class="asg-topbar-sep" aria-hidden="true"></span>
 <div class="asg-topbar-actions">
-  <span class="asg-api-status" id="asg-api-status" title="API status">
-    <span class="asg-api-dot"></span>
-    <span class="asg-api-label">Keys</span>
-  </span>
-  <button class="asg-btn-pill asg-open-settings" type="button">
-    ⚙ Settings
-  </button>
+  <div class="asg-keys-group" role="group" aria-label="API keys">
+    <span class="asg-keys-title">API keys</span>
+    <span class="asg-api-status" id="asg-api-status" title="API keys status">
+      <span class="asg-api-dot"></span>
+      <span class="asg-api-label">Keys</span>
+    </span>
+    <button class="asg-btn-pill asg-open-settings" type="button" title="Add or change your API keys and provider settings">
+      ⚙ Manage keys
+    </button>
+  </div>
   <button class="asg-btn-pill asg-privacy-toggle" type="button">
     <span class="asg-privacy-dot"></span> Data &amp; privacy
   </button>
@@ -857,10 +861,6 @@ function autonom_asg_shortcode( $atts ) {
         <h3>From YouTube</h3>
         <p>Read the last 30 public videos to derive topics, tone, and cadence.</p>
       </button>
-      <button class="asg-mode-card" data-mode="site" type="button">
-        <h3>From website / RSS</h3>
-        <p>Derive the editorial line from your site's feed.</p>
-      </button>
       <button class="asg-mode-card" data-mode="manual" type="button">
         <h3>Manual setup</h3>
         <p>Define topics, tone, and format yourself. No API keys needed.</p>
@@ -872,24 +872,9 @@ function autonom_asg_shortcode( $atts ) {
         <span class="asg-label">YouTube channel handle or URL</span>
         <input type="text" id="asg-yt-input" placeholder="@BlomstraInsights or channel URL">
       </label>
-      <p class="asg-hint">Requires a YouTube Data API key. Set it in <button type="button" class="asg-link asg-open-settings">Settings</button>.</p>
+      <p class="asg-hint">Requires a YouTube Data API key. Add it under <button type="button" class="asg-link asg-open-settings">API keys</button>.</p>
       <div class="asg-actions">
         <button class="asg-btn asg-btn-primary" id="asg-yt-fetch" type="button">Fetch &amp; derive</button>
-      </div>
-    </div>
-
-    <div class="asg-mode-form" data-mode="site" hidden>
-      <label class="asg-field">
-        <span class="asg-label">Website URL</span>
-        <input type="text" id="asg-site-input" placeholder="https://www.blomstrainsights.com">
-      </label>
-      <label class="asg-field">
-        <span class="asg-label">Feed URL <small>(optional — Autonom tries common paths if empty)</small></span>
-        <input type="text" id="asg-site-feed" placeholder="https://blomstrainsights.com/feed/">
-      </label>
-      <p class="asg-hint" id="asg-site-progress" hidden></p>
-      <div class="asg-actions">
-        <button class="asg-btn asg-btn-primary" id="asg-site-fetch" type="button">Fetch &amp; derive</button>
       </div>
     </div>
 
@@ -903,7 +888,7 @@ function autonom_asg_shortcode( $atts ) {
         <input type="text" id="asg-manual-oneliner" placeholder="Geopolitics × macroeconomy × tech intersection">
       </label>
       <label class="asg-field">
-        <span class="asg-label">Topics <small>(comma-separated)</small></span>
+        <span class="asg-label">Starting topics <small>(comma-separated; you can add, remove and tune topics after saving)</small></span>
         <input type="text" id="asg-manual-topics" placeholder="Geopolitics, Macroeconomy, Tech">
       </label>
       <label class="asg-field">
@@ -1068,7 +1053,7 @@ function autonom_asg_shortcode( $atts ) {
   <aside class="asg-drawer" id="asg-settings-drawer" hidden>
     <div class="asg-drawer-inner">
       <div class="asg-drawer-head">
-        <h3>Settings</h3>
+        <h3>API keys &amp; settings</h3>
         <button class="asg-btn-close" id="asg-settings-close" type="button">×</button>
       </div>
 
