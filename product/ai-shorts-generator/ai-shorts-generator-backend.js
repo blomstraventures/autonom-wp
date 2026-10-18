@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.10.0';
+  var VERSION = '1.11.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -42,7 +42,7 @@
     stories: [],
     selectedStoryIds: {},
     scripts: [],
-    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, fallbackProviders: true, groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
+    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, fallbackProviders: true, pixabayKey: '', pexelsKey: '', stockProvider: 'pixabay', groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
     counters: { apiCalls: 0, llmCalls: 0 }
   };
 
@@ -2594,8 +2594,16 @@
     }
     return lines.join('\n');
   }
-  function buildPayload() {
-    return { schemaVersion: '1.1', generatedAt: new Date().toISOString(), profile: state.profile, scripts: goodScripts().map(function (sc) { return Object.assign({}, sc, { narration: narrationOf(sc) }); }) };
+  function buildPayload(idx) {
+    return {
+      schemaVersion: '1.2', generatedAt: new Date().toISOString(), profile: state.profile,
+      scripts: goodScripts().map(function (sc, i) {
+        var o = Object.assign({}, sc, { narration: narrationOf(sc) });
+        delete o.vplan; delete o.mediaId;
+        o.media = mediaPaths(sc, i, idx && sc.mediaId ? idx[sc.mediaId] : null);
+        return o;
+      })
+    };
   }
   function download(name, content, mime) {
     var blob = new Blob([content], { type: mime || 'text/plain' });
@@ -2608,7 +2616,10 @@
     var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
     try { document.execCommand('copy'); } catch (e) {} ta.remove(); return Promise.resolve();
   }
-  function renderExport() { var pre = $('#asg-payload-pre'); if (pre) pre.textContent = JSON.stringify(buildPayload(), null, 2); }
+  function renderExport() {
+    var pre = $('#asg-payload-pre');
+    return mediaIndex().then(function (idx) { if (pre) pre.textContent = JSON.stringify(buildPayload(idx), null, 2); return renderExportMedia(); });
+  }
 
   function openSettings() {
     $('#asg-settings-drawer').hidden = false;
@@ -2622,6 +2633,10 @@
     var wm = $('#asg-set-gemini-write-model'); if (wm) wm.value = state.settings.geminiWriteModel || '';
     $('#asg-set-openai').value = state.settings.openaiKey || '';
     $('#asg-set-deepseek').value = state.settings.deepseekKey || '';
+    vopt();
+    var sp = $('#asg-set-stock'); if (sp) sp.value = stockProvider();
+    var pxk = $('#asg-set-pixabay'); if (pxk) pxk.value = state.settings.pixabayKey || '';
+    var pek = $('#asg-set-pexels'); if (pek) pek.value = state.settings.pexelsKey || '';
     ['groq', 'openrouter'].forEach(function (pv) {
       var k = $('#asg-set-' + pv), m = $('#asg-set-' + pv + '-model'), w = $('#asg-set-' + pv + '-write-model');
       if (k) k.value = state.settings[pv + 'Key'] || '';
@@ -2702,15 +2717,26 @@
    * narration (spoken text only) -> one voice clip per sentence (exact timings)
    * -> captions timed inside each sentence -> stock footage per scene
    * -> real-time canvas + audio recording to MP4/WebM, all in the browser.
+   * Finished media is stored in this browser (IndexedDB) next to the scripts.
    * ===================================================================== */
-  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, provider: 'pixabay', pexelsKey: '', pixabayKey: '', engine: 'wasm', tag: true };
-  var STOCK = {
-    pixabay: { name: 'Pixabay', keyField: 'pixabayKey', signup: 'pixabay.com/api/docs' },
-    pexels: { name: 'Pexels', keyField: 'pexelsKey', signup: 'pexels.com/api (new keys are paused right now)' }
-  };
-  function stockKey(o) { return (o[(STOCK[o.provider] || STOCK.pixabay).keyField] || '').trim(); }
-  function vopt() { state.settings.video = Object.assign({}, VID_DEFAULTS, state.settings.video || {}); return state.settings.video; }
+  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true };
+  var BUILTIN_VOICES = [['am_echo', 'Echo · en-us · Male'], ['am_liam', 'Liam · en-us · Male'], ['af_heart', 'Heart · en-us · Female']];
+  var STOCK = { pixabay: { name: 'Pixabay', keyField: 'pixabayKey' }, pexels: { name: 'Pexels', keyField: 'pexelsKey' } };
+  function vopt() {
+    var v = state.settings.video || {};
+    // earlier versions kept the footage key inside the video options: move it to the settings
+    if (v.pixabayKey && !state.settings.pixabayKey) state.settings.pixabayKey = v.pixabayKey;
+    if (v.pexelsKey && !state.settings.pexelsKey) state.settings.pexelsKey = v.pexelsKey;
+    if (v.provider && !state.settings.stockProvider) state.settings.stockProvider = v.provider;
+    delete v.pixabayKey; delete v.pexelsKey; delete v.provider;
+    state.settings.video = Object.assign({}, VID_DEFAULTS, v);
+    return state.settings.video;
+  }
+  function stockProvider() { return STOCK[state.settings.stockProvider] ? state.settings.stockProvider : 'pixabay'; }
+  function stockKey() { return String(state.settings[STOCK[stockProvider()].keyField] || '').trim(); }
   function vhooks() { return window.__ASG_VIDEO_HOOKS || {}; }
+  function hashStr(s) { var h = 5381; s = String(s); for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+  function mid(sc) { if (!sc.mediaId) { sc.mediaId = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); persistScripts(); } return sc.mediaId; }
 
   /* ---------- narration ---------- */
   var ACRONYMS = { US: 'U S', UK: 'U K', UN: 'U N', EU: 'E U', AI: 'A I', UAE: 'U A E', GDP: 'G D P', CEO: 'C E O', IMF: 'I M F', WHO: 'W H O' };
@@ -2751,32 +2777,151 @@
     return out;
   }
 
-  /* ---------- voice ---------- */
-  var ttsPromise = null;
+  /* ---------- storage (IndexedDB, with an in-memory fallback) ---------- */
+  var idbP = null, memStore = { media: {}, parts: {} };
+  function idb() {
+    if (idbP) return idbP;
+    idbP = new Promise(function (res, rej) {
+      try {
+        var r = indexedDB.open('asg-media', 1);
+        r.onupgradeneeded = function () { var d = r.result; ['media', 'parts'].forEach(function (n) { if (!d.objectStoreNames.contains(n)) d.createObjectStore(n, { keyPath: 'id' }); }); };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error); };
+      } catch (e) { rej(e); }
+    });
+    return idbP;
+  }
+  function idbDo(store, mode, fn) {
+    return idb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(store, mode), rq = fn(tx.objectStore(store));
+        tx.oncomplete = function () { res(rq && rq.result); };
+        tx.onerror = tx.onabort = function () { rej(tx.error); };
+      });
+    });
+  }
+  function dbPut(store, rec) { memStore[store][rec.id] = rec; return idbDo(store, 'readwrite', function (s) { return s.put(rec); }).catch(function (e) { LOG('not saved to browser storage (kept for this visit only): ' + (e && e.message)); return null; }); }
+  function dbGet(store, id) { return idbDo(store, 'readonly', function (s) { return s.get(id); }).then(function (r) { return r || memStore[store][id] || null; }).catch(function () { return memStore[store][id] || null; }); }
+  function dbDel(store, id) { delete memStore[store][id]; return idbDo(store, 'readwrite', function (s) { return s.delete(id); }).catch(function () { return null; }); }
+  function dbAll(store) { return idbDo(store, 'readonly', function (s) { return s.getAll(); }).then(function (r) { return (r && r.length) ? r : Object.keys(memStore[store]).map(function (k) { return memStore[store][k]; }); }).catch(function () { return Object.keys(memStore[store]).map(function (k) { return memStore[store][k]; }); }); }
+  function dbClear(store) { memStore[store] = {}; return idbDo(store, 'readwrite', function (s) { return s.clear(); }).catch(function () { return null; }); }
+
+  /* ---------- audio, captions, zip ---------- */
+  function timelineSamples(tl) {
+    var out = new Float32Array(Math.ceil(tl.total * tl.rate) + 1);
+    tl.items.forEach(function (it) { var off = Math.round(it.start * tl.rate), n = Math.min(it.samples.length, out.length - off); for (var i = 0; i < n; i++) out[off + i] = it.samples[i]; });
+    return out;
+  }
+  function wavBlob(samples, rate) {
+    var n = samples.length, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    function w(o, s) { for (var i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); }
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    for (var i = 0; i < n; i++) { var x = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); }
+    return new Blob([buf], { type: 'audio/wav' });
+  }
+  function srtTime(t) {
+    var ms = Math.max(0, Math.round(t * 1000)), h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60, x = ms % 1000;
+    function p(n, l) { n = String(n); while (n.length < l) n = '0' + n; return n; }
+    return p(h, 2) + ':' + p(m, 2) + ':' + p(s, 2) + ',' + p(x, 3);
+  }
+  function buildSrt(tl) {
+    return tl.chunks.map(function (c, i) { return (i + 1) + '\n' + srtTime(c.start) + ' --> ' + srtTime(c.end) + '\n' + c.words.map(function (w) { return w.w; }).join(' ') + '\n'; }).join('\n');
+  }
+  var CRC_T = null;
+  function crc32(u8) {
+    if (!CRC_T) { CRC_T = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_T[n] = c >>> 0; } }
+    var crc = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) crc = CRC_T[(crc ^ u8[i]) & 255] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  // Minimal ZIP writer (stored, no compression: videos are already compressed).
+  function zipFiles(files) {
+    var enc = new TextEncoder(), d = new Date();
+    var dt = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xffff;
+    var dd = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xffff;
+    var parts = [], central = [], offset = 0;
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), crc = crc32(f.data), h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, dt, true); h.setUint16(12, dd, true);
+      h.setUint32(14, crc, true); h.setUint32(18, f.data.length, true); h.setUint32(22, f.data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+      parts.push(h.buffer, name, f.data);
+      var c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true); c.setUint16(12, dt, true); c.setUint16(14, dd, true);
+      c.setUint32(16, crc, true); c.setUint32(20, f.data.length, true); c.setUint32(24, f.data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+      central.push(c.buffer, name);
+      offset += 30 + name.length + f.data.length;
+    });
+    var csize = 0; central.forEach(function (x) { csize += x.byteLength !== undefined ? x.byteLength : x.length; });
+    var e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [e.buffer]), { type: 'application/zip' });
+  }
+  function blobBytes(b) { return b.arrayBuffer().then(function (x) { return new Uint8Array(x); }); }
+
+  /* ---------- voice (runs in a worker so the page stays responsive) ---------- */
+  var KOKORO_URL = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm', KOKORO_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+  var TTS_WORKER_SRC = [
+    'let tts=null;',
+    'self.onmessage=async(e)=>{const m=e.data;try{',
+    "if(m.type==='init'){const mod=await import(m.url);tts=await mod.KokoroTTS.from_pretrained(m.model,{dtype:m.dtype,device:m.device,progress_callback:(p)=>{if(p&&p.status==='progress'&&p.total)self.postMessage({type:'progress',file:p.file,loaded:p.loaded,total:p.total});}});self.postMessage({type:'ready',voices:JSON.parse(JSON.stringify(tts.voices||{}))});}",
+    "else if(m.type==='gen'){const a=await tts.generate(m.text,{voice:m.voice,speed:m.speed});const s=a.audio;self.postMessage({type:'audio',id:m.id,samples:s,rate:a.sampling_rate},[s.buffer]);}",
+    "}catch(err){self.postMessage({type:'error',id:m.id,message:String((err&&err.message)||err)});}};"
+  ].join('\n');
+  var ttsPromise = null, ttsEngine = '', ttsOnStatus = null, ttsWhere = '';
+  function ttsProgress(files, file, loaded, total) {
+    files[file] = [loaded, total];
+    var l = 0, t = 0; for (var k in files) { l += files[k][0]; t += files[k][1]; }
+    if (ttsOnStatus) ttsOnStatus('Downloading the voice (first time only): ' + Math.round(l / 1e6) + ' of ' + Math.round(t / 1e6) + ' MB');
+  }
+  function dtypeFor(engine) { return engine === 'webgpu' ? 'fp32' : 'q8'; }
+  function startWorkerTts(engine) {
+    return new Promise(function (resolve, reject) {
+      var w;
+      try { w = new Worker(URL.createObjectURL(new Blob([TTS_WORKER_SRC], { type: 'text/javascript' })), { type: 'module' }); } catch (e) { return reject(e); }
+      var files = {}, pending = {}, nid = 1, ready = false;
+      w.onerror = function (e) {
+        var err = new Error((e && e.message) || 'voice worker failed');
+        if (!ready) { try { w.terminate(); } catch (x) {} return reject(err); }
+        Object.keys(pending).forEach(function (k) { pending[k].reject(err); }); pending = {};
+      };
+      w.onmessage = function (e) {
+        var m = e.data;
+        if (m.type === 'progress') ttsProgress(files, m.file, m.loaded, m.total);
+        else if (m.type === 'ready') {
+          ready = true; ttsWhere = 'worker';
+          resolve({ voices: m.voices || {}, generate: function (text, voice, speed) { return new Promise(function (res, rej) { var id = nid++; pending[id] = { resolve: res, reject: rej }; w.postMessage({ type: 'gen', id: id, text: text, voice: voice, speed: speed }); }); } });
+        } else if (m.type === 'audio') { var p = pending[m.id]; if (p) { delete pending[m.id]; p.resolve({ samples: m.samples, rate: m.rate }); } }
+        else if (m.type === 'error') {
+          if (!ready) { try { w.terminate(); } catch (x) {} reject(new Error(m.message)); }
+          else if (pending[m.id]) { pending[m.id].reject(new Error(m.message)); delete pending[m.id]; }
+        }
+      };
+      w.postMessage({ type: 'init', url: KOKORO_URL, model: KOKORO_MODEL, dtype: dtypeFor(engine), device: engine === 'webgpu' ? 'webgpu' : 'wasm' });
+    });
+  }
+  function startMainTts() {
+    var files = {};
+    return import(KOKORO_URL).then(function (mod) {
+      return mod.KokoroTTS.from_pretrained(KOKORO_MODEL, { dtype: 'q8', device: 'wasm', progress_callback: function (p) { if (p && p.status === 'progress' && p.total) ttsProgress(files, p.file, p.loaded, p.total); } });
+    }).then(function (tts) {
+      ttsWhere = 'page';
+      return { voices: tts.voices || {}, generate: function (text, voice, speed) { return tts.generate(text, { voice: voice, speed: speed }).then(function (a) { return { samples: a.audio, rate: a.sampling_rate }; }); } };
+    });
+  }
   function getTts(onStatus) {
     var h = vhooks();
     if (h.tts) return Promise.resolve({ voices: h.voices || {}, generate: h.tts });
-    if (ttsPromise) return ttsPromise;
+    ttsOnStatus = onStatus || null;
     var o = vopt();
-    ttsPromise = import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm').then(function (mod) {
-      var files = {};
-      return mod.KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
-        dtype: o.engine === 'webgpu' ? 'fp32' : 'q8',
-        device: o.engine === 'webgpu' ? 'webgpu' : 'wasm',
-        progress_callback: function (p) {
-          if (!p || p.status !== 'progress' || !p.total || !onStatus) return;
-          files[p.file] = [p.loaded, p.total];
-          var l = 0, t = 0; for (var k in files) { l += files[k][0]; t += files[k][1]; }
-          onStatus('Downloading the voice (first time only): ' + Math.round(l / 1e6) + ' of ' + Math.round(t / 1e6) + ' MB');
-        }
-      });
-    }).then(function (tts) {
-      return {
-        voices: tts.voices || {},
-        generate: function (text, voice, speed) {
-          return tts.generate(text, { voice: voice, speed: speed }).then(function (a) { return { samples: a.audio, rate: a.sampling_rate }; });
-        }
-      };
+    if (ttsPromise && ttsEngine === o.engine) return ttsPromise;
+    ttsEngine = o.engine;
+    var tryWorker = function (engine) { return startWorkerTts(engine); };
+    ttsPromise = tryWorker(o.engine).catch(function (e) {
+      if (o.engine === 'webgpu') { LOG('fast voice engine unavailable (' + (e && e.message) + '), trying the standard engine'); return tryWorker('wasm'); }
+      throw e;
+    }).catch(function (e) {
+      LOG('voice worker unavailable (' + (e && e.message) + '), running the voice on the page instead');
+      return startMainTts();
     }).catch(function (e) { ttsPromise = null; throw e; });
     return ttsPromise;
   }
@@ -2786,12 +2931,13 @@
     while (b > a && Math.abs(s[b]) < th) b--;
     var pad = Math.round(rate * 0.04);
     a = Math.max(0, a - pad); b = Math.min(s.length - 1, b + pad);
-    return s.subarray(a, b + 1);
+    return s.slice(a, b + 1);
   }
-  function synthesize(sentences, voice, speed, onProgress, onStatus) {
+  function synthesize(sentences, voice, speed, onProgress, onStatus, run) {
     return getTts(onStatus).then(function (tts) {
       var parts = [], i = 0;
       return (function next() {
+        if (run && run.cancelled) throw cancelError();
         if (i >= sentences.length) return parts;
         var idx = i++;
         if (onProgress) onProgress(idx, sentences.length);
@@ -2803,6 +2949,7 @@
       })();
     });
   }
+  function cancelError() { return Object.assign(new Error('Cancelled'), { cancelled: true }); }
 
   /* ---------- timeline: sentences, scenes, caption chunks ---------- */
   function buildTimeline(parts) {
@@ -2813,14 +2960,12 @@
       t += dur + GAP;
     });
     var total = t - GAP + TAIL;
-    // scenes: consecutive sentences until a scene is about 3 seconds long (one footage clip per scene)
     var scenes = [], cur = null;
     items.forEach(function (it) {
       if (!cur || (cur.items[cur.items.length - 1].end - cur.items[0].start) >= 3) { cur = { items: [], start: scenes.length ? it.start - GAP / 2 : 0 }; scenes.push(cur); }
       cur.items.push(it);
     });
     scenes.forEach(function (s, i) { s.end = i + 1 < scenes.length ? scenes[i + 1].start : total; s.text = s.items.map(function (x) { return x.text; }).join(' '); s.video = null; });
-    // caption chunks: up to 4 words, split inside each sentence by word length (approximate word timing)
     var chunks = [];
     items.forEach(function (it) {
       var words = captionFix(it.text).split(/\s+/).filter(Boolean);
@@ -2837,15 +2982,12 @@
     return { rate: rate, items: items, scenes: scenes, chunks: chunks, total: total };
   }
   function timelineBuffer(actx, tl) {
-    var buf = actx.createBuffer(1, Math.ceil(tl.total * tl.rate) + 1, tl.rate), ch = buf.getChannelData(0);
-    tl.items.forEach(function (it) {
-      var off = Math.round(it.start * tl.rate), n = Math.min(it.samples.length, ch.length - off);
-      for (var i = 0; i < n; i++) ch[off + i] = it.samples[i];
-    });
+    var buf = actx.createBuffer(1, Math.ceil(tl.total * tl.rate) + 1, tl.rate);
+    buf.getChannelData(0).set(timelineSamples(tl));
     return buf;
   }
 
-  /* ---------- footage (Pixabay or Pexels) ---------- */
+  /* ---------- footage: planning and search ---------- */
   function mediaFetch(url, opts) {
     var h = vhooks();
     if (h.fetch) return h.fetch(url, opts);
@@ -2863,19 +3005,30 @@
     order.sort(function (a, b) { return counts[b] - counts[a]; });
     return order.slice(0, 2).join(' ');
   }
-  function visualQueries(scenes, title) {
+  function sceneHash(scenes) { return hashStr(scenes.map(function (s) { return s.text; }).join('|')); }
+  // Ask the AI which scenes need footage and what to search for. Abstract scenes (opinions, statistics, the closing
+  // question) get a plain caption card instead of footage that only decorates.
+  function planScenes(scenes, title) {
     var list = scenes.map(function (s, i) { return (i + 1) + '. ' + s.text; }).join('\n');
-    var prompt = 'You choose stock footage for a vertical news short titled "' + title + '".\n' +
-      'For each numbered scene give a search query of 2 to 4 words for a stock video library. Describe something concrete a camera can film (examples: "power lines at night", "empty city street", "oil tanker at sea", "parliament building", "stock market screen").\n' +
-      'Rules: no names of people or organisations, no brands, no abstract words (conflict, tension, crisis). Prefer neutral establishing shots over dramatic ones, so the footage cannot be mistaken for real footage of the event.\n\nScenes:\n' + list +
-      '\n\nReply with JSON only: {"queries":["...", "..."]} with exactly ' + scenes.length + ' items.';
+    var prompt = 'You plan stock footage for a vertical news short titled "' + title + '".\n' +
+      'Below are numbered scenes, each is what the voice says over that scene. For every scene decide:\n' +
+      '- "kind": "footage" if a camera could film something concrete that clearly fits the sentence (a place, a machine, weather, a crowd, an object). Use "card" when the sentence is abstract (an opinion, a statistic, a question to the viewer, an analysis) and footage would be mere decoration. Use "card" for the closing call-to-action scene.\n' +
+      '- "query": a stock-library search of 2 to 4 words describing exactly what should be on screen.\n' +
+      '- "alt": a different, more generic 2 to 3 word search that is still a safe fit.\n' +
+      'Rules: no names of people or organisations, no brands, no abstract words (conflict, tension, crisis, strategy). Prefer neutral establishing shots to dramatic ones, so the footage cannot be mistaken for real footage of the event. Do not repeat the same query.\n\nScenes:\n' + list +
+      '\n\nReply with JSON only: {"scenes":[{"kind":"footage","query":"...","alt":"..."}]} with exactly ' + scenes.length + ' items.';
     return callLLM(prompt, 'write').then(function (r) {
-      var j = extractJson(r.text), q = Array.isArray(j) ? j : (j && j.queries);
-      if (!Array.isArray(q)) throw new Error('no queries');
-      return scenes.map(function (s, i) { var x = String(q[i] || '').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim(); return x && x.length <= 50 ? x : fallbackQuery(s.text, title); });
+      var j = extractJson(r.text), arr = Array.isArray(j) ? j : (j && (j.scenes || j.queries));
+      if (!Array.isArray(arr)) throw new Error('no plan');
+      return scenes.map(function (s, i) {
+        var x = arr[i], o = (x && typeof x === 'object') ? x : { query: x };
+        var clean = function (v) { v = String(v || '').replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim(); return v && v.length <= 50 ? v : ''; };
+        var q = clean(o.query) || fallbackQuery(s.text, title);
+        return { query: q, alt: clean(o.alt), kind: (o.kind === 'card' && i > 0) ? 'card' : 'footage' };
+      });
     }).catch(function (e) {
-      LOG('footage queries: using keyword fallback (' + (e && e.message) + ')');
-      return scenes.map(function (s) { return fallbackQuery(s.text, title); });
+      LOG('footage plan: using keyword fallback (' + (e && e.message) + ')');
+      return scenes.map(function (s) { return { query: fallbackQuery(s.text, title), alt: '', kind: 'footage' }; });
     });
   }
   // Search results are cached for 24 hours (Pixabay requires it, and it saves requests).
@@ -2888,38 +3041,50 @@
       c[k] = { t: Date.now(), v: v }; localStorage.setItem(FCACHE, JSON.stringify(c));
     } catch (e) {}
   }
-  function normPixabay(j) {
-    return ((j && j.hits) || []).map(function (h) {
-      var f = h.videos && (h.videos.medium && h.videos.medium.url ? h.videos.medium : (h.videos.small && h.videos.small.url ? h.videos.small : null));
-      return f ? { id: 'px' + h.id, duration: h.duration, user: h.user || '', page: h.pageURL || '', file: { link: f.url, width: f.width, height: f.height } } : null;
-    }).filter(Boolean);
-  }
-  function normPexels(j, target) {
-    return ((j && j.videos) || []).map(function (v) {
-      var f = pickFile(v, target);
-      return f ? { id: 'pe' + v.id, duration: v.duration, user: (v.user && v.user.name) || '', page: v.url || '', file: { link: f.link, width: f.width, height: f.height } } : null;
-    }).filter(Boolean);
-  }
-  function stockSearch(provider, q, key, target) {
-    var ck = provider + '|' + q, hit = cacheGet(ck);
-    if (hit) return Promise.resolve(hit);
-    var url, opts;
-    if (provider === 'pexels') { url = 'https://api.pexels.com/videos/search?orientation=portrait&size=medium&per_page=12&query=' + encodeURIComponent(q); opts = { headers: { Authorization: key } }; }
-    else { url = 'https://pixabay.com/api/videos/?safesearch=true&per_page=15&key=' + encodeURIComponent(key) + '&q=' + encodeURIComponent(q.slice(0, 100)); opts = {}; }
-    var label = (STOCK[provider] || STOCK.pixabay).name;
-    return mediaFetch(url, opts).then(function (r) {
-      if (r.status === 401 || r.status === 403 || r.status === 400) throw Object.assign(new Error(label + ' rejected the key. Check it in the video settings.'), { fatal: true });
-      if (r.status === 429) throw Object.assign(new Error(label + ' says too many requests. Wait a minute and try again.'), { fatal: true });
-      if (!r.ok) throw new Error(label + ' answered ' + r.status);
-      return r.json();
-    }).then(function (j) { var out = provider === 'pexels' ? normPexels(j, target) : normPixabay(j); cacheSet(ck, out); return out; });
-  }
   function pickFile(v, target) {
     var f = (v.video_files || []).filter(function (x) { return x.link && /mp4/.test(x.file_type || '') && x.width && x.height; });
     var portrait = f.filter(function (x) { return x.height >= x.width; });
     if (portrait.length) f = portrait;
     f.sort(function (a, b) { return Math.abs(a.width - target) - Math.abs(b.width - target); });
     return f[0] || null;
+  }
+  function normPixabay(j) {
+    return ((j && j.hits) || []).map(function (h) {
+      var f = h.videos && (h.videos.medium && h.videos.medium.url ? h.videos.medium : (h.videos.small && h.videos.small.url ? h.videos.small : null));
+      return f ? { id: 'px' + h.id, duration: h.duration, user: h.user || '', page: h.pageURL || '', tags: h.tags || '', file: { link: f.url, width: f.width, height: f.height } } : null;
+    }).filter(Boolean);
+  }
+  function normPexels(j, target) {
+    return ((j && j.videos) || []).map(function (v) {
+      var f = pickFile(v, target), slug = String(v.url || '').replace(/\/+$/, '').split('/').pop().replace(/-\d+$/, '').replace(/-/g, ' ');
+      return f ? { id: 'pe' + v.id, duration: v.duration, user: (v.user && v.user.name) || '', page: v.url || '', tags: slug, file: { link: f.link, width: f.width, height: f.height } } : null;
+    }).filter(Boolean);
+  }
+  function stockSearch(provider, q, key, target) {
+    var ck = provider + '|' + q, hit = cacheGet(ck);
+    if (hit) return Promise.resolve(hit);
+    var url, opts;
+    if (provider === 'pexels') { url = 'https://api.pexels.com/videos/search?orientation=portrait&size=medium&per_page=15&query=' + encodeURIComponent(q); opts = { headers: { Authorization: key } }; }
+    else { url = 'https://pixabay.com/api/videos/?safesearch=true&per_page=20&key=' + encodeURIComponent(key) + '&q=' + encodeURIComponent(q.slice(0, 100)); opts = {}; }
+    var label = STOCK[provider].name;
+    return mediaFetch(url, opts).then(function (r) {
+      if (r.status === 401 || r.status === 403 || r.status === 400) throw Object.assign(new Error(label + ' rejected the key. Check it in Settings.'), { fatal: true });
+      if (r.status === 429) throw Object.assign(new Error(label + ' says too many requests. Wait a minute and try again.'), { fatal: true });
+      if (!r.ok) throw new Error(label + ' answered ' + r.status);
+      return r.json();
+    }).then(function (j) { var out = provider === 'pexels' ? normPexels(j, target) : normPixabay(j); cacheSet(ck, out); return out; });
+  }
+  function tagSet(s) { var o = {}; String(s || '').toLowerCase().split(/[^a-z0-9]+/).forEach(function (w) { if (w.length > 2) o[w.slice(0, 4)] = 1; }); return o; }
+  // Pick the clip whose tags best match the search words, not just the first result.
+  function bestClip(vids, q, dur, used) {
+    var qs = Object.keys(tagSet(q)), fresh = vids.filter(function (v) { return !used[v.id] && v.duration >= 2; });
+    var scored = fresh.map(function (v, i) {
+      var tg = tagSet(v.tags), s = 0; qs.forEach(function (w) { if (tg[w]) s += 2; });
+      if (v.duration >= dur) s += 1;
+      return { v: v, s: s, i: i };
+    });
+    scored.sort(function (a, b) { return b.s - a.s || a.i - b.i; });
+    return scored.length ? scored[0].v : null;
   }
   function loadClip(url, timeoutMs) {
     return new Promise(function (resolve, reject) {
@@ -2931,8 +3096,8 @@
       v.src = url;
     });
   }
-  function fetchSceneClip(scene, query, provider, key, used, target, title) {
-    var tries = [query], words = query.split(' ');
+  function fetchSceneClip(scene, plan, provider, key, used, target, title) {
+    var tries = [plan.query, plan.alt], words = String(plan.query || '').split(' ');
     if (words.length > 2) tries.push(words.slice(0, 2).join(' '));
     tries.push(fallbackQuery(scene.text, title) || 'city street');
     tries.push('city skyline');
@@ -2943,13 +3108,10 @@
       if (ti >= tries.length) return null;
       var q = tries[ti++];
       return stockSearch(provider, q, key, target).then(function (vids) {
-        var fresh = vids.filter(function (v) { return !used[v.id] && v.duration >= 2; });
-        var long = fresh.filter(function (v) { return v.duration >= dur; });
-        var pick = (long[0] || fresh[0]);
+        var pick = bestClip(vids, q, dur, used);
         if (!pick) return nextTry();
-        var file = pick.file;
         used[pick.id] = 1;
-        return mediaFetch(file.link).then(function (r) {
+        return mediaFetch(pick.file.link).then(function (r) {
           if (!r.ok) throw new Error('clip download ' + r.status);
           return r.blob();
         }).then(function (blob) {
@@ -2961,21 +3123,19 @@
       });
     })();
   }
-  function attachFootage(tl, title, provider, key, target, onProgress) {
-    var used = {}, credits = {}, plain = 0, fatal = null;
-    return visualQueries(tl.scenes, title).then(function (queries) {
-      var i = 0;
-      return (function next() {
-        if (i >= tl.scenes.length) return null;
-        var idx = i++;
-        if (onProgress) onProgress(idx, tl.scenes.length, queries[idx]);
-        if (fatal) { plain++; return next(); }
-        return fetchSceneClip(tl.scenes[idx], queries[idx], provider, key, used, target, title).then(function (r) {
-          if (r) { tl.scenes[idx].video = r.video; tl.scenes[idx].query = r.query; if (r.credit) credits[r.credit] = 1; } else { plain++; }
-          return next();
-        }).catch(function (e) { if (e && e.fatal) fatal = e; plain++; return next(); });
-      })();
-    }).then(function () { return { plain: plain, credits: Object.keys(credits), error: fatal }; });
+  function attachFootage(tl, plan, title, provider, key, target, onProgress, run) {
+    var used = {}, credits = {}, plain = 0, fatal = null, i = 0;
+    return (function next() {
+      if (run && run.cancelled) throw cancelError();
+      if (i >= tl.scenes.length) return null;
+      var idx = i++, p = plan[idx];
+      if (onProgress) onProgress(idx, tl.scenes.length, p.query);
+      if (p.kind === 'card' || fatal) { plain++; return next(); }
+      return fetchSceneClip(tl.scenes[idx], p, provider, key, used, target, title).then(function (r) {
+        if (r) { tl.scenes[idx].video = r.video; tl.scenes[idx].usedQuery = r.query; if (r.credit) credits[r.credit] = 1; } else { plain++; }
+        return next();
+      }).catch(function (e) { if (e && (e.fatal)) fatal = e; if (e && e.cancelled) throw e; plain++; return next(); });
+    })().then(function () { return { plain: plain, credits: Object.keys(credits), error: fatal }; });
   }
 
   /* ---------- rendering ---------- */
@@ -3022,43 +3182,42 @@
       });
     });
   }
-  function renderVideo(tl, opts, onProgress, canvasHost) {
+  function renderVideo(tl, opts, onProgress, canvasHost, run) {
     var mimes = pickMimes();
     if (!mimes) return Promise.reject(new Error('This browser cannot record video. Use a current Chrome, Edge or Safari.'));
     var i = 0, lastErr = null;
     return (function attempt() {
       if (i >= mimes.length) return Promise.reject(lastErr || new Error('No supported video format found in this browser.'));
       var m = mimes[i++];
-      return renderAttempt(tl, opts, onProgress, canvasHost, m).catch(function (e) {
+      return renderAttempt(tl, opts, onProgress, canvasHost, m, run).catch(function (e) {
         lastErr = e;
         if (e && e.encoder && i < mimes.length) { LOG('recording format failed (' + (m || 'default') + '): ' + e.message + '. Trying the next format.'); return attempt(); }
         throw e;
       });
     })();
   }
-  function renderAttempt(tl, opts, onProgress, canvasHost, mime) {
+  function renderAttempt(tl, opts, onProgress, canvasHost, mime, run) {
     return new Promise(function (resolve, reject) {
       var W = opts.w, H = opts.h;
       var canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H; canvas.className = 'asg-vid-canvas';
       if (canvasHost) { canvasHost.innerHTML = ''; canvasHost.appendChild(canvas); }
       var ctx = canvas.getContext('2d');
-      var AC = window.AudioContext || window.webkitAudioContext, actx;
-      actx = new AC(); // default rate: some encoders (AAC) reject unusual rates such as 24000; the buffer is resampled automatically
+      var AC = window.AudioContext || window.webkitAudioContext, actx = new AC(); // default rate: some encoders reject unusual rates; the buffer is resampled automatically
       var buf = timelineBuffer(actx, tl), src = actx.createBufferSource(), dest = actx.createMediaStreamDestination();
       src.buffer = buf; src.connect(dest);
       var vstream = canvas.captureStream(30);
       var stream = new MediaStream(vstream.getVideoTracks().concat(dest.stream.getAudioTracks()));
-      var rec, chunks = [], finished = false;
-      var cleanupEarly = function () { try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} try { actx.close(); } catch (e) {} };
-      try { rec = new MediaRecorder(stream, Object.assign({ videoBitsPerSecond: W >= 1000 ? 7e6 : 4e6, audioBitsPerSecond: 128000 }, mime ? { mimeType: mime } : {})); }
-      catch (e) { cleanupEarly(); return reject(Object.assign(new Error('Recording is not supported here: ' + e.message), { encoder: true })); }
-      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      var rec, chunks = [], finished = false, cur = -1, t0 = 0, stopped = false;
+      var onVis = function () { if (document.hidden && !stopped) toast('Keep this tab visible while the video records. Switching away freezes the picture.', 'error'); };
       var cleanup = function () {
         try { document.removeEventListener('visibilitychange', onVis); } catch (e) {}
         try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
         try { actx.close(); } catch (e) {}
         tl.scenes.forEach(function (s) { if (s.video) { try { s.video.pause(); } catch (e) {} } });
       };
+      try { rec = new MediaRecorder(stream, Object.assign({ videoBitsPerSecond: W >= 1000 ? 7e6 : 4e6, audioBitsPerSecond: 128000 }, mime ? { mimeType: mime } : {})); }
+      catch (e) { cleanup(); return reject(Object.assign(new Error('Recording is not supported here: ' + e.message), { encoder: true })); }
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
       rec.onerror = function (e) { if (finished) return; finished = true; stopped = true; cleanup(); reject(Object.assign(new Error('Recording failed: ' + ((e && e.error && e.error.message) || 'unknown')), { encoder: true })); };
       rec.onstop = function () {
         if (finished) return; finished = true; cleanup();
@@ -3067,9 +3226,7 @@
         if (!blob.size) return reject(new Error('The recording came out empty.'));
         resolve({ blob: blob, mime: type, ext: /mp4/.test(type) ? 'mp4' : 'webm', duration: tl.total, w: W, h: H });
       };
-      var cur = -1, t0 = 0, stopped = false;
-      var onVis = function () { if (document.hidden && !stopped) toast('Keep this tab visible while the video records. Switching away freezes the picture.', 'error'); };
-      document.addEventListener('visibilitychange', onVis);
+      if (run) run.abort = function () { if (finished) return; finished = true; stopped = true; try { rec.stop(); } catch (e) {} cleanup(); reject(cancelError()); };
       function sceneAt(now) { for (var i = tl.scenes.length - 1; i >= 0; i--) if (now >= tl.scenes[i].start) return i; return 0; }
       function chunkAt(now) { for (var i = 0; i < tl.chunks.length; i++) if (now >= tl.chunks[i].start && now < tl.chunks[i].end) return tl.chunks[i]; return null; }
       function playClip(s) { if (s && s.video && s.video.paused) { try { var p = s.video.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} } }
@@ -3098,8 +3255,9 @@
         requestAnimationFrame(frame);
       }
       var go = function () {
+        document.addEventListener('visibilitychange', onVis);
         t0 = actx.currentTime + 0.15;
-        try { src.start(t0); } catch (e) { return reject(e); }
+        try { src.start(t0); } catch (e) { cleanup(); return reject(e); }
         try { rec.start(250); } catch (e) { finished = true; stopped = true; cleanup(); return reject(Object.assign(new Error('Recording could not start: ' + e.message), { encoder: true })); }
         playClip(tl.scenes[0]);
         requestAnimationFrame(frame);
@@ -3109,9 +3267,26 @@
     });
   }
 
+  /* ---------- upload details (title, description, tags) ---------- */
+  function uploadMeta(sc, credits, provider) {
+    var title = String(sc.title || sc.storyTitle || '').slice(0, 100);
+    var disc = state.profile && state.profile.constraints && state.profile.constraints.requiredDisclosure;
+    var desc = String(sc.description || '').trim();
+    if (disc && desc.toLowerCase().indexOf(String(disc).toLowerCase()) < 0) desc += '\n\n' + disc;
+    if (credits && credits.length) desc += '\n\nStock footage: ' + (provider || 'Pixabay') + ' (' + credits.join(', ') + ')';
+    if (!/#shorts/i.test(desc)) desc += '\n\n#Shorts';
+    var tags = (sc.tags || []).map(cleanTag).filter(Boolean);
+    if (tags.map(function (t) { return t.toLowerCase(); }).indexOf('shorts') < 0) tags.push('Shorts');
+    return { title: title, description: desc, tags: tags };
+  }
+  function uploadText(m) { return 'TITLE\n' + m.title + '\n\nDESCRIPTION\n' + m.description + '\n\nTAGS\n' + m.tags.join(', ') + '\n'; }
+  function slugOf(sc, i) {
+    var s = String(sc.title || sc.storyTitle || 'short').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'short';
+    return (i + 1 < 10 ? '0' : '') + (i + 1) + '-' + s;
+  }
+
   /* ---------- UI ---------- */
-  var vidResults = {}, vidBusy = false;
-  function vkey(sc) { return (sc.storyId || '') + '|' + (sc.title || ''); }
+  var vidBusy = false, vidRun = null, vidTimer = null, origTitle = '';
   function ensureVideoStyle() {
     if (document.getElementById('asg-video-style')) return;
     var st = document.createElement('style'); st.id = 'asg-video-style';
@@ -3124,25 +3299,59 @@
       '.asg-vid-box textarea{min-height:120px;line-height:1.5;resize:vertical;}',
       '.asg-vid-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px;}',
       '.asg-vid-note{font-size:13px;color:#5b6676;margin:6px 0 0;}',
-      '.asg-vid-status{font-size:13px;color:#3956d6;margin:8px 0 0;min-height:18px;}',
+      '.asg-vid-status{font-size:14px;color:#1b2430;margin:10px 0 0;min-height:18px;}',
       '.asg-vid-status.is-err{color:#b3261e;}.asg-vid-status.is-ok{color:#17633a;}',
-      '.asg-vid-bar{height:6px;border-radius:3px;background:#e6e9f0;overflow:hidden;margin-top:8px;display:none;}',
-      '.asg-vid-bar i{display:block;height:100%;width:0;background:#3956d6;transition:width .2s;}',
-      '.asg-vid-preview{margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;}',
+      '.asg-vid-stages{display:none;gap:8px;flex-wrap:wrap;margin-top:12px;}',
+      '.asg-vid-stages.is-on{display:flex;}',
+      '.asg-vid-stage{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid #d9dee7;font-size:13px;font-weight:600;color:#7a8596;}',
+      '.asg-vid-stage.is-active{border-color:#3956d6;color:#3956d6;background:#eef2ff;}',
+      '.asg-vid-stage.is-done{border-color:#b6e3c4;color:#17633a;background:#e8f7ee;}',
+      '.asg-vid-stage.is-active::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid #3956d6;border-top-color:transparent;animation:asgspin .8s linear infinite;}',
+      '.asg-vid-stage.is-done::before{content:"✓";}',
+      '@keyframes asgspin{to{transform:rotate(360deg);}}',
+      '.asg-vid-bar{height:8px;border-radius:4px;background:#e6e9f0;overflow:hidden;margin-top:10px;display:none;}',
+      '.asg-vid-bar i{display:block;height:100%;width:0;background:#3956d6;transition:width .25s;}',
+      '.asg-vid-meta{display:none;justify-content:space-between;gap:8px;font-size:12px;color:#5b6676;margin-top:6px;}',
+      '.asg-vid-preview{margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;}',
       '.asg-vid-canvas,.asg-vid-player{width:225px;max-width:100%;aspect-ratio:9/16;border-radius:10px;background:#000;display:block;}',
-      '.asg-vid-side{flex:1;min-width:240px;}',
+      '.asg-vid-side{flex:1;min-width:260px;}',
       '.asg-vid-field{margin:0 0 10px;}',
-      '.asg-vid-copy{margin-top:4px;padding:4px 10px;font-size:12px;}'
+      '.asg-vid-copy{margin-top:4px;padding:4px 10px;font-size:12px;}',
+      '.asg-vid-plan{margin-top:12px;border-top:1px solid #eef1f6;padding-top:10px;}',
+      '.asg-vid-plan summary{cursor:pointer;font-weight:600;font-size:14px;}',
+      '.asg-vid-scene{display:grid;grid-template-columns:44px 1fr;gap:4px 10px;margin:10px 0;font-size:13px;}',
+      '.asg-vid-scene p{margin:0;color:#4a5568;}',
+      '.asg-vid-scene .asg-vid-edit{display:grid;grid-template-columns:1fr 130px;gap:8px;grid-column:2;}',
+      '.asg-exp-media{display:grid;gap:10px;margin:0 0 16px;}',
+      '.asg-exp-item{border:1px solid #d9dee7;border-radius:12px;background:#fff;color:#1b2430;padding:12px 14px;}',
+      '.asg-exp-item h4{margin:0 0 8px;font-size:15px;line-height:1.3;}',
+      '.asg-exp-links{display:flex;flex-wrap:wrap;gap:8px;}',
+      '.asg-exp-links a,.asg-exp-links span{padding:5px 10px;border-radius:8px;border:1px solid #cbd3df;font-size:13px;font-weight:600;text-decoration:none;color:#3956d6;background:#fff;}',
+      '.asg-exp-links span{color:#9aa4b2;border-style:dashed;font-weight:500;}'
     ].join('\n');
     document.head.appendChild(st);
   }
+  function fmtTime(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60); }
+  function fmtMB(b) { return (b / 1e6).toFixed(1) + ' MB'; }
   function vidSettingsBox() {
     var o = vopt();
     var box = el('div', { class: 'asg-vid-box' });
     box.appendChild(el('h3', { text: 'Video settings' }));
-    box.appendChild(el('p', { class: 'asg-vid-note', text: 'Everything is made in this browser tab: the voice runs on your computer, and the video is recorded as it plays. A 60 second short takes about as long as its running time to record. Keep this tab open and visible while it records.' }));
+    box.appendChild(el('p', { class: 'asg-vid-note', text: 'The voice runs on your computer and the video is recorded as it plays, so a 40 second short takes about a minute or two. You can keep using other tabs only if this one stays open and visible.' }));
     var grid = el('div', { class: 'asg-vid-grid' });
-    var voiceSel = el('select', { id: 'asg-vid-voice' }); voiceSel.appendChild(el('option', { value: o.voice, text: o.voice }));
+    var voiceSel = el('select', { id: 'asg-vid-voice' });
+    var fill = function (extra) {
+      var cur = vopt().voice; voiceSel.innerHTML = '';
+      var seen = {};
+      BUILTIN_VOICES.forEach(function (v) { seen[v[0]] = 1; voiceSel.appendChild(el('option', { value: v[0], text: v[1] })); });
+      Object.keys(extra || {}).forEach(function (id) {
+        if (seen[id]) return; var v = extra[id] || {};
+        voiceSel.appendChild(el('option', { value: id, text: (v.name || id) + ' · ' + (v.language || '') + (v.gender ? ' · ' + v.gender : '') }));
+      });
+      if (!seen[cur] && !(extra && extra[cur])) voiceSel.appendChild(el('option', { value: cur, text: cur }));
+      voiceSel.value = cur;
+    };
+    fill();
     grid.appendChild(el('div', {}, [el('label', { text: 'Voice' }), voiceSel]));
     grid.appendChild(el('div', {}, [el('label', { text: 'Speed' }), el('input', { type: 'number', id: 'asg-vid-speed', min: '0.7', max: '1.3', step: '0.05', value: String(o.speed) })]));
     var res = el('select', { id: 'asg-vid-res' }); [['720', '720 × 1280 (faster)'], ['1080', '1080 × 1920 (sharper)']].forEach(function (x) { res.appendChild(el('option', { value: x[0], text: x[1] })); });
@@ -3156,139 +3365,194 @@
     var tc = el('input', { type: 'checkbox', id: 'asg-vid-tag' }); tc.checked = !!o.tag;
     fr.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [tc, 'Show an "Illustrative footage" label']));
     box.appendChild(fr);
-    var kr = el('div', { class: 'asg-vid-grid' });
-    var prov = el('select', { id: 'asg-vid-provider' });
-    Object.keys(STOCK).forEach(function (k) { prov.appendChild(el('option', { value: k, text: STOCK[k].name })); });
-    prov.value = STOCK[o.provider] ? o.provider : 'pixabay';
-    kr.appendChild(el('div', {}, [el('label', { text: 'Footage library' }), prov]));
-    var keyLabel = el('label', { text: 'API key' });
-    var keyIn = el('input', { type: 'password', id: 'asg-vid-stockkey', autocomplete: 'off' });
-    kr.appendChild(el('div', {}, [keyLabel, keyIn]));
-    box.appendChild(kr);
     var keyNote = el('p', { class: 'asg-vid-note' });
     var syncKey = function () {
-      var pr = STOCK[prov.value] || STOCK.pixabay, cur = vopt();
-      keyLabel.textContent = pr.name + ' API key'; keyIn.value = cur[pr.keyField] || ''; keyIn.placeholder = 'Free: ' + pr.signup;
-      keyNote.textContent = 'Without a key, or with footage off, the video uses a clean dark background with big captions. Stock footage is generic, not footage of the event, so keep the label on.';
+      var p = STOCK[stockProvider()];
+      keyNote.textContent = stockKey()
+        ? 'Footage library: ' + p.name + ' (key saved). Stock footage is generic, not footage of the event, so keep the label on.'
+        : 'No ' + p.name + ' key saved, so videos use a clean dark background with big captions. Add a key under Settings > Footage library.';
     };
     syncKey(); box.appendChild(keyNote);
     var br = el('div', { class: 'asg-vid-row' });
-    var lb = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', id: 'asg-vid-loadvoices', text: 'Load the voice list' });
-    var lst = el('span', { class: 'asg-vid-note', id: 'asg-vid-voicestatus', style: 'margin:0;' });
-    br.appendChild(lb); br.appendChild(lst); box.appendChild(br);
+    var lb = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Load the full voice list' });
+    var openSet = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Open Settings' });
+    var lst = el('span', { class: 'asg-vid-note', style: 'margin:0;' });
+    br.appendChild(lb); br.appendChild(openSet); br.appendChild(lst); box.appendChild(br);
     var save = function () {
       var v = vopt();
       v.voice = voiceSel.value || v.voice; v.speed = Math.min(1.3, Math.max(0.7, parseFloat($('#asg-vid-speed').value) || 1));
-      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked; v.provider = prov.value; var kf = (STOCK[v.provider] || STOCK.pixabay).keyField; v[kf] = keyIn.value.trim();
+      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked;
       persistSettings();
     };
-    box.addEventListener('change', save); box.addEventListener('input', function (e) { if (e.target.id === 'asg-vid-stockkey') save(); });
-    prov.addEventListener('change', function () { var v = vopt(); v.provider = prov.value; persistSettings(); syncKey(); });
-    eng.addEventListener('change', function () { ttsPromise = null; });
+    box.addEventListener('change', save);
+    openSet.addEventListener('click', openSettings);
     lb.addEventListener('click', function () {
       save(); lb.disabled = true; lst.textContent = 'Loading…';
-      getTts(function (t) { lst.textContent = t; }).then(function (tts) {
-        var cur = voiceSel.value; voiceSel.innerHTML = '';
-        Object.keys(tts.voices).forEach(function (id) {
-          var v = tts.voices[id] || {};
-          voiceSel.appendChild(el('option', { value: id, text: (v.name || id) + ' · ' + (v.language || '') + (v.gender ? ' · ' + v.gender : '') }));
-        });
-        if (!voiceSel.options.length) voiceSel.appendChild(el('option', { value: cur, text: cur }));
-        voiceSel.value = cur; if (voiceSel.value !== cur) voiceSel.selectedIndex = 0;
-        save(); lst.textContent = 'Voices loaded.';
-      }).catch(function (e) { lst.textContent = 'Could not load the voice: ' + (e && e.message ? e.message : e); }).then(function () { lb.disabled = false; });
+      getTts(function (t) { lst.textContent = t; }).then(function (tts) { fill(tts.voices); save(); lst.textContent = 'Voice list loaded.'; })
+        .catch(function (e) { lst.textContent = 'Could not load the voice: ' + (e && e.message ? e.message : e); }).then(function () { lb.disabled = false; });
     });
     return box;
   }
-  function ytBlock(sc, credits, provider) {
-    var wrap = el('div', {});
-    var title = String(sc.title || sc.storyTitle || '').slice(0, 100);
-    var disc = state.profile && state.profile.constraints && state.profile.constraints.requiredDisclosure;
-    var desc = String(sc.description || '').trim();
-    if (disc && desc.toLowerCase().indexOf(String(disc).toLowerCase()) < 0) desc += '\n\n' + disc;
-    if (credits && credits.length) desc += '\n\nStock footage: ' + provider + ' (' + credits.join(', ') + ')';
-    if (!/#shorts/i.test(desc)) desc += '\n\n#Shorts';
-    var tags = (sc.tags || []).map(cleanTag).filter(Boolean); if (tags.map(function (t) { return t.toLowerCase(); }).indexOf('shorts') < 0) tags.push('Shorts');
-    function field(label, value, rows) {
-      var f = el('div', { class: 'asg-vid-field' });
-      f.appendChild(el('label', { text: label }));
-      var inp = rows ? el('textarea', { readonly: 'readonly', style: 'min-height:' + rows + 'px;' }) : el('input', { type: 'text', readonly: 'readonly' });
-      inp.value = value; f.appendChild(inp);
-      var b = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-copy', type: 'button', text: 'Copy' });
-      b.addEventListener('click', function () { copyText(value).then(function () { toast(label + ' copied', 'success'); }); });
-      f.appendChild(b); return f;
-    }
-    wrap.appendChild(field('Title', title));
-    wrap.appendChild(field('Description', desc, 150));
-    wrap.appendChild(field('Tags', tags.join(', ')));
-    return wrap;
+  function field(label, value, rows) {
+    var f = el('div', { class: 'asg-vid-field' });
+    f.appendChild(el('label', { text: label }));
+    var inp = rows ? el('textarea', { readonly: 'readonly', style: 'min-height:' + rows + 'px;' }) : el('input', { type: 'text', readonly: 'readonly' });
+    inp.value = value; f.appendChild(inp);
+    var b = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-copy', type: 'button', text: 'Copy' });
+    b.addEventListener('click', function () { copyText(value).then(function () { toast(label + ' copied', 'success'); }); });
+    f.appendChild(b); return f;
   }
-  function showVideoResult(sc, card, res, info) {
+  function planEditor(sc, card, rec) {
+    var scenes = rec.scenes || [];
+    if (!scenes.length) return null;
+    var d = el('details', { class: 'asg-vid-plan' });
+    d.appendChild(el('summary', { text: 'Footage plan: change what shows in each scene' }));
+    d.appendChild(el('p', { class: 'asg-vid-note', text: 'Edit the search words or switch a scene to a plain caption card, then press "Re-record with this plan". The voice is reused, so this is quicker than starting over.' }));
+    var edits = scenes.map(function (s) { return { query: s.query || '', alt: s.alt || '', kind: s.kind || 'footage' }; });
+    scenes.forEach(function (s, i) {
+      var row = el('div', { class: 'asg-vid-scene' });
+      row.appendChild(el('strong', { text: fmtTime(s.start) }));
+      row.appendChild(el('p', { text: s.text + (s.usedQuery && s.kind !== 'card' ? ' (showing: ' + s.usedQuery + ')' : '') }));
+      var ed = el('div', { class: 'asg-vid-edit' });
+      var q = el('input', { type: 'text', value: edits[i].query, 'aria-label': 'Search words for scene ' + (i + 1) });
+      var k = el('select', { 'aria-label': 'Scene type ' + (i + 1) }); [['footage', 'Footage'], ['card', 'Caption card']].forEach(function (x) { k.appendChild(el('option', { value: x[0], text: x[1] })); });
+      k.value = edits[i].kind;
+      q.addEventListener('input', function () { edits[i].query = q.value; }); k.addEventListener('change', function () { edits[i].kind = k.value; });
+      ed.appendChild(q); ed.appendChild(k); row.appendChild(ed); d.appendChild(row);
+    });
+    var go = el('button', { class: 'asg-btn asg-btn-primary', type: 'button', text: 'Re-record with this plan' });
+    go.addEventListener('click', function () {
+      sc.vplan = { hash: rec.sceneHash, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind }; }) };
+      persistScripts(); makeVideo(sc, card, { keepPlan: true });
+    });
+    d.appendChild(go);
+    return d;
+  }
+  function showVideoResult(sc, card, rec) {
     var host = $('.asg-vid-out', card); host.innerHTML = '';
-    var url = URL.createObjectURL(res.blob);
+    var url = URL.createObjectURL(rec.video);
     var player = el('video', { class: 'asg-vid-player', controls: 'controls', playsinline: '', src: url });
     var side = el('div', { class: 'asg-vid-side' });
-    var name = (String(sc.title || 'short').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'short') + '.' + res.ext;
-    var dl = el('a', { class: 'asg-btn asg-btn-primary', href: url, download: name, text: 'Download ' + res.ext.toUpperCase() + ' (' + (res.blob.size / 1e6).toFixed(1) + ' MB)' });
-    side.appendChild(el('div', { class: 'asg-vid-row', style: 'margin:0 0 12px;' }, [dl, el('a', { class: 'asg-btn asg-btn-ghost', href: 'https://studio.youtube.com', target: '_blank', rel: 'noopener noreferrer', text: 'Open YouTube Studio ↗' })]));
-    var notes = [Math.round(res.duration) + ' s · ' + res.w + '×' + res.h];
-    if (info && info.footage === 'plain') notes.push('plain background (no footage)');
-    else if (info && info.plain) notes.push(info.plain + ' scene' + (info.plain === 1 ? '' : 's') + ' without footage');
+    var base = String(sc.title || 'short').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'short';
+    var links = el('div', { class: 'asg-vid-row', style: 'margin:0 0 10px;' });
+    links.appendChild(el('a', { class: 'asg-btn asg-btn-primary', href: url, download: base + '.' + rec.ext, text: 'Download ' + rec.ext.toUpperCase() + ' (' + fmtMB(rec.video.size) + ')' }));
+    if (rec.audio) links.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: URL.createObjectURL(rec.audio), download: base + '.wav', text: 'Audio (WAV)' }));
+    if (rec.srt) links.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: URL.createObjectURL(new Blob([rec.srt], { type: 'text/plain' })), download: base + '.srt', text: 'Captions (SRT)' }));
+    links.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: 'https://studio.youtube.com', target: '_blank', rel: 'noopener noreferrer', text: 'Open YouTube Studio ↗' }));
+    side.appendChild(links);
+    var notes = [Math.round(rec.duration) + ' s · ' + rec.w + '×' + rec.h, 'saved in this browser'];
+    if (rec.footage === 'plain') notes.push('plain background (no footage)');
+    else if (rec.plain) notes.push(rec.plain + ' scene' + (rec.plain === 1 ? '' : 's') + ' without footage');
     side.appendChild(el('p', { class: 'asg-vid-note', style: 'margin:0 0 10px;', text: notes.join(' · ') }));
-    side.appendChild(ytBlock(sc, info && info.credits, (info && info.provider) || 'Pixabay'));
+    var m = uploadMeta(sc, rec.credits, rec.provider);
+    side.appendChild(field('Title', m.title)); side.appendChild(field('Description', m.description, 150)); side.appendChild(field('Tags', m.tags.join(', ')));
+    var del = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Delete this video' });
+    del.addEventListener('click', function () { dbDel('media', rec.id).then(function () { host.innerHTML = ''; setStatus(card, 'Video deleted.', ''); refreshStorageNote(); }); });
+    side.appendChild(del);
     host.appendChild(el('div', { class: 'asg-vid-preview' }, [player, side]));
-    vidResults[vkey(sc)] = { url: url };
+    var pe = planEditor(sc, card, rec); if (pe) host.appendChild(pe);
   }
-  function makeVideo(sc, card) {
-    if (vidBusy) { toast('One video at a time. Wait for the current one to finish.', 'error'); return Promise.resolve(); }
-    vidBusy = true;
-    var o = vopt(), status = $('.asg-vid-status', card), bar = $('.asg-vid-bar', card), barI = $('i', bar), btn = $('.asg-vid-make', card);
-    var setS = function (t, cls) { status.textContent = t; status.className = 'asg-vid-status' + (cls ? ' ' + cls : ''); };
-    var setBar = function (p) { bar.style.display = p == null ? 'none' : 'block'; barI.style.width = Math.round((p || 0) * 100) + '%'; };
+  function setStatus(card, t, cls) { var s = $('.asg-vid-status', card); if (s) { s.textContent = t; s.className = 'asg-vid-status' + (cls ? ' ' + cls : ''); } }
+  function refreshStorageNote() {
+    var n = $('#asg-vid-storage'); if (!n) return;
+    dbAll('media').then(function (all) {
+      var bytes = 0; all.forEach(function (r) { bytes += (r.video ? r.video.size : 0) + (r.audio ? r.audio.size : 0); });
+      n.textContent = all.length ? 'Saved in this browser: ' + all.length + ' video' + (all.length === 1 ? '' : 's') + ' (' + fmtMB(bytes) + ').' : 'No videos saved yet.';
+    });
+  }
+  function busyOn(card) {
+    vidBusy = true; origTitle = document.title;
     $$('.asg-vid-make').forEach(function (b) { b.disabled = true; });
-    $('.asg-vid-out', card).innerHTML = '';
-    var narr = $('.asg-vid-narr', card).value.trim();
-    sc.narration = narr; persistScripts();
-    var sentences = narrationSentences(narr);
-    if (!sentences.length) { setS('The narration is empty.', 'is-err'); vidBusy = false; $$('.asg-vid-make').forEach(function (b) { b.disabled = false; }); return Promise.resolve(); }
-    var W = o.res === '1080' ? 1080 : 720, H = o.res === '1080' ? 1920 : 1280, useFootage = !!(o.footage && stockKey(o)), info = { footage: useFootage ? 'stock' : 'plain', plain: 0, credits: [], provider: (STOCK[o.provider] || STOCK.pixabay).name }, tl;
-    setS('Preparing the voice…'); setBar(0.02);
-    return synthesize(sentences, o.voice, o.speed, function (i, n) { setS('Speaking sentence ' + (i + 1) + ' of ' + n + '…'); setBar(0.05 + 0.4 * i / n); }, function (t) { setS(t); })
-      .then(function (parts) {
-        tl = buildTimeline(parts);
-        if (!useFootage) return null;
-        setS('Choosing footage…'); setBar(0.5);
-        return attachFootage(tl, sc.title || sc.storyTitle || '', STOCK[o.provider] ? o.provider : 'pixabay', stockKey(o), W, function (i, n, q) { setS('Footage for scene ' + (i + 1) + ' of ' + n + ': "' + q + '"'); setBar(0.5 + 0.3 * i / n); })
-          .then(function (r) {
-            info.plain = r.plain; info.credits = r.credits;
-            if (r.error) toast(r.error.message, 'error');
-            if (r.plain === tl.scenes.length) info.footage = 'plain';
-          });
-      })
-      .then(function () {
-        setS('Recording the video (' + Math.round(tl.total) + ' s). Keep this tab open and visible.'); setBar(0.8);
-        return renderVideo(tl, { w: W, h: H, tag: !!o.tag && info.footage !== 'plain' }, function (p) { setBar(0.8 + 0.2 * p); }, $('.asg-vid-live', card));
-      })
-      .then(function (res) {
-        $('.asg-vid-live', card).innerHTML = '';
-        showVideoResult(sc, card, res, info);
-        setS('Done.', 'is-ok'); setBar(null);
-      })
-      .catch(function (e) {
-        LOG('video failed', e);
-        $('.asg-vid-live', card).innerHTML = '';
-        setS('Could not make the video: ' + (e && e.message ? e.message : e), 'is-err'); setBar(null);
-      })
-      .then(function () { vidBusy = false; $$('.asg-vid-make').forEach(function (b) { b.disabled = false; }); });
+    window.onbeforeunload = function (e) { e.preventDefault(); e.returnValue = ''; return ''; };
+    var t0 = Date.now(), el2 = $('.asg-vid-elapsed', card);
+    vidTimer = setInterval(function () { if (el2) el2.textContent = 'Elapsed ' + fmtTime((Date.now() - t0) / 1000); }, 1000);
+  }
+  function busyOff() {
+    vidBusy = false; vidRun = null; clearInterval(vidTimer); window.onbeforeunload = null;
+    if (origTitle) document.title = origTitle;
+    $$('.asg-vid-make').forEach(function (b) { b.disabled = false; });
+  }
+  function makeVideo(sc, card, opts) {
+    opts = opts || {};
+    if (vidBusy) { toast('One video at a time. Wait for the current one to finish.', 'error'); return Promise.resolve(); }
+    var o = vopt(), run = { cancelled: false, abort: null }, stages = $$('.asg-vid-stage', card), stageBox = $('.asg-vid-stages', card);
+    var bar = $('.asg-vid-bar', card), barI = $('i', bar), meta = $('.asg-vid-meta', card), pctEl = $('.asg-vid-pct', card), cancelBtn = $('.asg-vid-cancel', card);
+    var setStage = function (name) {
+      var order = ['voice', 'footage', 'record'], at = order.indexOf(name);
+      stages.forEach(function (s) { var i = order.indexOf(s.dataset.st); s.className = 'asg-vid-stage' + (i < at ? ' is-done' : (i === at ? ' is-active' : '')); });
+    };
+    var setBar = function (p) {
+      bar.style.display = p == null ? 'none' : 'block'; meta.style.display = p == null ? 'none' : 'flex';
+      var pc = Math.round((p || 0) * 100); barI.style.width = pc + '%'; if (pctEl) pctEl.textContent = pc + '%';
+      if (p != null) document.title = '⏳ ' + pc + '% · making video';
+    };
+    busyOn(card); vidRun = run; stageBox.classList.add('is-on'); cancelBtn.hidden = false;
+    $('.asg-vid-out', card).innerHTML = ''; $('.asg-vid-live', card).innerHTML = '';
+    var narr = $('.asg-vid-narr', card).value.trim(); sc.narration = narr; persistScripts();
+    var sentences = narrationSentences(narr), id = mid(sc);
+    var finish = function () { stageBox.classList.remove('is-on'); cancelBtn.hidden = true; setBar(null); busyOff(); };
+    if (!sentences.length) { setStatus(card, 'The narration is empty.', 'is-err'); finish(); return Promise.resolve(); }
+    cancelBtn.onclick = function () { run.cancelled = true; if (run.abort) run.abort(); setStatus(card, 'Cancelling…'); };
+    var W = o.res === '1080' ? 1080 : 720, H = o.res === '1080' ? 1920 : 1280, provider = stockProvider();
+    var useFootage = !!(o.footage && stockKey()), info = { footage: useFootage ? 'stock' : 'plain', plain: 0, credits: [], provider: STOCK[provider].name }, tl, plan = null, partsKey = hashStr(narr + '|' + o.voice + '|' + o.speed);
+    setStage('voice'); setBar(0.02); setStatus(card, 'Preparing the voice…');
+    return dbGet('parts', id).then(function (cached) {
+      if (cached && cached.key === partsKey) { setStatus(card, 'Reusing the voice from last time.'); return cached.parts; }
+      return synthesize(sentences, o.voice, o.speed, function (i, n) { setStatus(card, 'Speaking sentence ' + (i + 1) + ' of ' + n + '…'); setBar(0.05 + 0.4 * i / n); }, function (t) { setStatus(card, t); }, run)
+        .then(function (parts) { return dbPut('parts', { id: id, key: partsKey, parts: parts }).then(function () { return parts; }); });
+    }).then(function (parts) {
+      if (run.cancelled) throw cancelError();
+      tl = buildTimeline(parts);
+      var hash = sceneHash(tl.scenes);
+      setStage('footage'); setBar(0.5);
+      var havePlan = opts.keepPlan && sc.vplan && sc.vplan.hash === hash && sc.vplan.scenes.length === tl.scenes.length;
+      if (!useFootage) { plan = tl.scenes.map(function () { return { query: '', alt: '', kind: 'card' }; }); return null; }
+      var planP = havePlan ? Promise.resolve(sc.vplan.scenes) : (setStatus(card, 'Planning the footage…'), planScenes(tl.scenes, sc.title || sc.storyTitle || ''));
+      return planP.then(function (p) {
+        plan = p; sc.vplan = { hash: hash, scenes: p }; persistScripts();
+        return attachFootage(tl, plan, sc.title || sc.storyTitle || '', provider, stockKey(), W, function (i, n, q) { setStatus(card, 'Footage for scene ' + (i + 1) + ' of ' + n + (q ? ': "' + q + '"' : '')); setBar(0.5 + 0.3 * i / n); }, run);
+      }).then(function (r) {
+        info.plain = r.plain; info.credits = r.credits;
+        if (r.error) toast(r.error.message, 'error');
+        if (r.plain === tl.scenes.length) info.footage = 'plain';
+      });
+    }).then(function () {
+      if (run.cancelled) throw cancelError();
+      setStage('record'); setBar(0.8); setStatus(card, 'Recording the video (' + Math.round(tl.total) + ' s). Keep this tab open and visible.');
+      return renderVideo(tl, { w: W, h: H, tag: !!o.tag && info.footage !== 'plain' }, function (p) { setBar(0.8 + 0.2 * p); }, $('.asg-vid-live', card), run);
+    }).then(function (res) {
+      $('.asg-vid-live', card).innerHTML = '';
+      var rec = {
+        id: id, title: sc.title || '', video: res.blob, ext: res.ext, mime: res.mime, duration: res.duration, w: res.w, h: res.h,
+        audio: wavBlob(timelineSamples(tl), tl.rate), srt: buildSrt(tl), credits: info.credits, provider: info.provider, footage: info.footage, plain: info.plain,
+        madeAt: new Date().toISOString(), sceneHash: sceneHash(tl.scenes),
+        scenes: tl.scenes.map(function (s, i) { return { text: s.text, start: s.start, usedQuery: s.usedQuery || '', query: (plan[i] && plan[i].query) || '', alt: (plan[i] && plan[i].alt) || '', kind: (plan[i] && plan[i].kind) || 'card' }; })
+      };
+      return dbPut('media', rec).then(function () { showVideoResult(sc, card, rec); setStatus(card, 'Done. Saved in this browser.', 'is-ok'); refreshStorageNote(); });
+    }).catch(function (e) {
+      $('.asg-vid-live', card).innerHTML = '';
+      if (e && e.cancelled) { setStatus(card, 'Cancelled.', ''); return; }
+      LOG('video failed', e);
+      setStatus(card, 'Could not make the video: ' + (e && e.message ? e.message : e), 'is-err');
+    }).then(finish);
   }
   function renderVideoPanel() {
     ensureVideoStyle();
     var root = $('#asg-video-root'); if (!root) return;
     root.innerHTML = '';
-    var cards = [];
     var scripts = goodScripts();
     if (!scripts.length) { root.appendChild(el('p', { class: 'asg-hint', text: 'No scripts yet. Generate and review scripts first.' })); return; }
     root.appendChild(vidSettingsBox());
+    var storage = el('div', { class: 'asg-vid-row', style: 'margin:0 0 12px;' });
+    storage.appendChild(el('span', { class: 'asg-vid-note', id: 'asg-vid-storage', style: 'margin:0;' }));
+    var clr = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Delete all saved videos' });
+    clr.addEventListener('click', function () {
+      if (vidBusy) return;
+      if (!confirm('Delete every video saved in this browser? Your scripts stay.')) return;
+      Promise.all([dbClear('media'), dbClear('parts')]).then(function () { renderVideoPanel(); });
+    });
+    storage.appendChild(clr); root.appendChild(storage); refreshStorageNote();
+    var cards = [];
     scripts.forEach(function (sc, i) {
       var card = el('div', { class: 'asg-vid-box' });
       var st = scriptStatus(sc);
@@ -3297,32 +3561,99 @@
       meta.appendChild(el('span', { class: 'asg-pill ' + st.cls, text: st.text }));
       meta.appendChild(el('span', { class: 'asg-pill ' + (sc.reviewed ? 'asg-pill-rev' : 'asg-pill-tpl'), text: sc.reviewed ? 'Reviewed ✓' : 'Not reviewed yet' }));
       card.appendChild(meta);
-      card.appendChild(el('label', { text: 'Narration: only the words that will be spoken. No links, tags or sources. Edit to fix a pronunciation.' }));
+      card.appendChild(el('label', { text: 'Narration: only the words that will be spoken. No links, tags or sources. Letters like "U S" are spelled out on purpose so the voice says them right; captions show the normal spelling.' }));
       var ta = el('textarea', { class: 'asg-vid-narr' }); ta.value = narrationOf(sc);
       var cnt = el('p', { class: 'asg-vid-note' });
       var upd = function () { var w = wordCount(ta.value); cnt.textContent = w + ' words · about ' + Math.round(w / LEN.wps) + ' s spoken'; };
       ta.addEventListener('input', function () { sc.narration = ta.value; persistScripts(); upd(); });
-      upd();
-      card.appendChild(ta); card.appendChild(cnt);
+      upd(); card.appendChild(ta); card.appendChild(cnt);
       var row = el('div', { class: 'asg-vid-row' });
       var mk = el('button', { class: 'asg-btn asg-btn-primary asg-vid-make', type: 'button', text: 'Make video' });
       mk.addEventListener('click', function () { makeVideo(sc, card); });
       var reset = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Reset narration' });
       reset.addEventListener('click', function () { delete sc.narration; ta.value = buildNarration(sc); persistScripts(); upd(); });
-      row.appendChild(mk); row.appendChild(reset); card.appendChild(row);
+      var cancel = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-cancel', type: 'button', text: 'Cancel', hidden: 'hidden' });
+      row.appendChild(mk); row.appendChild(reset); row.appendChild(cancel); card.appendChild(row);
+      var stg = el('div', { class: 'asg-vid-stages' });
+      [['voice', 'Voice'], ['footage', 'Footage'], ['record', 'Recording']].forEach(function (s, n) { stg.appendChild(el('span', { class: 'asg-vid-stage', 'data-st': s[0], text: (n + 1) + '. ' + s[1] })); });
+      card.appendChild(stg);
       card.appendChild(el('div', { class: 'asg-vid-status' }));
       card.appendChild(el('div', { class: 'asg-vid-bar' }, [el('i')]));
+      card.appendChild(el('div', { class: 'asg-vid-meta' }, [el('span', { class: 'asg-vid-elapsed', text: 'Elapsed 0:00' }), el('span', { class: 'asg-vid-pct', text: '0%' })]));
       card.appendChild(el('div', { class: 'asg-vid-live', style: 'margin-top:10px;' }));
       card.appendChild(el('div', { class: 'asg-vid-out' }));
       cards.push({ sc: sc, card: card });
       root.appendChild(card);
+      dbGet('media', mid(sc)).then(function (rec) { if (rec && rec.video && !$('.asg-vid-out video', card) && !vidBusy) showVideoResult(sc, card, rec); });
     });
     var all = $('#asg-make-all');
     if (all) all.onclick = function () {
       if (vidBusy) { toast('A video is already being made.', 'error'); return; }
-      var q = cards.slice(), next = function () { var c = q.shift(); if (!c) return; makeVideo(c.sc, c.card).then(next); };
+      var q = cards.slice(), next = function () { var c = q.shift(); if (!c) return; makeVideo(c.sc, c.card).then(function () { if (!(vidRun && vidRun.cancelled)) next(); }); };
       next();
     };
+  }
+
+  /* ---------- export: everything in one place ---------- */
+  function mediaIndex() {
+    return dbAll('media').then(function (all) { var m = {}; all.forEach(function (r) { m[r.id] = r; }); return m; });
+  }
+  function mediaPaths(sc, i, rec) {
+    if (!rec) return null;
+    var dir = slugOf(sc, i);
+    return { video: dir + '/video.' + rec.ext, audio: dir + '/voiceover.wav', captions: dir + '/captions.srt', upload: dir + '/upload.txt', durationSec: Math.round(rec.duration), resolution: rec.w + 'x' + rec.h, footageLibrary: rec.footage === 'plain' ? null : rec.provider, madeAt: rec.madeAt };
+  }
+  function renderExportMedia() {
+    var host = $('#asg-export-media'); if (!host) return Promise.resolve();
+    ensureVideoStyle();
+    return mediaIndex().then(function (idx) {
+      host.innerHTML = '';
+      var scripts = goodScripts(), have = 0;
+      var list = el('div', { class: 'asg-exp-media' });
+      scripts.forEach(function (sc, i) {
+        var rec = idx[sc.mediaId || ''], item = el('div', { class: 'asg-exp-item' });
+        item.appendChild(el('h4', { text: (i + 1) + '. ' + (sc.title || sc.storyTitle) }));
+        var links = el('div', { class: 'asg-exp-links' });
+        var base = slugOf(sc, i);
+        var add = function (label, blob, name) { if (blob) links.appendChild(el('a', { href: URL.createObjectURL(blob), download: name, text: label })); else links.appendChild(el('span', { text: label + ': not made yet' })); };
+        if (rec) have++;
+        add('Video' + (rec ? ' (' + rec.ext.toUpperCase() + ', ' + fmtMB(rec.video.size) + ')' : ''), rec && rec.video, base + '.' + (rec ? rec.ext : 'mp4'));
+        add('Audio (WAV)', rec && rec.audio, base + '.wav');
+        add('Captions (SRT)', rec && rec.srt ? new Blob([rec.srt], { type: 'text/plain' }) : null, base + '.srt');
+        var um = uploadMeta(sc, rec && rec.credits, rec && rec.provider);
+        links.appendChild(el('a', { href: URL.createObjectURL(new Blob([uploadText(um)], { type: 'text/plain' })), download: base + '-upload.txt', text: 'Upload details (TXT)' }));
+        item.appendChild(links); list.appendChild(item);
+      });
+      host.appendChild(list);
+      if (!have) host.appendChild(el('p', { class: 'asg-hint', text: 'No videos made yet. Use the Video step, then come back: videos stay saved in this browser.' }));
+    });
+  }
+  function downloadEverything() {
+    toast('Building the ZIP…', 'success', 2500);
+    return mediaIndex().then(function (idx) {
+      var scripts = goodScripts(), files = [], enc = new TextEncoder(), jobs = [];
+      var addText = function (name, text) { files.push({ name: name, data: enc.encode(text) }); };
+      var payload = buildPayload(idx);
+      addText('manifest.json', JSON.stringify(payload, null, 2));
+      addText('all-scripts.txt', scripts.map(function (sc, i) { return '=== Script ' + (i + 1) + ' ===\n' + scriptToText(sc); }).join('\n\n'));
+      scripts.forEach(function (sc, i) {
+        var dir = slugOf(sc, i), rec = idx[sc.mediaId || ''];
+        addText(dir + '/script.txt', scriptToText(sc));
+        addText(dir + '/narration.txt', narrationOf(sc) + '\n');
+        addText(dir + '/upload.txt', uploadText(uploadMeta(sc, rec && rec.credits, rec && rec.provider)));
+        if (rec) {
+          if (rec.srt) addText(dir + '/captions.srt', rec.srt);
+          if (rec.video) jobs.push(blobBytes(rec.video).then(function (b) { files.push({ name: dir + '/video.' + rec.ext, data: b }); }));
+          if (rec.audio) jobs.push(blobBytes(rec.audio).then(function (b) { files.push({ name: dir + '/voiceover.wav', data: b }); }));
+        }
+      });
+      return Promise.all(jobs).then(function () {
+        var blob = zipFiles(files), url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = 'autonom-shorts-' + new Date().toISOString().slice(0, 10) + '.zip'; document.body.appendChild(a); a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+        toast('ZIP downloaded (' + fmtMB(blob.size) + ')', 'success');
+      });
+    }).catch(function (e) { LOG('zip failed', e); toast('Could not build the ZIP: ' + (e && e.message ? e.message : e), 'error'); });
   }
 
   function bind() {
@@ -3415,13 +3746,13 @@
     $('#asg-continue-export').addEventListener('click', function () { renderExport(); setStep('export'); });
     $('#asg-back-video').addEventListener('click', function () { setStep('video'); });
     $('#asg-export-json').addEventListener('click', function () {
-      download('autonom-ai-shorts.json', JSON.stringify(buildPayload(), null, 2), 'application/json');
-      toast('JSON downloaded', 'success');
+      mediaIndex().then(function (idx) { download('autonom-ai-shorts.json', JSON.stringify(buildPayload(idx), null, 2), 'application/json'); toast('JSON downloaded', 'success'); });
     });
     $('#asg-export-txt').addEventListener('click', function () {
       var txt = goodScripts().map(function (sc, i) { return '=== Script ' + (i + 1) + ' ===\n' + scriptToText(sc); }).join('\n\n');
       download('autonom-ai-shorts.txt', txt, 'text/plain'); toast('TXT downloaded', 'success');
     });
+    $('#asg-export-zip').addEventListener('click', function () { downloadEverything(); });
     $('#asg-export-copy').addEventListener('click', function () {
       var txt = goodScripts().map(function (sc, i) { return '=== Script ' + (i + 1) + ' ===\n' + scriptToText(sc); }).join('\n\n');
       copyText(txt).then(function () { toast('Copied all', 'success'); });
@@ -3482,6 +3813,9 @@
       var wm2 = $('#asg-set-gemini-write-model'); if (wm2) state.settings.geminiWriteModel = wm2.value.trim();
       state.settings.openaiKey = $('#asg-set-openai').value.trim();
       state.settings.deepseekKey = $('#asg-set-deepseek').value.trim();
+      var sp2 = $('#asg-set-stock'); if (sp2) state.settings.stockProvider = sp2.value;
+      var pxk2 = $('#asg-set-pixabay'); if (pxk2) state.settings.pixabayKey = pxk2.value.trim();
+      var pek2 = $('#asg-set-pexels'); if (pek2) state.settings.pexelsKey = pek2.value.trim();
       ['groq', 'openrouter'].forEach(function (pv) {
         var k = $('#asg-set-' + pv), m = $('#asg-set-' + pv + '-model'), w = $('#asg-set-' + pv + '-write-model');
         if (k) state.settings[pv + 'Key'] = k.value.trim();
