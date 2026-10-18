@@ -1,12 +1,12 @@
 /**
  * Autonom AI Shorts Generator — Shortcode
  * Shortcode: [autonom_ai_shorts_generator]
- * v1.10.0
+ * v1.11.0
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! defined( 'AUTONOM_ASG_VERSION' ) ) {
-    define( 'AUTONOM_ASG_VERSION', '1.10.0' );
+    define( 'AUTONOM_ASG_VERSION', '1.11.0' );
 }
 
 /**
@@ -872,7 +872,7 @@ function autonom_asg_shortcode( $atts ) {
         <span class="asg-label">YouTube channel handle or URL</span>
         <input type="text" id="asg-yt-input" placeholder="@BlomstraInsights or channel URL">
       </label>
-      <p class="asg-hint">Requires a free YouTube Data API key. Set it in <button type="button" class="asg-link asg-open-settings">Settings</button>.</p>
+      <p class="asg-hint">Requires a YouTube Data API key. Set it in <button type="button" class="asg-link asg-open-settings">Settings</button>.</p>
       <div class="asg-actions">
         <button class="asg-btn asg-btn-primary" id="asg-yt-fetch" type="button">Fetch &amp; derive</button>
       </div>
@@ -1027,13 +1027,17 @@ function autonom_asg_shortcode( $atts ) {
   <section class="asg-panel" data-panel="export" hidden>
     <header class="asg-panel-head">
       <h2>Export</h2>
-      <p class="asg-lead">Take your scripts anywhere. Autonom never uploads on your behalf.</p>
+      <p class="asg-lead">Take your scripts, voice-overs, captions and videos anywhere. Autonom never uploads on your behalf.</p>
     </header>
 
     <div class="asg-export-grid">
+      <button class="asg-export-card" id="asg-export-zip" type="button">
+        <h3>Download everything (ZIP)</h3>
+        <p>Every script with its video, voice-over, captions, narration and upload details, in one folder per short.</p>
+      </button>
       <button class="asg-export-card" id="asg-export-json" type="button">
         <h3>Download JSON</h3>
-        <p>All scripts + metadata + sources. Ready for any renderer.</p>
+        <p>All scripts, narration and metadata, plus where each media file sits in the ZIP.</p>
       </button>
       <button class="asg-export-card" id="asg-export-txt" type="button">
         <h3>Download TXT</h3>
@@ -1045,9 +1049,12 @@ function autonom_asg_shortcode( $atts ) {
       </button>
     </div>
 
+    <h3 style="margin:18px 0 8px;">Videos, audio and captions</h3>
+    <div id="asg-export-media"></div>
+
     <div class="asg-payload-preview">
       <h3>Handoff payload</h3>
-      <p class="asg-hint">This is the exact JSON structure your renderer or webhook will receive.</p>
+      <p class="asg-hint">This is the exact JSON structure your renderer or webhook will receive. The media entries name the files inside the ZIP.</p>
       <pre id="asg-payload-pre"></pre>
     </div>
 
@@ -1068,15 +1075,15 @@ function autonom_asg_shortcode( $atts ) {
       <label class="asg-field">
         <span class="asg-label">YouTube Data API key</span>
         <input type="password" id="asg-set-yt" placeholder="AIza...">
-        <span class="asg-hint">Free at console.cloud.google.com. Restrict to autonom.app and blomstrainsights.com referrers.</span>
+        <span class="asg-hint">From console.cloud.google.com. Restrict to autonom.app and blomstrainsights.com referrers.</span>
       </label>
 
       <label class="asg-field">
-        <span class="asg-label">LLM provider</span>
+        <span class="asg-label">Model provider</span>
         <select id="asg-set-provider">
-          <option value="gemini">Google Gemini (free tier)</option>
-          <option value="groq">Groq (free, recommended)</option>
-          <option value="openrouter">OpenRouter (free models)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="groq">Groq</option>
+          <option value="openrouter">OpenRouter</option>
           <option value="openai">OpenAI</option>
           <option value="deepseek">DeepSeek</option>
           <option value="none">None — heuristic only</option>
@@ -1086,7 +1093,7 @@ function autonom_asg_shortcode( $atts ) {
 <label class="asg-field" data-provider="gemini">
   <span class="asg-label">Gemini API key</span>
   <input type="password" id="asg-set-gemini" placeholder="AQ... or AIza...">
-  <span class="asg-hint">From aistudio.google.com. Both AQ. and AIza keys work.</span>
+  <span class="asg-hint">From aistudio.google.com. Both AQ. and AIza keys work. Any plan works: Autonom uses whatever models your key can access.</span>
   <button class="asg-btn asg-btn-ghost" id="asg-test-gemini" type="button" style="margin-top:6px;">Test this key</button>
 </label>
 
@@ -1117,13 +1124,13 @@ function autonom_asg_shortcode( $atts ) {
       <label class="asg-field" style="display:flex;gap:8px;align-items:flex-start;">
         <input type="checkbox" id="asg-set-fallback" style="margin-top:4px;" checked>
         <span><span class="asg-label">Use my other AI keys as a backup</span>
-        <span class="asg-hint" style="display:block;">If the AI service you picked is overloaded, rate-limited or out of free quota, Autonom tries the other services you have saved a key for, instead of giving up with a template. Each script says which service wrote it.</span></span>
+        <span class="asg-hint" style="display:block;">If the AI service you picked is overloaded, rate-limited or out of quota, Autonom tries the other services you have saved a key for, instead of giving up with a template. Each script says which service wrote it.</span></span>
       </label>
 
       <label class="asg-field" data-provider="groq" hidden>
         <span class="asg-label">Groq API key</span>
         <input type="password" id="asg-set-groq" placeholder="gsk_...">
-        <span class="asg-hint">Free at console.groq.com (API Keys). No card needed.</span>
+        <span class="asg-hint">From console.groq.com (API Keys). Any plan works.</span>
         <button class="asg-btn asg-btn-ghost" id="asg-test-groq" type="button" style="margin-top:6px;">Test this key</button>
       </label>
       <label class="asg-field" data-provider="groq" hidden>
@@ -1134,17 +1141,17 @@ function autonom_asg_shortcode( $atts ) {
       <label class="asg-field" data-provider="groq" hidden>
         <span class="asg-label">Groq model for comparison, writing and audit (optional)</span>
         <input type="text" id="asg-set-groq-write-model" placeholder="leave empty to auto-pick">
-        <span class="asg-hint">Free limits are per model. Left empty, writing and audit start on a different model than extraction so the two use separate quotas.</span>
+        <span class="asg-hint">Rate limits are per model. Left empty, writing and audit start on a different model than extraction so the two use separate quotas.</span>
       </label>
       <label class="asg-field" data-provider="openrouter" hidden>
         <span class="asg-label">OpenRouter API key</span>
         <input type="password" id="asg-set-openrouter" placeholder="sk-or-...">
-        <span class="asg-hint">Free at openrouter.ai (Keys). Use models ending in :free. Free models allow about 50 requests per day. Leave the model fields empty and Autonom picks the strongest free models available right now.</span>
+        <span class="asg-hint">From openrouter.ai (Keys). Left empty, Autonom picks automatically from models that cost nothing per token, so no credits are spent. To use a paid model with your credits, type its exact name in the model field below.</span>
         <button class="asg-btn asg-btn-ghost" id="asg-test-openrouter" type="button" style="margin-top:6px;">Test this key</button>
       </label>
       <label class="asg-field" data-provider="openrouter" hidden>
         <span class="asg-label">OpenRouter model (optional)</span>
-        <input type="text" id="asg-set-openrouter-model" placeholder="leave empty to auto-pick a free model">
+        <input type="text" id="asg-set-openrouter-model" placeholder="leave empty to auto-pick (zero-cost models only)">
       </label>
       <label class="asg-field" data-provider="openrouter" hidden>
         <span class="asg-label">OpenRouter model for comparison, writing and audit (optional)</span>
@@ -1158,6 +1165,23 @@ function autonom_asg_shortcode( $atts ) {
       <label class="asg-field" data-provider="deepseek" hidden>
         <span class="asg-label">DeepSeek API key</span>
         <input type="password" id="asg-set-deepseek" placeholder="sk-...">
+      </label>
+
+      <label class="asg-field">
+        <span class="asg-label">Footage library (for videos)</span>
+        <select id="asg-set-stock">
+          <option value="pixabay">Pixabay</option>
+          <option value="pexels">Pexels</option>
+        </select>
+        <span class="asg-hint">Where background clips come from. Without a key, videos use a plain background with captions.</span>
+      </label>
+      <label class="asg-field">
+        <span class="asg-label">Pixabay API key</span>
+        <input type="password" id="asg-set-pixabay" placeholder="from pixabay.com/api/docs" autocomplete="off">
+      </label>
+      <label class="asg-field">
+        <span class="asg-label">Pexels API key</span>
+        <input type="password" id="asg-set-pexels" placeholder="from pexels.com/api" autocomplete="off">
       </label>
 
       <div class="asg-drawer-actions">
