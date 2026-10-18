@@ -1,3 +1,4 @@
+<?php
 /**
  * Autonom AI Shorts Generator — Shortcode
  * Shortcode: [autonom_ai_shorts_generator]
@@ -838,13 +839,13 @@ function autonom_asg_shortcode( $atts ) {
           <li><span class="asg-check">✓</span> Your profile, scripts and API keys are stored in this browser only (keys are saved unencrypted in local storage)</li>
           <li><span class="asg-check">✓</span> No Autonom backend or database; nothing is stored on a server</li>
           <li><span class="asg-check">✓</span> News searches and article pages (the story's own article and, for cross-checking, one or two other outlets' articles on the same event) are fetched by this website's own server and only cached briefly (10 min to 6 hours)</li>
-          <li><span class="asg-check">✓</span> LLM and YouTube calls use your own API keys</li>
+          <li><span class="asg-check">✓</span> LLM, YouTube and footage calls use your own API keys. Gemini, OpenAI, DeepSeek and YouTube are called directly from your browser. Groq, OpenRouter and stock-footage downloads are relayed by this website's server, which forwards them and does not store your keys, scripts or media</li>
         </ul>
         <div class="asg-privacy-stats">
           <div><span>API calls</span><strong id="asg-stat-api">0</strong></div>
           <div><span>LLM calls</span><strong id="asg-stat-llm">0</strong></div>
         </div>
-        <p class="asg-privacy-note">Your server reads publisher RSS feeds (BBC, Al Jazeera, Guardian, DW, NPR, Sky, Euronews, CBC, NYT, WSJ), searches GDELT, Bing News and Google News, and reads the article pages of the stories you select. Your browser calls YouTube (googleapis.com) and your chosen LLM provider (Google Gemini, OpenAI or DeepSeek) directly. Only if the server search fails does your browser fall back to GDELT directly or to the public CORS proxies allorigins.win, codetabs.com and rss2json.com, which then see your search terms.</p>
+        <p class="asg-privacy-note">Your server reads publisher RSS feeds (BBC, Al Jazeera, Guardian, DW, NPR, Sky, Euronews, CBC, NYT, WSJ), searches GDELT, Bing News and Google News, and reads the article pages of the stories you select. Your browser calls YouTube (googleapis.com) and Google Gemini, OpenAI or DeepSeek directly; requests to Groq and OpenRouter, and stock-footage downloads from Pixabay and Pexels, pass through your server, which forwards them without storing them. Only if the server search fails does your browser fall back to GDELT directly or to the public CORS proxies allorigins.win, codetabs.com and rss2json.com, which then see your search terms.</p>
       </div>
     </div>
   </div>
