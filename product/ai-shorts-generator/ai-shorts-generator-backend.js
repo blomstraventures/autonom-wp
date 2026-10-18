@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.11.0';
+  var VERSION = '1.12.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -114,14 +114,20 @@
   function updateApiStatus() {
     var node = document.getElementById('asg-api-status');
     if (!node) return;
-    var hasYt = !!state.settings.youtubeKey;
     var hasLlm = state.settings.llmProvider !== 'none' && !!currentLlmKey();
+    var needYt = !!(state.profile && state.profile.source && state.profile.source.mode === 'youtube');
+    var hasYt = !!state.settings.youtubeKey;
+    var hasStock = !!(typeof stockKey === 'function' && stockKey());
     node.classList.remove('is-ok', 'is-partial');
     var label = node.querySelector('.asg-api-label');
-    if (hasYt && hasLlm) { node.classList.add('is-ok'); if (label) label.textContent = 'Keys ready'; }
-    else if (hasYt || hasLlm) { node.classList.add('is-partial'); if (label) label.textContent = hasLlm ? 'LLM ✓ · YT ✗' : 'YT ✓ · LLM ✗'; }
-    else { if (label) label.textContent = 'No keys'; }
-    node.title = 'YouTube: ' + (hasYt ? 'set' : 'missing') + ' · LLM: ' + (hasLlm ? 'set' : 'missing');
+    var parts = ['AI ' + (hasLlm ? '✓' : '✗')];
+    if (needYt) parts.push('YouTube ' + (hasYt ? '✓' : '✗'));
+    parts.push('Footage ' + (hasStock ? '✓' : '✗'));
+    var ok = hasLlm && (!needYt || hasYt) && hasStock;
+    var some = hasLlm || hasYt || hasStock;
+    if (ok) node.classList.add('is-ok'); else if (some) node.classList.add('is-partial');
+    if (label) label.textContent = parts.join(' · ');
+    node.title = 'API keys. AI provider: ' + (hasLlm ? 'set' : 'missing') + ' · YouTube: ' + (hasYt ? 'set' : needYt ? 'missing' : 'not needed') + ' · Footage library: ' + (hasStock ? 'set' : 'missing') + '. Open API keys to change them.';
   }
   function toast(msg, kind, ms) {
     var t = el('div', { class: 'asg-toast' + (kind ? ' is-' + kind : ''), text: msg });
@@ -417,19 +423,6 @@
     }
     return next();
   }
-  function deriveFromFeed(feed, opts) {
-    var items = (feed.items || []).slice(0, 30).map(function (it) {
-      return { title: it.title, description: String(it.description || '').replace(/<[^>]+>/g, ' ').trim() };
-    });
-    return deriveFromTexts(items, {
-      name: opts.name || (feed.feed && feed.feed.title) || 'Untitled site',
-      oneLiner: (feed.feed && feed.feed.description) ? feed.feed.description.slice(0, 120) : '',
-      positioning: (feed.feed && feed.feed.description) || '',
-      source: { mode: 'site', siteUrl: opts.siteUrl, feedUrls: [opts.feedUrl], language: 'en' },
-      method: 'rss + heuristic', confidence: 0.65
-    });
-  }
-
   function renderProfile() {
     if (!state.profile) return;
     $('#asg-profile-editor').hidden = false;
@@ -454,6 +447,7 @@
     dl.appendChild(el('dt', { text: 'Format' })); dl.appendChild(el('dd', { text: p.format.targetDurationSec + 's · ' + p.format.wordCountMin + '–' + p.format.wordCountMax + ' words' }));
     dl.appendChild(el('dt', { text: 'Cadence' })); dl.appendChild(el('dd', { text: p.cadence.videosPerDay + ' / day · ' + p.cadence.preferredTimes.join(', ') }));
     view.appendChild(dl);
+    updateApiStatus();
   }
   function textInput(v, on) { var i = el('input', { type: 'text', value: v || '' }); i.addEventListener('input', function () { on(i.value); }); return i; }
   function textarea(v, on) { var t = el('textarea', {}); t.value = v || ''; t.addEventListener('input', function () { on(t.value); }); return t; }
@@ -471,16 +465,43 @@
     edit.appendChild(field('Name', textInput(p.name, function (v) { p.name = v; })));
     edit.appendChild(field('One-liner', textInput(p.identity.oneLiner, function (v) { p.identity.oneLiner = v; })));
     edit.appendChild(field('Positioning', textarea(p.identity.positioning, function (v) { p.identity.positioning = v; })));
-    var tb = el('div', { class: 'asg-field' }, [el('span', { class: 'asg-label', text: 'Topics (name · weight · signals)' })]);
-    var rows = el('div', { style: 'display:grid;gap:10px;' });
-    p.topics.forEach(function (t) {
-      var row = el('div', { style: 'display:grid;grid-template-columns:1.2fr .6fr 2.2fr;gap:8px;align-items:center;' });
-      row.appendChild(textInput(t.name, function (v) { t.name = v; }));
-      row.appendChild(textInput(String(t.weight), function (v) { t.weight = parseFloat(v) || 0; }));
-      row.appendChild(textInput((t.signals || []).join(', '), function (v) { t.signals = v.split(',').map(function (s) { return s.trim(); }).filter(Boolean); }));
-      rows.appendChild(row);
+    var tb = el('div', { class: 'asg-field' }, [el('span', { class: 'asg-label', text: 'Topics' }),
+      el('span', { class: 'asg-hint', text: 'Each topic has a name, a weight (how much of your output it should drive) and scan signals: keywords the news scan searches for.' })]);
+    var rows = el('div', { class: 'asg-topic-rows' });
+    function drawRows() {
+      rows.innerHTML = '';
+      var head = el('div', { class: 'asg-topic-row asg-topic-head' }, [el('span', { text: 'Name' }), el('span', { text: 'Weight' }), el('span', { text: 'Signals (comma separated)' }), el('span', { text: '' })]);
+      rows.appendChild(head);
+      p.topics.forEach(function (t, i) {
+        var row = el('div', { class: 'asg-topic-row' });
+        row.appendChild(textInput(t.name, function (v) { t.name = v; }));
+        var w = textInput(String(t.weight), function (v) { t.weight = Math.max(0, Math.min(1, parseFloat(v) || 0)); });
+        w.setAttribute('inputmode', 'decimal'); row.appendChild(w);
+        row.appendChild(textInput((t.signals || []).join(', '), function (v) { t.signals = v.split(',').map(function (x) { return x.trim(); }).filter(Boolean); }));
+        var rm = el('button', { class: 'asg-topic-rm', type: 'button', title: 'Remove topic', 'aria-label': 'Remove topic', text: '✕' });
+        rm.addEventListener('click', function () {
+          if (p.topics.length <= 1) { toast('Keep at least one topic.', 'error'); return; }
+          p.topics.splice(i, 1); drawRows();
+        });
+        row.appendChild(rm);
+        rows.appendChild(row);
+      });
+    }
+    drawRows();
+    var addBtn = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: '+ Add topic' });
+    addBtn.addEventListener('click', function () {
+      var n = p.topics.length + 1;
+      p.topics.push({ name: 'New topic ' + n, weight: 0.2, subtopics: [], signals: [] });
+      drawRows();
+      var ins = rows.querySelectorAll('.asg-topic-row:last-child input'); if (ins[0]) { ins[0].focus(); ins[0].select(); }
     });
-    tb.appendChild(rows); edit.appendChild(tb);
+    var norm = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Balance weights' });
+    norm.addEventListener('click', function () {
+      var tot = p.topics.reduce(function (a, t) { return a + (t.weight || 0); }, 0) || 1;
+      p.topics.forEach(function (t) { t.weight = Math.round(((t.weight || 0) / tot) * 100) / 100; });
+      drawRows(); toast('Weights now add up to 100%', 'success');
+    });
+    tb.appendChild(rows); tb.appendChild(el('div', { class: 'asg-actions' }, [addBtn, norm])); edit.appendChild(tb);
     edit.appendChild(field('Tone style', selectOpts(['analytical', 'urgent', 'neutral', 'contrarian'], p.tone.style, function (v) { p.tone.style = v; })));
     edit.appendChild(field('Target duration (sec, 45 to 105)', textInput(String(p.format.targetDurationSec), function (v) {
       var d = parseInt(v, 10); if (!d) return;
@@ -492,6 +513,9 @@
     })));
     var save = el('button', { class: 'asg-btn asg-btn-primary', type: 'button', text: 'Save profile' });
     save.addEventListener('click', function () {
+      p.topics.forEach(function (t) {
+        if (!t.signals || !t.signals.length) t.signals = (DEFAULT_SIGNALS[String(t.name).toLowerCase()] || (/^New topic \d+$/.test(t.name) ? [] : [t.name])).slice();
+      });
       p.updatedAt = new Date().toISOString();
       persistProfile(); renderProfile();
       $('#asg-profile-edit').hidden = true; $('#asg-profile-view').hidden = false;
@@ -1850,8 +1874,35 @@
     return first.then(function (r) {
       if (r) return r;
       var alt = relatedStories(story, 8).filter(function (o) { return o.readable === 'open' && !o.redirect; })[0];
-      return alt ? attempt(alt, 'alternative') : null;
+      if (alt) return attempt(alt, 'alternative').then(function (r2) { return r2 || searchOpenAlternative(story, attempt); });
+      return searchOpenAlternative(story, attempt);
     });
+  }
+  // Last resort for paywalled / aggregator stories: search the open publisher feeds for the same event by headline,
+  // then read the best open match. The script is then written from that outlet's article, never from the paywalled one.
+  function searchOpenAlternative(story, attempt) {
+    var base = sigTokens(cleanTitle(story.title));
+    if (base.length < 3) return Promise.resolve(null);
+    var sHost = rootHost(hostOf(story.url)), sName = String(story.source || '').toLowerCase();
+    return fetchFeedItems(base.slice(0, 8)).then(function (items) {
+      var cands = items.filter(function (it) {
+        if (!it.link || it.readable !== 'open' || isThinUrl(it.link)) return false;
+        if (rootHost(hostOf(it.link)) === sHost || String(it.author || '').toLowerCase() === sName) return false;
+        var tt = sigTokens(cleanTitle(it.title));
+        var shared = tt.filter(function (w) { return base.indexOf(w) !== -1; }).length;
+        it._n = shared;
+        return shared >= 3 || (shared >= 2 && shared / (Math.min(base.length, tt.length) || 1) >= 0.5);
+      }).sort(function (a, b) { return b._n - a._n; }).slice(0, 3);
+      LOG('open-outlet search for "' + story.title + '":', cands.length, 'candidates');
+      var i = 0;
+      function next() {
+        if (i >= cands.length) return null;
+        var c = cands[i++];
+        var alt = { id: 'alt_' + i, title: c.title, summary: c.description || '', url: c.link, source: c.author || hostOf(c.link), publishedAt: c.pubDate, readable: 'open' };
+        return attempt(alt, 'alternative').then(function (r) { return r || next(); });
+      }
+      return next();
+    }).catch(function (e) { LOG('open-outlet search failed:', e.message); return null; });
   }
   function sourceMeta(src) {
     return { sourceName: src.story.source, sourceUrl: cleanUrl(src.story.url), via: src.via, sources: [cleanUrl(src.story.url)] };
@@ -2199,10 +2250,10 @@
       resolveSource(story).then(function (src) {
         if (!src) {
           var why = story.readable === 'paywalled'
-            ? 'Paywalled source (' + story.source + '). Its text cannot be read, and no open outlet covering the same story was found in this scan.'
+            ? 'Paywalled source (' + story.source + '). Its text cannot be read, and no open outlet covering the same story was found (searched this scan and the publisher feeds by headline). Nothing was written, because a script without a readable source would be guesswork.'
             : story.readable === 'thin'
             ? 'Live blog or video page (' + story.source + '): there is no article text to read, and no open outlet with a full article on the same story was found in this scan.'
-            : 'No readable source article could be fetched (aggregator link, blocked page, or paywall), and no open outlet covering the same story was found in this scan.';
+            : 'No readable source article could be fetched (aggregator link, blocked page, or paywall), and no open outlet covering the same story was found (searched this scan and the publisher feeds by headline). Nothing was written, because a script without a readable source would be guesswork.';
           state.scripts.push(gatedScript(story, why)); counts.gated++;
           return;
         }
@@ -2446,6 +2497,15 @@
     if (document.getElementById('asg-modal-style')) return;
     var st = document.createElement('style'); st.id = 'asg-modal-style';
     st.textContent = [
+      '.asg-topic-rows{display:grid;gap:8px;margin:8px 0;}',
+      '.asg-topic-row{display:grid;grid-template-columns:1.2fr .5fr 2.2fr 34px;gap:8px;align-items:center;}',
+      '.asg-topic-head{font-size:12px;font-weight:600;color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-topic-rm{border:1px solid var(--asg-border,#e1e4e9);background:var(--asg-bg,#fff);color:var(--asg-text-muted,#5b6471);border-radius:8px;height:34px;cursor:pointer;}',
+      '.asg-topic-rm:hover{color:var(--asg-critical,#d92b2b);border-color:var(--asg-critical,#d92b2b);}',
+      '@media (max-width:640px){.asg-topic-row{grid-template-columns:1fr 70px 34px;}.asg-topic-row input:nth-child(3){grid-column:1/-1;grid-row:2;}.asg-topic-head{display:none;}}',
+      '.asg-keys-group{display:inline-flex;align-items:center;gap:6px;padding:3px 4px 3px 10px;border:1px dashed var(--asg-border,#e1e4e9);border-radius:999px;background:var(--asg-bg-soft,#f7f8fa);}',
+      '.asg-keys-group .asg-keys-title{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-topbar-sep{width:1px;align-self:stretch;background:var(--asg-border,#e1e4e9);margin:4px 2px;}',
       '#asg-script-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:stretch;}',
       '#asg-script-list>.asg-script-card{grid-column:1/-1;}',
       '.asg-tile{position:relative;display:flex;flex-direction:column;gap:8px;text-align:left;padding:14px;border:1px solid #d9dee7;border-radius:12px;background:#fff;color:#1b2430;cursor:pointer;font:inherit;transition:box-shadow .15s,border-color .15s;}',
@@ -3676,21 +3736,6 @@
       }).catch(function (e) { LOG('YT error', e); toast(e.message, 'error'); })
         .then(function () { btn.disabled = false; btn.textContent = orig; });
     });
-    $('#asg-site-fetch').addEventListener('click', function () {
-      var site = $('#asg-site-input').value.trim(); var feed = $('#asg-site-feed').value.trim();
-      if (!site && !feed) { toast('Enter a site or feed URL.', 'error'); return; }
-      var btn = this; btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Fetching…';
-      var prog = $('#asg-site-progress'); prog.hidden = false; prog.textContent = 'Starting…';
-      var p = feed ? tryFeed(feed) : discoverFeed(site, function (msg) { prog.textContent = msg; });
-      p.then(function (f) {
-        if (!f.items || !f.items.length) throw new Error('Feed returned zero items.');
-        prog.textContent = 'Parsing ' + f.items.length + ' items…';
-        state.profile = deriveFromFeed(f, { siteUrl: site, feedUrl: feed || (f.feed && f.feed.resolvedUrl) || site, name: (f.feed && f.feed.title) || site });
-        persistProfile(); renderProfile(); updateStepAvailability();
-        toast('Profile derived from ' + f.items.length + ' items', 'success'); prog.hidden = true;
-      }).catch(function (e) { LOG('Site error', e); toast('Site mode: ' + e.message, 'error'); prog.hidden = true; })
-        .then(function () { btn.disabled = false; btn.textContent = orig; });
-    });
     $('#asg-manual-save').addEventListener('click', function () {
       var name = $('#asg-manual-name').value.trim();
       var oneLiner = $('#asg-manual-oneliner').value.trim();
@@ -3723,7 +3768,7 @@
         meta: { lastSyncedAt: new Date().toISOString(), derivationMethod: 'manual', confidence: 1 }
       };
       persistProfile(); renderProfile(); updateStepAvailability();
-      toast(autoFilled ? 'Profile saved · signals auto-filled per topic' : 'Profile saved', 'success');
+      toast(autoFilled ? 'Profile saved · signals auto-filled per topic. Edit to add more topics.' : 'Profile saved. Edit to add more topics.', 'success');
     });
     $('#asg-edit-toggle').addEventListener('click', function () {
       var edit = $('#asg-profile-edit'); var view = $('#asg-profile-view');
@@ -3828,7 +3873,7 @@
   }
   function init() {
     if (!$('.asg-root')) return;
-    loadState(); bind(); updateCounters(); updateApiStatus();
+    loadState(); ensureModalStyle(); bind(); updateCounters(); updateApiStatus();
     if (state.profile) {
       renderProfile(); updateStepAvailability();
       if (state.scripts.length) renderScripts();
