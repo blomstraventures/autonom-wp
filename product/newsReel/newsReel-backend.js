@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.12.0';
+  var VERSION = '1.21.1';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -12,8 +12,11 @@
   var LS = {
     profile: 'autonom.asg.profile.v1',
     settings: 'autonom.asg.settings.v1',
-    scripts: 'autonom.asg.scripts.v1'
+    scripts: 'autonom.asg.scripts.v1',
+    profiles: 'autonom.asg.profiles.v1'
   };
+  var APP_URL = 'https://autonom.app/ai/newsreel/';
+  function scriptsKey(id) { id = id || (state.profile && state.profile.id); return id ? LS.scripts + '.' + id : LS.scripts; }
 
   var modelCooldown = {};
   var GONE_KEY = 'asg_gone_models';
@@ -39,14 +42,28 @@
   var state = {
     step: 'channel',
     profile: null,
+    profiles: [],
+    feedSort: 'match',
     stories: [],
     selectedStoryIds: {},
     scripts: [],
-    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, fallbackProviders: true, pixabayKey: '', pexelsKey: '', stockProvider: 'pixabay', groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
-    counters: { apiCalls: 0, llmCalls: 0 }
+    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, madeWith: true, autoLen: true, autoLens: true, autoHook: true, strategy: 'value', writeBest: true, lens: 'between', hook: 'event', fallbackProviders: true, pixabayKey: '', pexelsKey: '', stockProvider: 'pixabay', groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
+    counters: { apiCalls: 0, llmCalls: 0 },
+    feedReadable: true,
+    feedHideUsed: true,
+    consGroups: null,
+    consRes: {}
   };
+  var DEFAULT_SETTINGS = JSON.parse(JSON.stringify(state.settings));
+  function settingsKey(id) { id = id || (state.profile && state.profile.id); return id ? LS.settings + '.' + id : LS.settings; }
+  function loadSettingsFor(id) {
+    var o = null;
+    try { o = JSON.parse(localStorage.getItem(settingsKey(id)) || 'null'); } catch (e) {}
+    return Object.assign({}, DEFAULT_SETTINGS, o || {});
+  }
 
-  var LEN = { minSec: 45, maxSec: 105, defaultSec: 60, wps: 2.5 };
+  var LEN = { minSec: 30, maxSec: 105, defaultSec: 60, wps: 2.5 };
+  var LEN_CHOICES = [30, 45, 60, 90, 105];
   function clampSec(d) { d = parseInt(d, 10); if (!d || d < 0) d = LEN.defaultSec; return Math.max(LEN.minSec, Math.min(LEN.maxSec, d)); }
   function formatFor(sec) {
     sec = clampSec(sec);
@@ -54,6 +71,24 @@
     var cap = Math.round(LEN.maxSec * LEN.wps);
     return { targetDurationSec: sec, wordCountMin: Math.round(words * 0.85), wordCountMax: Math.min(Math.round(words * 1.1), cap) };
   }
+  var LENSES = {
+    between: { label: 'Read between the lines', desc: 'What the timing, wording and choices suggest. The default.', rule: 'What belongs here: read between the lines. Name what is telling about the specifics of this story — the timing of a move, the choice of a target or moment, who is speaking and who is not, what a number or a phrase implies about strategy. Interpret the actors: "X appears to be betting that…", "the choice of timing suggests…", "the move looks aimed less at A than at B". End on the open question: "whether this works depends on…", "the test is whether…". Take a position; an analysis with no point of view is filler.' },
+    contrarian: { label: 'Contrarian', desc: 'Tests the obvious reading against the same facts.', rule: 'What belongs here: a contrarian read. State the obvious reading of this story in one short clause, then say what the facts leave out or what else they would fit: "The easy reading is X. But the facts also fit Y." Challenge the framing, never the facts. Pick the strongest alternative the facts allow, not the most provocative one.' },
+    simple: { label: 'Explain it simply', desc: 'A plain-language read for someone new to the story.', rule: 'What belongs here: a plain-language explanation for someone who has not followed this story. Say in everyday words what is really going on and why the main actors are doing what they are doing, using only the story\'s own facts. Short sentences, no jargon, no analogies that add new facts.' },
+    winners: { label: 'Who gains, who loses', desc: 'Maps the winners and losers the facts point to.', rule: 'What belongs here: who gains and who loses from this development, as far as the facts show. Name the groups the facts name, and frame every judgement as "appears to benefit" or "looks exposed". If the facts show no winner or loser, say who is not mentioned.' },
+    skeptic: { label: 'Skeptic\'s check', desc: 'What is claimed, by whom, and what is still unconfirmed.', rule: 'What belongs here: a source check. Separate what is claimed from what is confirmed, say who makes each claim, and name what the facts do not yet show (without inventing what it might be). The tone is careful, not cynical.' },
+    watch: { label: 'What to watch next', desc: 'The signposts that would change the picture.', rule: 'What belongs here: the signposts. Name two things that would change how this story reads, as conditions ("if the next statement from X changes tone, that would suggest..."), using only actors and events in the facts. No forecasts.' }
+  };
+  var runOver = null;   // per-story recommendation applied while a script is being written
+  function baseLens() { return LENSES[state.settings.lens] ? state.settings.lens : 'between'; }
+  function currentLens() { return runOver && LENSES[runOver.lens] ? runOver.lens : baseLens(); }
+  var HOOKS = {
+    event: { label: 'Lead with the event', desc: 'The most consequential fact, first.', rule: '' },
+    question: { label: 'Open with a question', desc: 'A sharp question the facts answer.', rule: '   Hook style: phrase the hook as a question that the facts below answer, and make it name the specific subject. No clickbait, no "you won\'t believe".' },
+    contrast: { label: 'Open with a contrast', desc: '"X says A, but B." Attributed.', rule: '   Hook style: set up the contrast the story turns on, using only the facts and naming who says what ("X says A, but B"). The contrast must be in the facts, not your own.' }
+  };
+  function baseHook() { return HOOKS[state.settings.hook] ? state.settings.hook : 'event'; }
+  function currentHook() { return runOver && HOOKS[runOver.hook] ? runOver.hook : baseHook(); }
   function splitSentences(text) {
     var t = String(text || '').replace(/\s+/g, ' ').trim();
     if (!t) return [];
@@ -90,9 +125,19 @@
 
   function loadState() {
     try {
-      var p = localStorage.getItem(LS.profile); if (p) state.profile = JSON.parse(p);
-      var s = localStorage.getItem(LS.settings); if (s) Object.assign(state.settings, JSON.parse(s));
-      var sc = localStorage.getItem(LS.scripts); if (sc) state.scripts = JSON.parse(sc);
+      var pl = null; try { pl = JSON.parse(localStorage.getItem(LS.profiles) || 'null'); } catch (e0) {}
+      if (pl && pl.list && pl.list.length) {
+        state.profiles = pl.list;
+        state.profile = pl.list.filter(function (x) { return x.id === pl.active; })[0] || pl.list[0];
+      } else {
+        var p = localStorage.getItem(LS.profile); if (p) { state.profile = JSON.parse(p); state.profiles = [state.profile]; }
+      }
+      var s = (state.profile && localStorage.getItem(settingsKey())) || localStorage.getItem(LS.settings); if (s) Object.assign(state.settings, JSON.parse(s));
+      if (state.profile && localStorage.getItem(settingsKey()) == null) localStorage.setItem(settingsKey(), JSON.stringify(state.settings));
+      var sc = localStorage.getItem(scriptsKey());
+      if (sc == null && state.profiles.length <= 1) sc = localStorage.getItem(LS.scripts);
+      if (sc) state.scripts = JSON.parse(sc);
+      if (state.profile && localStorage.getItem(scriptsKey()) == null) localStorage.setItem(scriptsKey(), JSON.stringify(state.scripts));
     } catch (e) { LOG('load failed', e); }
     if (state.profile && state.profile.format && !state.profile.format.lengthV2) {
       var f = formatFor(state.profile.format.targetDurationSec < 75 ? LEN.defaultSec : state.profile.format.targetDurationSec);
@@ -103,9 +148,26 @@
       persistProfile();
     }
   }
-  function persistProfile() { try { localStorage.setItem(LS.profile, JSON.stringify(state.profile)); } catch (e) {} }
-  function persistSettings() { try { localStorage.setItem(LS.settings, JSON.stringify(state.settings)); } catch (e) {} }
-  function persistScripts() { try { localStorage.setItem(LS.scripts, JSON.stringify(state.scripts)); } catch (e) {} }
+  function persistProfile() {
+    var tmpFmt = null;
+    if (genRun && genRun.origFmt && state.profile && state.profile.format) { tmpFmt = Object.assign({}, state.profile.format); Object.assign(state.profile.format, genRun.origFmt); }
+    try { persistProfileRaw(); } finally { if (tmpFmt) Object.assign(state.profile.format, tmpFmt); }
+  }
+  function persistProfileRaw() {
+    try {
+      if (state.profile) {
+        var i = -1;
+        state.profiles.forEach(function (x, k) { if (x.id === state.profile.id) i = k; });
+        if (i < 0) { state.profiles.push(state.profile); state.scripts = []; state.stories = []; state.selectedStoryIds = {}; persistScripts(); persistSettings(); }
+        else state.profiles[i] = state.profile;
+        localStorage.setItem(LS.profile, JSON.stringify(state.profile));
+      }
+      localStorage.setItem(LS.profiles, JSON.stringify({ active: state.profile ? state.profile.id : null, list: state.profiles }));
+    } catch (e) {}
+    try { renderProfileBar(); } catch (e2) {}
+  }
+  function persistSettings() { try { var j = JSON.stringify(state.settings); localStorage.setItem(settingsKey(), j); localStorage.setItem(LS.settings, j); } catch (e) {} }
+  function persistScripts() { try { var j = JSON.stringify(state.scripts); localStorage.setItem(scriptsKey(), j); localStorage.setItem(LS.scripts, j); } catch (e) {} }
 
   function updateCounters() {
     var a = $('#asg-stat-api'); if (a) a.textContent = state.counters.apiCalls;
@@ -120,9 +182,9 @@
     var hasStock = !!(typeof stockKey === 'function' && stockKey());
     node.classList.remove('is-ok', 'is-partial');
     var label = node.querySelector('.asg-api-label');
-    var parts = ['AI ' + (hasLlm ? '✓' : '✗')];
-    if (needYt) parts.push('YouTube ' + (hasYt ? '✓' : '✗'));
-    parts.push('Footage ' + (hasStock ? '✓' : '✗'));
+    var parts = [hasLlm ? 'AI ✓' : 'Add AI key'];
+    if (needYt) parts.push(hasYt ? 'YouTube ✓' : 'Add YouTube key');
+    parts.push(hasStock ? 'Footage ✓' : 'Add footage key');
     var ok = hasLlm && (!needYt || hasYt) && hasStock;
     var some = hasLlm || hasYt || hasStock;
     if (ok) node.classList.add('is-ok'); else if (some) node.classList.add('is-partial');
@@ -136,7 +198,7 @@
     setTimeout(function () { t.classList.remove('is-on'); setTimeout(function () { t.remove(); }, 320); }, ms || (kind === 'error' ? 9000 : 5000));
   }
   function setStep(step) {
-    var order = ['channel', 'feed', 'generate', 'scripts', 'video', 'export'];
+    var order = ['channel', 'feed', 'consolidate', 'generate', 'scripts', 'video', 'export'];
     state.step = step;
     $$('.asg-panel').forEach(function (p) { p.hidden = p.dataset.panel !== step; });
     $$('.asg-step').forEach(function (s) {
@@ -145,6 +207,7 @@
       s.classList.toggle('is-done', idx < cur && idx >= 0);
     });
     updateStepAvailability();
+    if (step === 'consolidate') renderConsolidate();
     if (step === 'generate') renderGenerateStatus();
     if (step === 'video') renderVideoPanel();
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
@@ -157,6 +220,7 @@
       var st = s.dataset.step;
       if (st === 'channel') s.disabled = false;
       else if (st === 'feed') s.disabled = !hasProfile;
+      else if (st === 'consolidate') s.disabled = !hasStories;
       else if (st === 'generate') s.disabled = !hasStories;
       else if (st === 'scripts') s.disabled = !state.scripts.length;
       else if (st === 'video') s.disabled = !hasScripts;
@@ -211,7 +275,7 @@
       schemaVersion: '1.0', id: 'tp_' + Date.now().toString(36), name: opts.name || 'Untitled channel',
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       source: opts.source || { mode: 'manual' },
-      identity: { oneLiner: opts.oneLiner || '', positioning: opts.positioning || '', audienceHint: opts.audienceHint || '' },
+      identity: { oneLiner: opts.oneLiner || '', positioning: opts.positioning || '', audienceHint: opts.audienceHint || '', dna: opts.dna || '', samples: opts.samples || null },
       topics: topics,
       tone: { style: opts.tone || 'analytical', energy: 'urgent', formality: 'neutral-brief', pov: 'analyst', avoid: ['clickbait hyperbole', 'partisan framing', 'doom language'] },
       format: fmt,
@@ -273,6 +337,7 @@
             name: ch.snippet.title,
             oneLiner: ch.snippet.description ? ch.snippet.description.split(/[.\n]/)[0].slice(0, 120) : '',
             positioning: ch.snippet.description || '',
+            samples: { titles: videos.slice(0, 15).map(function (v) { return v.title; }), top: videos.slice().sort(function (a, b) { return b.views - a.views; }).slice(0, 5).map(function (v) { return v.title; }) },
             source: { mode: 'youtube', channelId: ch.id, channelHandle: '@' + (parsed.handle || ''), language: 'en' },
             method: 'youtube-api + heuristic', confidence: 0.72
           });
@@ -280,9 +345,11 @@
     });
   }
 
+  var genRun = null, stopGrace = 0;
   function fetchWithTimeout(url, opts, ms) {
     ms = ms || 8000;
     var controller = new AbortController();
+    if (genRun && !genRun.cancelled) genRun.ctrl.signal.addEventListener('abort', function () { controller.abort(); });
     var timer = setTimeout(function () { controller.abort(); }, ms);
     var merged = Object.assign({ signal: controller.signal }, opts || {});
     return fetch(url, merged).then(
@@ -423,7 +490,80 @@
     }
     return next();
   }
+
+  // ---------- Multiple profiles (settings drawer) ----------
+  // A profile is one channel's workspace: topics and tone, API keys and settings, scripts and videos.
+  function renderProfileBar() {
+    var box = document.getElementById('asg-set-profiles'); if (!box) return;
+    box.innerHTML = '';
+    var btn = $('.asg-open-settings.asg-btn-pill'); if (btn) btn.textContent = '⚙ ' + (state.profile && state.profile.name ? state.profile.name : 'Profiles & keys');
+    box.appendChild(el('span', { class: 'asg-label', text: 'Profile' }));
+    if (!state.profiles.length) {
+      box.appendChild(el('p', { class: 'asg-hint', text: 'No profile yet. Create one in the Channel step. Each profile keeps its own topics, API keys, scripts and videos.' }));
+      return;
+    }
+    var row = el('div', { class: 'asg-pf-row' });
+    var sel = el('select', { 'aria-label': 'Active profile' });
+    state.profiles.forEach(function (x) {
+      var o = el('option', { value: x.id, text: x.name || 'Untitled profile' });
+      if (state.profile && x.id === state.profile.id) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function () { if (sel.value) switchProfile(sel.value); });
+    row.appendChild(sel);
+    var add = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: '+ New' });
+    add.addEventListener('click', function () { closeSettings(); setStep('channel'); toast('Create the new profile below. Your other profiles stay saved.', 'success'); var c = $('.asg-mode-grid'); if (c && c.scrollIntoView) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    row.appendChild(add);
+    if (state.profile) {
+      var del = el('button', { class: 'asg-btn asg-btn-ghost asg-pf-del', type: 'button', text: 'Delete' });
+      del.addEventListener('click', deleteProfile);
+      row.appendChild(del);
+    }
+    box.appendChild(row);
+    box.appendChild(el('p', { class: 'asg-hint', text: 'The keys and settings below belong to this profile. A new profile starts with a copy of the current ones, so change them there if the channel uses different accounts.' }));
+  }
+  function switchProfile(id) {
+    var t = state.profiles.filter(function (x) { return x.id === id; })[0];
+    if (!t || (state.profile && state.profile.id === id)) return;
+    if (generating) { toast('Stop the script run first.', 'error'); renderProfileBar(); return; }
+    if (typeof vidBusy !== 'undefined' && vidBusy) { toast('A video is being made. Wait until it finishes.', 'error'); renderProfileBar(); return; }
+    persistScripts(); persistSettings();
+    state.profile = t;
+    var sc = null; try { sc = JSON.parse(localStorage.getItem(scriptsKey(t.id)) || 'null'); } catch (e) {}
+    state.scripts = sc || []; state.stories = []; state.selectedStoryIds = {};
+    state.settings = loadSettingsFor(t.id);
+    persistProfile();
+    renderProfile(); renderStories(); renderScripts(); updateStepAvailability(); updateApiStatus();
+    var ed = $('#asg-profile-edit'); if (ed) ed.hidden = true; var vw = $('#asg-profile-view'); if (vw) vw.hidden = false; var tg = $('#asg-edit-toggle'); if (tg) tg.textContent = 'Edit';
+    var dr = $('#asg-settings-drawer'); if (dr && !dr.hidden) openSettings();
+    setStep('channel');
+    toast('Switched to ' + (t.name || 'profile'), 'success');
+  }
+  function deleteProfile() {
+    var cur = state.profile; if (!cur) return;
+    if (generating) { toast('Stop the script run first.', 'error'); return; }
+    if (typeof vidBusy !== 'undefined' && vidBusy) { toast('A video is being made. Wait until it finishes.', 'error'); return; }
+    var n = goodScripts().length;
+    if (!confirm('Delete the profile "' + (cur.name || 'Untitled') + '" with its keys' + (n ? ', ' + n + ' script' + (n === 1 ? '' : 's') + ' and saved videos' : '') + '? This cannot be undone.')) return;
+    var ids = state.scripts.map(function (x) { return x.mediaId || x.id; }).filter(Boolean);
+    Promise.all(ids.map(function (i) { return Promise.all([dbDel('media', i), dbDel('parts', i)]); })).catch(function () {});
+    try { localStorage.removeItem(scriptsKey(cur.id)); localStorage.removeItem(settingsKey(cur.id)); } catch (e) {}
+    state.profiles = state.profiles.filter(function (x) { return x.id !== cur.id; });
+    state.stories = []; state.selectedStoryIds = {};
+    var next = state.profiles[0] || null;
+    if (next) {
+      state.profile = next; var sc = null; try { sc = JSON.parse(localStorage.getItem(scriptsKey(next.id)) || 'null'); } catch (e2) {}
+      state.scripts = sc || []; state.settings = loadSettingsFor(next.id);
+    } else { state.profile = null; state.scripts = []; try { localStorage.removeItem(LS.profile); localStorage.removeItem(LS.scripts); } catch (e3) {} }
+    persistProfile();
+    if (next) renderProfile(); else { var pe = $('#asg-profile-editor'); if (pe) pe.hidden = true; }
+    renderStories(); renderScripts(); updateStepAvailability(); updateApiStatus(); setStep('channel');
+    var dr = $('#asg-settings-drawer'); if (dr && !dr.hidden) openSettings();
+    toast('Profile deleted', 'success');
+  }
+
   function renderProfile() {
+    renderProfileBar();
     if (!state.profile) return;
     $('#asg-profile-editor').hidden = false;
     var view = $('#asg-profile-view'); view.innerHTML = '';
@@ -458,6 +598,27 @@
   }
   function field(label, input) { return el('label', { class: 'asg-field' }, [el('span', { class: 'asg-label', text: label }), input]); }
 
+  // The channel's DNA: how it sounds and what stance it takes. Written once per profile, used in every script and
+  // every analysis, so two channels covering the same story do not publish the same reel.
+  function dnaText(p) {
+    var d = p && p.identity && String(p.identity.dna || '').trim();
+    if (d) return d;
+    return 'Voice: ' + ((p.tone && p.tone.style) || 'analytical') + ', ' + ((p.tone && p.tone.energy) || 'urgent') + '. Positioning: ' + ((p.identity && (p.identity.positioning || p.identity.oneLiner)) || p.name) + '.';
+  }
+  function suggestDna(p) {
+    var smp = (p.identity && p.identity.samples) || {};
+    var lines = [
+      'Write the "voice DNA" of a faceless news-explainer channel, so its scripts sound like it and nobody else.',
+      'CHANNEL: ' + p.name, 'POSITIONING: ' + (p.identity.positioning || p.identity.oneLiner || ''),
+      'TOPICS: ' + (p.topics || []).map(function (t) { return t.name; }).join(', '),
+      'TONE: ' + ((p.tone && p.tone.style) || '') + ', ' + ((p.tone && p.tone.energy) || '')
+    ];
+    if (smp.titles && smp.titles.length) lines.push('RECENT TITLES: ' + smp.titles.join(' | '));
+    if (smp.top && smp.top.length) lines.push('BEST PERFORMING TITLES: ' + smp.top.join(' | '));
+    lines.push('', 'Return 4 to 6 short lines, one per label: "Voice:" (how sentences sound: rhythm, register, humour or none), "Stance:" (the angle or worldview this channel brings to news: what it cares about, what it is sceptical of), "Signature:" (1-2 recurring moves, e.g. who pays, what is missing, the historical echo), "Never:" (what it avoids). Base it ONLY on the information above. Do not invent a biography, credentials or facts.',
+      'Return STRICT JSON only: {"dna":"Voice: ...\nStance: ...\nSignature: ...\nNever: ..."}');
+    return callLLM(lines.join('\n'), 'write').then(function (r) { var j = extractJson(r.text); return String(j.dna || '').trim(); });
+  }
   function renderProfileEdit() {
     if (!state.profile) return;
     var edit = $('#asg-profile-edit'); edit.innerHTML = '';
@@ -465,6 +626,19 @@
     edit.appendChild(field('Name', textInput(p.name, function (v) { p.name = v; })));
     edit.appendChild(field('One-liner', textInput(p.identity.oneLiner, function (v) { p.identity.oneLiner = v; })));
     edit.appendChild(field('Positioning', textarea(p.identity.positioning, function (v) { p.identity.positioning = v; })));
+    var dnaTa = textarea(p.identity.dna, function (v) { p.identity.dna = v; });
+    dnaTa.rows = 5; dnaTa.placeholder = 'Voice: ...\nStance: ...\nSignature: ...\nNever: ...';
+    var dnaF = field('Voice and angle (DNA)', dnaTa);
+    dnaF.appendChild(el('span', { class: 'asg-hint', text: 'How this channel sounds and what stance it takes. Every script and every analysis is written in it, so your reels differ from anyone else covering the same story. Edit freely.' }));
+    var dnaBtn = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Suggest from my channel', style: 'margin-top:6px;' });
+    dnaBtn.addEventListener('click', function () {
+      dnaBtn.disabled = true; dnaBtn.textContent = 'Writing…';
+      suggestDna(p).then(function (t) { if (t) { dnaTa.value = t; p.identity.dna = t; toast('Voice DNA suggested. Edit it, then save.', 'ok'); } else toast('The model returned nothing. Try again.', 'warn'); })
+        .catch(function (e) { toast('Could not suggest a DNA: ' + (e && e.message || 'AI error'), 'error'); })
+        .then(function () { dnaBtn.disabled = false; dnaBtn.textContent = 'Suggest from my channel'; });
+    });
+    dnaF.appendChild(dnaBtn);
+    edit.appendChild(dnaF);
     var tb = el('div', { class: 'asg-field' }, [el('span', { class: 'asg-label', text: 'Topics' }),
       el('span', { class: 'asg-hint', text: 'Each topic has a name, a weight (how much of your output it should drive) and scan signals: keywords the news scan searches for.' })]);
     var rows = el('div', { class: 'asg-topic-rows' });
@@ -503,7 +677,7 @@
     });
     tb.appendChild(rows); tb.appendChild(el('div', { class: 'asg-actions' }, [addBtn, norm])); edit.appendChild(tb);
     edit.appendChild(field('Tone style', selectOpts(['analytical', 'urgent', 'neutral', 'contrarian'], p.tone.style, function (v) { p.tone.style = v; })));
-    edit.appendChild(field('Target duration (sec, 45 to 105)', textInput(String(p.format.targetDurationSec), function (v) {
+    edit.appendChild(field('Target duration (sec, 30 to 105)', textInput(String(p.format.targetDurationSec), function (v) {
       var d = parseInt(v, 10); if (!d) return;
       var f = formatFor(d);
       p.format.targetDurationSec = f.targetDurationSec;
@@ -624,15 +798,17 @@
     }
     return step();
   }
+  var scanSeq = 0;
   function scanFeeds() {
     if (!state.profile) return;
+    var myScan = ++scanSeq;
     var queries = buildQueries(state.profile);
     if (!queries.length) {
       toast('Your profile has no usable signals (3+ characters). Go back to Channel → Edit and add keywords.', 'error');
       return;
     }
     var list = $('#asg-story-list'); list.innerHTML = '';
-    state.stories = []; state.selectedStoryIds = {};
+    state.stories = []; state.selectedStoryIds = {}; state.consGroups = null; state.consRes = {};
     var pubPromise = fetchPublisherFeeds(state.profile);
     var prog = $('#asg-scan-progress'); prog.hidden = false;
     var fill = $('.asg-progress-fill', prog); var label = $('.asg-progress-label', prog);
@@ -659,13 +835,14 @@
         return results;
       });
     }).then(function (results) {
+      if (myScan !== scanSeq) return;
       fill.style.width = '90%';
       var seen = {};
       results.forEach(function (r) {
         if (!r.feed || !r.feed.items) return;
         r.feed.items.slice(0, r.q === 'publishers' ? 40 : 12).forEach(function (it) {
-          var key = cleanTitle(it.title).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().slice(0, 60);
-          if (seen[key]) return; seen[key] = true;
+          var key = cleanTitle(it.title).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().slice(0, 60), ukey = cleanUrl(it.link || '');
+          if (seen[key] || (ukey && seen[ukey])) return; seen[key] = true; if (ukey) seen[ukey] = true;
           var summary = String(it.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400);
           var story = {
             id: 'st_' + Math.random().toString(36).slice(2, 10),
@@ -692,23 +869,263 @@
     });
   }
 
+
+  // ---------- Virality estimate ----------
+  // Real signal: views of similar short videos from the last 30 days (YouTube Data API, needs your key).
+  // Without a key the score is an estimate from coverage, freshness and channel fit. It is not a prediction.
+  var VIRAL_KEY = 'asg_viral_cache_v1';
+  var viralCache = (function () { try { return JSON.parse(localStorage.getItem(VIRAL_KEY) || '{}'); } catch (e) { return {}; } })();
+  function viralSave() { try { localStorage.setItem(VIRAL_KEY, JSON.stringify(viralCache)); } catch (e) {} }
+  function clampN(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function storyQuery(s) { return sigTokens(cleanTitle(s.title)).slice(0, 4).join(' '); }
+  function ageHours(s) { return s.publishedAt ? (Date.now() - new Date(s.publishedAt).getTime()) / 3.6e6 : null; }
+  function freshScore(s) { var h = ageHours(s); if (h == null || isNaN(h)) return 40; return h < 3 ? 100 : h < 6 ? 90 : h < 12 ? 75 : h < 24 ? 60 : h < 48 ? 35 : 15; }
+  function coverageScore(n) { return n >= 5 ? 100 : n === 4 ? 85 : n === 3 ? 70 : n === 2 ? 50 : 25; }
+  function demandScore(d) {
+    if (!d || !d.n) return 0;
+    var sc = clampN((Math.log10(Math.max(d.median, 1)) - 2.5) / 3 * 100, 0, 100);
+    if (d.n < 3) sc *= d.n / 3;
+    return Math.round(sc);
+  }
+  function cachedDemand(s) {
+    var c = viralCache[storyQuery(s)];
+    return c && Date.now() - c.t < 12 * 3600 * 1000 ? Object.assign({ ok: true }, c.d) : null;
+  }
+  // Reach: stories with no major power, market or supply angle in the headline rarely find a wide audience.
+  function stakesOf(s) {
+    var t = String(s.title || '') + ' ' + String(s.summary || ''), l = t.toLowerCase();
+    var big = /\b(US|U\.S\.|UK|EU|UN)\b/.test(t) || /\b(united states|america\w*|china|chinese|russia\w*|iran\w*|israel\w*|nato|european union|trump|putin|xi jinping|biden|federal reserve|ukrain\w*|taiwan|opec|north korea|kim jong|white house|pentagon|kremlin|beijing|moscow|washington)\b/.test(l);
+    var glob = /\b(oil|gas|energy|trade|tariffs?|sanctions?|chips?|semiconductors?|shipping|hormuz|suez|nuclear|inflation|prices?|markets?|dollar|war|strikes?|missiles?|ceasefire|talks|summit|election\w*|midterms?|economy|currency|supply)\b/.test(l);
+    return { score: (big ? 1 : 0) + (glob ? 1 : 0), big: big, glob: glob };
+  }
+  function viralOf(s) {
+    var maxScore = Math.max.apply(null, state.stories.map(function (x) { return x.score; }).concat([1]));
+    var fit = Math.round(clampN(s.score / maxScore * 100, 0, 100)), fresh = freshScore(s);
+    var cn = 1 + relatedStories(s, 20).length, cov = coverageScore(cn);
+    var d = (s.demand && s.demand.ok) ? s.demand : cachedDemand(s);
+    var dem = d ? demandScore(d) : null;
+    var score = d ? 0.45 * dem + 0.2 * cov + 0.15 * fresh + 0.2 * fit : 0.4 * cov + 0.3 * fresh + 0.3 * fit;
+    var stk = stakesOf(s);
+    score = stk.score === 0 ? score * 0.78 : stk.score === 2 ? Math.min(100, score * 1.05) : score;
+    return { score: Math.round(score), fit: fit, fresh: fresh, cn: cn, dem: dem, d: d, real: !!d, stakes: stk.score };
+  }
+  function viralLevel(n) { return n >= 70 ? 'high' : n >= 45 ? 'mid' : 'low'; }
+  function fmtViews(n) { return n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
+  function fetchDemand(s) {
+    var q = storyQuery(s);
+    var c = cachedDemand(s); if (c) return Promise.resolve(c);
+    if (!q) return Promise.resolve({ ok: true, n: 0, median: 0, top: [] });
+    var since = new Date(Date.now() - 30 * 864e5).toISOString();
+    var p0; try { p0 = ytFetch('search', { part: 'snippet', q: q, type: 'video', videoDuration: 'short', order: 'viewCount', publishedAfter: since, maxResults: 10, relevanceLanguage: 'en' }); } catch (e) { return Promise.reject(e); }
+    return p0.then(function (r) {
+      var ids = (r.items || []).map(function (i) { return i.id && i.id.videoId; }).filter(Boolean);
+      if (!ids.length) return { n: 0, median: 0, top: [] };
+      return ytFetch('videos', { part: 'statistics,snippet', id: ids.join(',') }).then(function (v) {
+        var vids = (v.items || []).map(function (x) { return { id: x.id, title: x.snippet.title, channel: x.snippet.channelTitle, views: parseInt((x.statistics || {}).viewCount || '0', 10) }; })
+          .sort(function (a, b) { return b.views - a.views; });
+        var arr = vids.map(function (x) { return x.views; }).sort(function (a, b) { return a - b; });
+        var med = arr.length ? (arr.length % 2 ? arr[(arr.length - 1) / 2] : (arr[arr.length / 2 - 1] + arr[arr.length / 2]) / 2) : 0;
+        return { n: vids.length, median: Math.round(med), top: vids.slice(0, 3) };
+      });
+    }).then(function (d) { viralCache[q] = { t: Date.now(), d: d }; viralSave(); return Object.assign({ ok: true }, d); });
+  }
+  function scoreVirality(btn) {
+    if (!state.settings.youtubeKey) { toast('Add a YouTube key under API keys to get real demand data. Showing the estimate until then.', 'error'); return; }
+    var list = state.stories.slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 10), i = 0;
+    btn.disabled = true;
+    function next() {
+      if (i >= list.length) return Promise.resolve();
+      var s = list[i++]; btn.textContent = 'Scoring ' + i + ' of ' + list.length + '…';
+      return fetchDemand(s).then(function (d) { s.demand = d; }).catch(function (e) { if (/quota|exceeded|forbidden|key/i.test(e.message)) throw e; s.demand = null; })
+        .then(function () { renderStories(); return sleep(120).then(next); });
+    }
+    next().then(function () { state.feedSort = 'viral'; toast('Virality scored from similar Shorts. Sorted by virality.', 'success'); })
+      .catch(function (e) { toast('YouTube said: ' + e.message, 'error'); })
+      .then(function () { btn.disabled = false; renderStories(); });
+  }
+  function renderFeedTools() {
+    var box = document.getElementById('asg-feed-tools'); if (!box) return;
+    box.innerHTML = '';
+    if (!state.stories.length) { box.hidden = true; return; }
+    box.hidden = false;
+    var row = el('div', { class: 'asg-ft-row' });
+    row.appendChild(el('span', { class: 'asg-label', text: 'Sort' }));
+    var seg = el('div', { class: 'asg-seg', role: 'group', 'aria-label': 'Sort stories' });
+    [['match', 'Best match'], ['viral', 'Highest virality'], ['new', 'Newest first']].forEach(function (x) {
+      var b = el('button', { type: 'button', class: 'asg-seg-btn' + (state.feedSort === x[0] ? ' is-on' : ''), 'aria-pressed': state.feedSort === x[0] ? 'true' : 'false', text: x[1] });
+      b.addEventListener('click', function () { state.feedSort = x[0]; renderStories(); });
+      seg.appendChild(b);
+    });
+    row.appendChild(seg);
+    var tg = el('label', { class: 'asg-switch' });
+    var tcb = el('input', { type: 'checkbox' }); tcb.checked = state.feedReadable;
+    tcb.addEventListener('change', function () { state.feedReadable = tcb.checked; renderStories(); });
+    tg.appendChild(tcb); tg.appendChild(el('span', { class: 'asg-switch-ui' })); tg.appendChild(el('span', { text: 'Readable only' }));
+    row.appendChild(tg);
+    var ug = el('label', { class: 'asg-switch' });
+    var ucb = el('input', { type: 'checkbox' }); ucb.checked = state.feedHideUsed;
+    ucb.addEventListener('change', function () { state.feedHideUsed = ucb.checked; renderStories(); });
+    ug.appendChild(ucb); ug.appendChild(el('span', { class: 'asg-switch-ui' })); ug.appendChild(el('span', { text: 'Hide used' }));
+    row.appendChild(ug);
+    var any = state.stories.some(function (s) { return viralOf(s).real; });
+    var sb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: any ? 'Re-score virality' : 'Score virality with YouTube' });
+    sb.addEventListener('click', function () { scoreVirality(sb); });
+    row.appendChild(sb);
+    box.appendChild(row);
+    box.appendChild(el('p', { class: 'asg-hint', text: 'Match ★ is how well a story fits your channel topics, plus a freshness boost. Virality estimates how much audience the topic already has: coverage, freshness and fit, and with a YouTube key, the views of similar Shorts from the last 30 days (about 100 quota units per story, top 10 stories). It is a guide, not a promise.' }));
+  }
+
+  // ---- Stories that cannot be used (checked, not guessed) ----
+  var UNUS_KEY = 'asg_unusable_v1';
+  function unusMap() {
+    try { var o = JSON.parse(localStorage.getItem(UNUS_KEY) || '{}'), n = Date.now(), out = {}; Object.keys(o).forEach(function (k) { if (o[k] && n - o[k].t < 24 * 3600 * 1000) out[k] = o[k]; }); return out; } catch (e) { return {}; }
+  }
+  function unusKey(s) { return cleanUrl(s.url || '') || String(s.title || ''); }
+  function markUnusable(s, why) {
+    s.unusable = why || 'The article could not be read.';
+    try { var m = unusMap(); m[unusKey(s)] = { t: Date.now(), why: s.unusable }; localStorage.setItem(UNUS_KEY, JSON.stringify(m)); } catch (e) {}
+    delete state.selectedStoryIds[s.id];
+  }
+  function unusableOf(s) {
+    if (s.unusable) return s.unusable;
+    var m = unusMap()[unusKey(s)];
+    if (m) { s.unusable = m.why; return m.why; }
+    return '';
+  }
+  function isReadableStory(x) { return x.readable !== 'paywalled' && x.readable !== 'thin' && !x.redirect && !unusableOf(x); }
+
+  // ---- Stories that already have a script ----
+  function usedOf(s) {
+    var base = sigTokens(cleanTitle(s.title)), cu = cleanUrl(s.url || ''), res = null;
+    state.scripts.forEach(function (sc) {
+      if (sc.gated || res === 'script') return;
+      var u1 = cleanUrl(sc.url || ''), u2 = cleanUrl(sc.sourceUrl || '');
+      var extra = (sc.sources || []).concat([sc.corroboration && sc.corroboration.url], (sc.corroboration && sc.corroboration.urls) || [], (sc.mergedStories || []).map(function (m) { return m.url; })).filter(Boolean).map(cleanUrl);
+      if (sc.storyId === s.id || (cu && (u1 === cu || u2 === cu || extra.indexOf(cu) !== -1))) { res = 'script'; return; }
+      var tt = sigTokens(cleanTitle((sc.storyTitle || '') + ' ' + (sc.title || '') + ' ' + (sc.mergedStories || []).map(function (m) { return m.title; }).join(' ')));
+      var shared = tt.filter(function (w) { return base.indexOf(w) !== -1; }).length;
+      if (shared >= 3 || (shared >= 2 && shared / (Math.min(base.length, tt.length) || 1) >= 0.5) || sameEventScore(s, { title: (sc.storyTitle || '') + ' ' + (sc.title || ''), summary: sc.description || '' }).ok && shared >= 1) res = res || 'same';
+    });
+    return res;
+  }
+
+  // ---- Recommended options per story ----
+  // Rules of thumb from Shorts retention data: shorter holds viewers better; a question that the facts answer
+  // opens well when the outcome is still open; analysis should fit what the story actually is.
+  function recommendFor(s) {
+    var ttl = String(s.title || '').toLowerCase();
+    var h = ageHours(s), cn = viralOf(s).cn || 1;
+    var fwd = /\b(will|could|would|may|might|ready|plans?|planning|set to|expected|expects?|ahead of|talks?|deadline|threat\w*|warns?|weighs?|considers?|eyes|next|vote|summit|election|negotiat\w*|ceasefire|strikes?)\b|\?/.test(ttl);
+    var contrast = /\b(despite|even as|denies|denied|rejects?|disputes?|contradicts?|but|yet|however|although)\b/.test(ttl);
+    var done = /\b(dies|died|killed|kills|wins|won|signs|signed|approves?|approved|announces?|announced|falls?|fell|rises?|rose|hits|surges?|drops?|jumps?|tops?|reaches|passes)\b/.test(ttl);
+    var hook = fwd ? 'question' : contrast ? 'contrast' : done ? 'event' : 'question';
+    var lens = /\b(claims?|alleg\w*|accus\w*|reportedly|unconfirmed|rumou?rs?|denies|denied|disputed?)\b/.test(ttl) ? 'skeptic'
+      : /\b(sanctions?|tariffs?|deal|merger|acquir\w*|ban|subsid\w*|prices?|market|stocks?|oil|rates?|trade|budget|donations?|funding|hunger|aid|billion|million)\b/.test(ttl) ? 'winners'
+      : fwd ? 'watch'
+      : /\b(ai|chips?|algorithm|quantum|crypto|cyber\w*|vaccine|inflation|bond|regulation|protocol|satellite)\b/.test(ttl) ? 'simple'
+      : cn >= 4 ? 'contrarian' : 'between';
+    var breaking = h != null && !isNaN(h) && h < 6 && cn <= 2;
+    var complex = cn >= 5 || String(s.summary || '').length > 220;
+    var sec = complex && !breaking ? 60 : 45;
+    var why = [];
+    why.push(hook === 'question' ? 'the outcome is still open, so a question opens well' : hook === 'contrast' ? 'the headline turns on a contrast' : 'it is a finished event, so lead with it');
+    why.push(sec === 45 ? (breaking ? 'fresh and thinly covered: keep it short' : 'shorter shorts hold viewers better') : 'several outlets or a lot of detail: room for 60 s');
+    return { sec: sec, lens: lens, hook: hook, breaking: breaking, why: why.join('; ') };
+  }
+  function recLabel(s) {
+    var st = state.settings, r = recommendFor(s), parts = [];
+    if (st.autoLen !== false) parts.push('length from the article');
+    if (st.autoHook !== false) parts.push(HOOKS[r.hook].label.replace(/^(Lead with the event)$/, 'Event first').replace(/^Open with a /, '') );
+    if (st.autoLens !== false && st.depth !== false) parts.push(LENSES[r.lens].label);
+    return parts.join(' · ');
+  }
+  // Stories ticked together that are the same event are merged into one script. The outlet that can be read first is
+  // the primary; the others are cross-checked against it and marked used. No new facts are invented by merging.
+  function sameStory(a, b) {
+    var ta = Date.parse(a.publishedAt || '') || 0, tb = Date.parse(b.publishedAt || '') || 0;
+    if (ta && tb && Math.abs(ta - tb) > 2 * 86400000) return false;
+    return sameEventScore(a, b).ok;
+  }
+  function clusterStories(list) {
+    var ordered = list.slice().sort(function (a, b) { return (b.verified ? 1 : 0) - (a.verified ? 1 : 0) || (b.score || 0) - (a.score || 0); });
+    var groups = [];
+    ordered.forEach(function (s) {
+      var g = groups.filter(function (g0) { return sameStory(g0[0], s) && rootHost(hostOf(g0[0].url)) !== rootHost(hostOf(s.url)); })[0];
+      if (g) g.push(s); else groups.push([s]);
+    });
+    return groups;
+  }
+  var probeQ = Promise.resolve();
+  function probeStory(s, chip) {
+    if (s._srcP || s.unusable) return;
+    if (chip) { chip.textContent = 'checking the article…'; chip.className = 'asg-chip is-muted'; }
+    s._srcP = probeQ.then(function () { return resolveSource(s); });
+    probeQ = s._srcP.catch(function () {});
+    s._srcP.then(function (src) {
+      if (src) {
+        s.verified = true; s.verifiedVia = src.via;
+        if (chip && chip.isConnected) { chip.textContent = src.via === 'alternative' ? '✓ readable via ' + src.story.source : '✓ readable (checked)'; chip.className = 'asg-chip is-ok'; }
+        return;
+      }
+      s._srcP = null;
+      var wy = fetchWhy(s.url);
+      markUnusable(s, 'Could not read the article' + (wy ? ': ' + wy : '') + ', and no other outlet with the same story was found.');
+      toast('"' + (s.title.length > 60 ? s.title.slice(0, 58) + '…' : s.title) + '" can\'t be used for a video: ' + (wy || 'no readable article') + '. It was unchecked.', 'error');
+      renderStories(); updateStepAvailability();
+    }).catch(function () { s._srcP = null; });
+  }
+
   function renderStories() {
     var list = $('#asg-story-list'); list.innerHTML = '';
-    state.stories.forEach(function (s) {
+    renderFeedTools();
+    var hiddenN = 0, usedN = 0;
+    var shown = state.stories.filter(function (x) {
+      var ok = !state.feedReadable || isReadableStory(x); if (!ok) { hiddenN++; return false; }
+      if (state.feedHideUsed && !state.selectedStoryIds[x.id] && usedOf(x)) { usedN++; return false; }
+      return true;
+    });
+    if (state.feedSort === 'viral') shown.sort(function (a, b) { return viralOf(b).score - viralOf(a).score; });
+    else if (state.feedSort === 'new') shown.sort(function (a, b) { return (new Date(b.publishedAt || 0).getTime() || 0) - (new Date(a.publishedAt || 0).getTime() || 0); });
+    if (usedN) list.appendChild(el('p', { class: 'asg-hint', text: usedN + ' stor' + (usedN === 1 ? 'y is' : 'ies are') + ' hidden because a script already exists for the same story. Turn off "Hide used" to see them.' }));
+    if (hiddenN) list.appendChild(el('p', { class: 'asg-hint', text: hiddenN + ' stor' + (hiddenN === 1 ? 'y is' : 'ies are') + ' hidden because the article cannot be read (paywall, live page, link only, or a fetch that already failed). Turn off "Readable only" to see them. Newsreel only writes from readable sources.' }));
+    shown.forEach(function (s) {
       var cb = el('input', { type: 'checkbox' });
       cb.checked = !!state.selectedStoryIds[s.id];
       var body = el('div');
       body.appendChild(el('p', { class: 'asg-story-title', text: s.title }));
       var meta = el('div', { class: 'asg-story-meta' });
       meta.appendChild(el('span', { text: s.source }));
-      var rdLabel = s.readable === 'open' ? '✓ readable' : s.readable === 'metered' ? '◐ maybe readable' : s.readable === 'paywalled' ? '🔒 paywalled: topic only' : s.readable === 'thin' ? 'live/video page: topic only' : 'aggregator link';
-      meta.appendChild(el('span', { class: 'asg-chip is-muted', text: rdLabel }));
+      var unW = unusableOf(s);
+      var rdLabel = unW ? '✕ can\'t use for video' : s.verified ? '✓ readable (checked)' : s.readable === 'open' ? '✓ likely readable' : s.readable === 'metered' ? '◐ maybe readable' : s.readable === 'paywalled' ? '🔒 paywalled: topic only' : s.readable === 'thin' ? 'live/video page: topic only' : 'aggregator link';
+      var rdChip = el('span', { class: 'asg-chip ' + (unW ? 'is-bad' : s.verified ? 'is-ok' : 'is-muted'), text: rdLabel, title: unW || (s.verified ? 'The article text was fetched.' : 'The feed gives open access. The article is fetched and confirmed when you tick the story.') });
+      meta.appendChild(rdChip);
+      if (viralOf(s).stakes === 0) meta.appendChild(el('span', { class: 'asg-chip is-muted', text: 'Narrow audience', title: 'No major power, market or supply angle in the headline. Regional stories rarely reach a wide audience unless the facts tie them to a global stake.' }));
+      var uk = usedOf(s);
+      if (uk) meta.appendChild(el('span', { class: 'asg-chip is-warn', text: uk === 'script' ? 'Used · script made' : 'Same story already used', title: 'A script for this story exists. Delete that script to free it.' }));
       if (s.publishedAt) meta.appendChild(el('span', { text: new Date(s.publishedAt).toLocaleString() }));
       body.appendChild(meta);
-      var score = el('span', { class: 'asg-story-score', text: '★ ' + s.score.toFixed(1) });
+      var v = viralOf(s);
+      var parts = [];
+      if (v.real) parts.push('Demand ' + v.dem + ' (median ' + fmtViews(v.d.median) + ' views across ' + v.d.n + ' similar Shorts, 30 days)');
+      parts.push('Coverage ' + v.cn + (v.cn === 1 ? ' outlet' : ' outlets'));
+      var h = ageHours(s); if (h != null && !isNaN(h)) parts.push(h < 1 ? 'under 1 h old' : h < 48 ? Math.round(h) + ' h old' : Math.round(h / 24) + ' days old');
+      parts.push('Fit ' + v.fit);
+      body.appendChild(el('div', { class: 'asg-viral-detail', text: parts.join(' · ') }));
+      if (v.real && v.d.top && v.d.top.length) {
+        var sim = el('div', { class: 'asg-viral-sim' }); sim.appendChild(document.createTextNode('Similar Shorts: '));
+        v.d.top.slice(0, 2).forEach(function (x, k) {
+          if (k) sim.appendChild(document.createTextNode(' · '));
+          sim.appendChild(el('a', { href: 'https://www.youtube.com/watch?v=' + encodeURIComponent(x.id), target: '_blank', rel: 'noopener noreferrer', text: (x.title.length > 48 ? x.title.slice(0, 46) + '…' : x.title) + ' (' + fmtViews(x.views) + ')' }));
+        });
+        body.appendChild(sim);
+      }
+      var score = el('div', { class: 'asg-story-side' });
+      score.appendChild(el('span', { class: 'asg-viral is-' + viralLevel(v.score), title: v.real ? 'Virality from similar Shorts plus coverage, freshness and fit.' : 'Estimate from coverage, freshness and fit. Add a YouTube key and press Score virality for real demand data.', text: 'Virality ' + v.score + (v.real ? '' : ' est.') }));
+      score.appendChild(el('span', { class: 'asg-story-score', title: 'Match: how well this story fits your channel topics and signals, plus freshness.', text: 'Match ★ ' + s.score.toFixed(1) }));
       var card = el('label', { class: 'asg-story' + (cb.checked ? ' is-selected' : '') }, [cb, body, score]);
+      if (unW) cb.disabled = true;
       cb.addEventListener('change', function () {
-        if (cb.checked) state.selectedStoryIds[s.id] = true;
+        if (cb.checked) { state.selectedStoryIds[s.id] = true; if (!s.verified && s.readable !== 'paywalled' && s.readable !== 'thin') probeStory(s, rdChip); if (uk) toast('This story already has a script. Generating again makes a duplicate.', 'error'); }
         else delete state.selectedStoryIds[s.id];
         card.classList.toggle('is-selected', cb.checked);
         updateStepAvailability();
@@ -733,8 +1150,22 @@
     var ep = cfg.articleEndpoint + (cfg.articleEndpoint.indexOf('?') > -1 ? '&' : '?') + 'url=' + encodeURIComponent(url);
     return fetchWithTimeout(ep, { credentials: 'same-origin' }, 25000)
       .then(function (r) { return r.json().catch(function () { return null; }); })
-      .then(function (j) { if (j && j.ok && j.text) return j; LOG('article not available:', url, j && j.error); return null; })
-      .catch(function (e) { LOG('article fetch failed:', e.message); return null; });
+      .then(function (j) { if (j && j.ok && j.text) { delete fetchErr[url]; return j; } fetchErr[url] = (j && j.error) || 'unreachable'; LOG('article not available:', url, j && j.error); return null; })
+      .catch(function (e) { fetchErr[url] = 'network'; LOG('article fetch failed:', e.message); return null; });
+  }
+  var fetchErr = {};
+  function fetchWhy(url) {
+    var c = fetchErr[url] || '';
+    if (!c) return '';
+    if (/^http_(401|403|406)/.test(c)) return 'the publisher blocks automated readers (' + c.slice(5) + ')';
+    if (c === 'http_404' || c === 'http_410') return 'the page no longer exists (' + c.slice(5) + ')';
+    if (/^http_/.test(c)) return 'the publisher answered ' + c.slice(5);
+    if (c === 'paywalled') return 'the article is behind a paywall';
+    if (c === 'too_short') return 'the page has no readable article text (live page, video, or text drawn by script)';
+    if (c === 'rate_limited') return 'the reader hit its rate limit, try again in a few minutes';
+    if (c === 'decode_failed' || c === 'redirect_link') return 'it is an aggregator link that could not be resolved to the publisher';
+    if (c === 'not_html') return 'the link is not a web page';
+    return 'the page could not be fetched (' + c + ')';
   }
   function uniq(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
   function cleanTitle(t) { return String(t || '').replace(/\s[-–|]\s[^-–|]{2,40}$/, ''); }
@@ -863,7 +1294,7 @@
   function allowWordsFor(story, profile) {
     var words = [];
     function add(s) { normText(s).replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).forEach(function (w) { if (w) words.push(w); }); }
-    add(profile.name); add(story.source);
+    add(profile.name); add(story.source); add(story.title);
     (profile.topics || []).forEach(function (t) { add(t.name); });
     return words;
   }
@@ -945,7 +1376,7 @@
     return out;
   }
   function factTag(f, nameA) {
-    if (f.status === 'confirmed') return '[BOTH OUTLETS: ' + nameA + ' and ' + (f.other && f.other.outlet || 'the second outlet') + ']';
+    if (f.status === 'confirmed') return '[BOTH OUTLETS: ' + [nameA].concat(f.confirmedBy && f.confirmedBy.length ? f.confirmedBy : [f.other && f.other.outlet || 'the second outlet']).join(' and ') + ']';
     if (f.status === 'conflict') return '[OUTLETS DIFFER]';
     if (f.status === 'possible') return '[POSSIBLE DIFFERENCE]';
     return '[' + (f.outlet || nameA) + ' ONLY]';
@@ -1058,10 +1489,11 @@
         var t = Date.parse(c.pubDate || '') || 0;
         if (aTime && t && Math.abs(t - aTime) > 3 * 86400000) return;
         var sc = sameEventScore(A, c);
-        if (!sc.ok) return;
-        c.match = sc; out.push(c);
+        var mate = (src.mates || []).some(function (m) { return cleanUrl(m.url) === cleanUrl(c.link); });
+        if (!sc.ok && !mate) return;
+        c.match = sc; c.mate = mate; out.push(c);
       });
-      out.sort(function (x, y) { return (y.match.title * 3 + y.match.all) - (x.match.title * 3 + x.match.all); });
+      out.sort(function (x, y) { return (y.mate ? 1 : 0) - (x.mate ? 1 : 0) || (y.match.title * 3 + y.match.all) - (x.match.title * 3 + x.match.all); });
       var byOutlet = {};
       return out.filter(function (c) { var k = String(c.author).toLowerCase(); if (byOutlet[k]) return false; byOutlet[k] = true; return true; }).slice(0, 3);
     });
@@ -1191,10 +1623,11 @@
     var topics = profile.topics.map(function (t) { return t.name; }).join(', ');
     var f = profile.format;
     var two = corr && (corr.status === 'corroborated' || corr.status === 'partial' || corr.status === 'conflict');
-    var nameA = story.source, nameB = two ? corr.outlet : '';
+    var nameA = story.source, nameB = two ? corr.outlet : '', multi = !!(two && corr.outlets && corr.outlets.length > 1);
     var depth = state.settings.depth !== false;
-    var anaMax = Math.max(40, Math.min(70, Math.round(f.wordCountMax * 0.26)));
-    var bodyMax = Math.max(90, f.wordCountMax - 16 - (depth ? anaMax : 0) - 22);
+    var lens = currentLens(), hookKind = currentHook(), shortForm = f.targetDurationSec <= 40;
+    var anaMax = Math.max(24, Math.min(80, Math.round(f.wordCountMax * 0.3)));
+    var bodyMax = Math.max(Math.round(f.wordCountMax * 0.4), f.wordCountMax - 16 - (depth ? anaMax : 0) - 22);
     var lines = [
       'You write explain-and-analyse YouTube Shorts for a faceless channel. By the end the viewer should understand what happened, the background that makes it make sense, who says what, and what is still open. It is not a news brief.',
       '',
@@ -1202,11 +1635,12 @@
       '- Positioning: ' + (profile.identity.positioning || profile.identity.oneLiner || profile.name),
       '- Topics: ' + topics,
       '- Tone: ' + profile.tone.style + ', ' + profile.tone.energy,
+      '- Voice DNA (write in this voice; hold this stance):\n' + dnaText(profile).split('\n').map(function (x) { return '    ' + x; }).join('\n'),
       '- Avoid: ' + (profile.tone.avoid || []).join(', '),
       '- Length: aim for ' + f.wordCountMin + '-' + f.wordCountMax + ' words across hook + body' + (depth ? ' + analysis' : '') + ' + cta (about ' + f.targetDurationSec + ' seconds). The middle of that range is the target. Coming in under it is fine; going over the maximum is a failure and the script will be sent back. Budget: hook 8-16 words, body up to ' + bodyMax + ' words' + (depth ? ', analysis up to ' + anaMax + ' words' : '') + ', cta 10-22 words. Use only what the facts support: never add unrelated events or filler to reach a length, and cut the least important body sentences rather than going over.',
       '',
       'STORY: ' + story.title,
-      'Primary source: ' + nameA + (story.publishedAt ? ' (' + String(story.publishedAt).slice(0, 10) + ')' : '') + (two ? '. Second outlet: ' + nameB + '.' : '. Single source: no second outlet could be checked.'),
+      'Primary source: ' + nameA + (story.publishedAt ? ' (' + String(story.publishedAt).slice(0, 10) + ')' : '') + (two ? (multi ? '. Other outlets: ' + nameB + '.' : '. Second outlet: ' + nameB + '.') : '. Single source: no second outlet could be checked.'),
       ''
     ];
     function list(title, arr) {
@@ -1214,17 +1648,21 @@
       lines.push(title);
       arr.forEach(function (x) {
         var extra = '';
-        if (x.status === 'conflict' && x.other) extra = ' || ' + nameB + ' DIFFERS: ' + (x.other.note || x.other.quote);
-        if (x.status === 'possible' && x.other && x.other.quote) extra = ' || ' + nameB + ' SAYS: ' + x.other.quote;
+        var oB = (x.other && x.other.outlet) || nameB;
+        if (x.status === 'conflict' && x.other) extra = ' || ' + oB + ' DIFFERS: ' + (x.other.note || x.other.quote);
+        if (x.status === 'possible' && x.other && x.other.quote) extra = ' || ' + oB + ' SAYS: ' + x.other.quote;
+        if (x.status === 'confirmed' && multi) extra = ' [reported by ' + [x.outlet].concat(x.confirmedBy && x.confirmedBy.length ? x.confirmedBy : [x.other && x.other.outlet]).filter(Boolean).join(', ') + ']';
         lines.push('- ' + x.claim + extra);
       });
       lines.push('');
     }
     if (two) {
       lines.push('VERIFIED FACTS (the ONLY facts you may state as fact):', '');
-      list('CONFIRMED BY BOTH OUTLETS (' + nameA + ' and ' + nameB + ' report the same thing):', facts.filter(function (x) { return x.status === 'confirmed'; }));
+      list(multi ? 'CONFIRMED BY MORE THAN ONE OUTLET (each fact says which outlets report it):' : 'CONFIRMED BY BOTH OUTLETS (' + nameA + ' and ' + nameB + ' report the same thing):', facts.filter(function (x) { return x.status === 'confirmed'; }));
       list('ONLY ' + nameA + ' REPORTS (attribute to ' + nameA + '):', facts.filter(function (x) { return x.status === 'single' && x.outlet === nameA; }));
-      list('ONLY ' + nameB + ' REPORTS (attribute to ' + nameB + '):', facts.filter(function (x) { return x.status === 'single' && x.outlet !== nameA; }));
+      uniq(facts.filter(function (x) { return x.status === 'single' && x.outlet !== nameA; }).map(function (x) { return x.outlet; })).forEach(function (o) {
+        list('ONLY ' + o + ' REPORTS (attribute to ' + o + '):', facts.filter(function (x) { return x.status === 'single' && x.outlet === o; }));
+      });
       list('OUTLETS DIFFER (give both versions with outlet names, or leave out):', facts.filter(function (x) { return x.status === 'conflict'; }));
       list('POSSIBLE DIFFERENCE (the comparison is unsure the outlets disagree; state each outlet\'s version separately with its name):', facts.filter(function (x) { return x.status === 'possible'; }));
     } else {
@@ -1239,15 +1677,28 @@
       '3. BACKGROUND: 2-3 sentences of context the facts supply (earlier events, who the parties are, how the process works). Optional: ONE plain-language definition of a general concept named in the facts, only if it matches how THIS story uses the term. Put no numbers, names, dates or event claims in the definition.',
       '4. WHO SAYS WHAT: when the story rests on claims by governments, militaries, officials or parties to a conflict' + (two ? ', or when the outlets differ' : '') + ', spend 1-2 sentences saying who claims what (name them; "an unnamed US official" stays unnamed). Skip if nothing is contested.',
       '5. WHY IT MATTERS: 2-3 sentences, only causes and consequences that the facts themselves state.',
-      '6. WHAT TO WATCH: 1-2 sentences of open questions or "if X, then Y" possibilities. No forecasts (no "will", no "likely"). Do not attribute views to analysts or experts: write "Worth watching:" or "The open question:".'
+      (depth ? '6. (No "worth watching" or "the open question" lines in the body. The analysis, written in a separate step, ends on those.)' :       '6. WHAT TO WATCH: 1-2 sentences of open questions or "if X, then Y" possibilities. No forecasts (no "will", no "likely"). Do not attribute views to analysts or experts: write "Worth watching:" or "The open question:".')
     ]);
+    if (HOOKS[hookKind].rule) lines.push(HOOKS[hookKind].rule);
+    lines.push('');
+    lines.push('VOICE AND PACING (this decides whether people keep watching)');
+    lines.push('- Speak as the channel: plain, confident, human. A person explaining what they found, not a wire report. Short sentences, spoken rhythm.');
+    lines.push('- State every fact ONCE. Do not repeat a number, name or claim in the body, the analysis or the CTA, and do not circle back with a recap.');
+    lines.push('- The headline fact (or the question) comes in the first sentence of the hook. Nothing before it. Never start the hook with an outlet name or "according to": open with the event and why it matters to someone who has never heard of the story.');
+    lines.push('- For policy and economic stories, say in the first or second sentence what changes for ordinary people (prices, jobs, travel, energy, borders), but only when the facts say so. Never invent an impact.');
+    lines.push('- Name the source once and briefly, at the point it matters. Do not repeat the outlet name in every sentence.');
+    lines.push('- Where a figure is the point of the story, say it plainly and let it land; do not bury it mid-sentence.');
+    lines.push('- The CTA is one short question about the story itself and repeats no fact.');
+    lines.push('');
+    lines.push('HUMAN VOICE (it must not sound like a machine wrote it)');
+    lines.push('- Write the way a sharp friend would explain the news out loud: contractions, active verbs, plain words, a mix of short and medium sentences.');
+    lines.push('- Never talk about the script, the sources, or how the story was put together. Forbidden: "from one outlet", "single source", "this story", "this report", "the article", "it is worth noting", "in conclusion", "in summary", "delve", "landscape", "moreover", "furthermore".');
+    lines.push('- Name the outlet naturally and once ("CBS says...", "per CBS...", "officials told CBS..."). Do not write how many outlets there are. Whether it is one outlet or several is the reviewer\'s job to note, never the viewer\'s.');
+    lines.push('- Bad: "CBS News reports from one outlet; Iran says warships are not allowed." Good: "Iran just told the US its warships are not welcome in the Gulf, under any circumstance. That is CBS\'s reporting, and Washington has not answered yet." (only if the facts say Washington has not answered).');
+    lines.push('');
+    if (shortForm) lines.push('SHORT FORM (about ' + f.targetDurationSec + ' seconds): keep it tight. WHAT HAPPENED 1-2 sentences, skip BACKGROUND and WHO SAYS WHAT unless the story cannot be understood without them, WHY IT MATTERS 1 sentence, WHAT TO WATCH 1 sentence or fold it into the analysis. Analysis ' + (depth ? '1-2 sentences' : 'is off') + '.');
     if (depth) {
-      lines.push('7. ANALYSIS (field "analysis", 2-4 sentences, up to ' + anaMax + ' words, spoken after the body and before the CTA): the channel\'s read on THIS specific story. This is what the article cannot say for itself.');
-      lines.push('   What belongs here: read between the lines. Name what is telling about the specifics of this story — the timing of a move, the choice of a target or moment, who is speaking and who is not, what a number or a phrase implies about strategy. Interpret the actors: "X appears to be betting that…", "the choice of timing suggests…", "the move looks aimed less at A than at B". End on the open question: "whether this works depends on…", "the test is whether…". Take a position; an analysis with no point of view is filler.');
-      lines.push('   Rules: no digits, years, statistics or quotes; no names of people, organisations, places or operations that are not in the facts; no forecasts ("will", "likely"); no claim about a named actor\'s intent as fact (always frame it: "appears to be", "looks aimed at", "reads less like"); no textbook definitions or general mechanisms that could fit any story (for example "cutting power in winter affects civilians" or "disrupting sea lanes raises prices"); every sentence must depend on a specific that is in THIS story. If the same paragraph would fit another story on the same topic, rewrite it. If nothing specific and safe can be added, return an empty string.');
-      lines.push('   Good (for a story about Tehran sharing US inflation headlines): "The interesting move is that Tehran is pitching to American voters through US inflation headlines rather than through diplomacy. That reads less like a military message than a bet that economic pain will split American opinion more than the war unites it."');
-      lines.push('   Bad (reject this style): "Disrupting major sea lanes cuts global fuel supplies, forcing central banks to choose between raising borrowing costs to fight inflation or lowering them to encourage economic activity." — this explains a general mechanism, not this story.');
-      if (!two) lines.push('   Because this story rests on a single outlet, include one sentence on what that sourcing means: who is saying it, and what the facts do not independently confirm.');
+      lines.push('7. ANALYSIS: leave the "analysis" field as an empty string. It is written in a separate step by an analyst.');
     } else {
       lines.push('7. (no analysis section)');
     }
@@ -1263,12 +1714,12 @@
     lines.push('- In hook and body, do not describe places, organisations or people from general knowledge (no "X is a vital sea passage"). General knowledge belongs only in the analysis field' + (depth ? ' and follows its own rules.' : ' and is switched off, so leave it out.'));
     lines.push('- Never turn a figure into a vague phrase: "around 80% of pre-war levels" is not "near pre-war levels". Give the number with its qualifier and baseline, or leave it out.');
     if (two) {
-      lines.push('- Say "both ' + nameA + ' and ' + nameB + ' report" only about facts in the CONFIRMED list. That means both outlets report it, not that it is proven: never say "verified" or "proven".');
+      lines.push(multi ? '- Say "several outlets report" or name the outlets only about facts in the CONFIRMED list. That means more than one outlet reports it, not that it is proven: never say "verified" or "proven".' : '- Say "both ' + nameA + ' and ' + nameB + ' report" only about facts in the CONFIRMED list. That means both outlets report it, not that it is proven: never say "verified" or "proven".');
       lines.push('- Facts in an ONLY list must be attributed to that outlet by name. Never write "both", "outlets agree" or "confirmed" about anything outside the CONFIRMED list.');
       lines.push('- If the outlets differ, say so plainly and name each outlet\'s version, or leave the point out.');
       lines.push('- For POSSIBLE DIFFERENCE facts, state each outlet\'s version separately with its name. Never write that the outlets disagree or differ about them.');
     } else {
-      lines.push('- Say "according to ' + nameA + '" at least once, and again for any disputed or claimed point. This is one outlet\'s account: say that in the script ("' + nameA + ' reports"), do not write as if it were settled from several sources.');
+      lines.push('- Name ' + nameA + ' ONCE, naturally, where it matters ("' + nameA + ' reports...", "per ' + nameA + '"), and again only for a disputed or claimed point. Do not write as if several outlets had confirmed it, and do not write anything about the number or kind of sources.');
     }
     lines.push('- Use only facts that bear on the story\'s main event. Leave out unrelated facts even if they are in the list, and never join unrelated events with "amid", "meanwhile" or "as".');
     lines.push('- No "in this video", no "welcome back", no clickbait, no doom language.');
@@ -1279,8 +1730,14 @@
       lines.push('- Remove or rephrase anything not supported by the facts.');
     }
     lines.push('');
+    lines.push('PINNED COMMENT (field "pinned_comment"): one or two sentences the channel posts and pins under the video: a different, specific question that makes viewers pick a side or say what they think about THIS story. No new facts, no numbers that are not in the facts, no hashtags, under 220 characters.');
+    lines.push('CALLOUTS (field "callouts", 0 to 3 items): the key figure, date or name viewers should see on screen at the moment it is spoken. "text": at most 4 words copied from the facts (for example "50% tariffs" or "Oct 30"). "at": 3 to 6 consecutive words copied exactly, in order, from your hook or body at the point it is spoken. Only for figures or names that are in the facts. Use an empty list if nothing fits.');
+    lines.push('');
+    lines.push('HEADLINE BANNER (field "banner"): the story\'s core tension or question in 4 to 9 plain words, shown in large text over the first three seconds for viewers watching on mute. Built only from the facts, no outlet name.');
+    lines.push('TITLE RULES: the title must make sense to a stranger who sees nothing else: name the main actor and the event in plain words, with no unexplained product names, jargon or metaphors (avoid words like stalemate, chess, tightrope). If the story is regional, put the wider stake in the title only when the facts state it. Every number, name and place in a title must come from the facts. No all caps, no emoji, no "shocking", no promise the video does not keep. Prefer a specific named subject plus the open question or the tension. "alt_titles" are two different options, not rewordings of one another.');
+    lines.push('');
     lines.push('Return STRICT JSON only:');
-    lines.push('{"hook":"...","body":"WHAT HAPPENED + BACKGROUND + WHO SAYS WHAT + WHY IT MATTERS + WHAT TO WATCH as one flowing narration","analysis":"' + (depth ? '2-4 sentences reading between the lines of this specific story, or empty string' : '') + '","cta":"...","title":"under 70 characters","description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
+    lines.push('{"hook":"...","body":"WHAT HAPPENED + BACKGROUND + WHO SAYS WHAT + WHY IT MATTERS + WHAT TO WATCH as one flowing narration","analysis":"","cta":"...","title":"the best title: specific and catchy, under 60 characters, built only from the facts. A question works when the outcome is open (for example Is [Entity] Ready For [Event]?)","banner":"...","pinned_comment":"...","callouts":[{"text":"...","at":"..."}],"alt_titles":[{"style":"match","text":"plain, factual, in the channel tone"},{"style":"engaging","text":"the most curiosity-driving framing that the facts still fully support: a question or a tension between two facts"}],"description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
     return lines.join('\n');
   }
 
@@ -1303,6 +1760,7 @@
   function saveHealth() { try { localStorage.setItem(HEALTH_KEY, JSON.stringify(health)); } catch (e) {} }
   function inBackoff(ck) { return !!(health[ck] && health[ck].u > Date.now()); }
   function markBad(ck, ms) {
+    if (stopGrace > Date.now()) return;
     var h = health[ck] || { f: 0, u: 0 };
     h.f = (h.f || 0) + 1;
     h.u = Date.now() + (ms || Math.min(90000 * Math.pow(2, h.f - 1), 15 * 60000));
@@ -1343,7 +1801,7 @@
         return r.text().then(function (t) {
           var msg = parseApiError(t), st = r.status;
           if (st === 401 || st === 403 || (st === 400 && /api key/i.test(msg))) { var f = new Error('Gemini ' + st + ' (key/permission): ' + msg); f.fatal = true; throw f; }
-          if (st === 404) markGone('gemini:' + m);
+          if (st === 404 || st === 400) markGone('gemini:' + m);
           else if (st === 429) markBad('gemini:' + m, gemWait(msg));
           else markBad('gemini:' + m);
           LOG('probe: ' + m + ' answered ' + st);
@@ -1364,7 +1822,7 @@
     var quick = !!(opts && opts.quick);   // another provider is waiting as a backup: do not spend long here
     return discoverGemini(key).then(function (found) {
       var models = [];
-      [override, preferred].concat(found).forEach(function (m) { if (m && models.indexOf(m) === -1) models.push(m); });
+      [override, preferred].concat(orderByStrategy('gemini', found, opts && opts.best)).forEach(function (m) { if (m && models.indexOf(m) === -1) models.push(m); });
       if (!models.length) {
         var ne = new Error('Could not get the list of Gemini models for this key, and no model name is set in Settings. Type a model name there once, or check the key.');
         ne.fatal = true; throw ne;
@@ -1488,6 +1946,24 @@
     if (r.status === 401 || r.status === 403) { var f = new Error('API key rejected (' + r.status + '). Check the key in Settings.'); f.fatal = true; throw f; }
     return r.json();
   }
+  // Cost class from the model's own name (no model names are hardcoded): 0 small/cheap, 1 balanced, 2 large/strong.
+  function costClass(provider, id) {
+    var l = String(id).toLowerCase(), sz = sizeOf(l), tk = l.split(/[-_\/.: ]+/);
+    function has(re) { return tk.some(function (t) { return re.test(t); }); }
+    if (provider === 'openai') return has(/^nano$/) ? 0 : has(/^mini$/) ? 1 : 2;
+    if (has(/^(lite|nano|mini|tiny|small|instant|haiku|air)$/) || (sz && sz <= 12)) return 0;
+    if (has(/^(pro|opus|large|ultra|max|reasoner|reasoning|thinking|r1|sonnet|o\d)$/) || sz >= 60) return 2;
+    return 1;
+  }
+  // Re-order a provider's discovered models for the chosen strategy. Stable inside each class.
+  function orderByStrategy(provider, ids, best) {
+    var strat = state.settings.strategy || 'value';
+    if (best && strat === 'value' && state.settings.writeBest !== false) strat = 'quality';   // the final script gets the strongest model; the many small calls stay on the chosen strategy
+    if (provider === 'openrouter') return ids;   // only zero-price models are listed there, so cost does not differ
+    var rank = strat === 'cheap' ? [0, 1, 2] : strat === 'quality' ? [2, 1, 0] : [1, 0, 2];
+    return ids.map(function (id, i) { return { id: id, i: i, r: rank.indexOf(costClass(provider, id)) }; })
+      .sort(function (a, b) { return a.r - b.r || a.i - b.i; }).map(function (x) { return x.id; });
+  }
   function discoverGemini(key) {
     if (discovered.gemini) return Promise.resolve(discovered.gemini);
     return fetchWithTimeout('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', { headers: { 'x-goog-api-key': key } }, 15000)
@@ -1506,7 +1982,7 @@
         });
         list.sort(function (a, b) { return a.tier - b.tier || b.ver - a.ver || a.pre - b.pre || (a.id < b.id ? -1 : 1); });
         var ft = list.filter(function (x) { return x.tier === 0; }), lt = list.filter(function (x) { return x.tier === 1; }), bt = list.filter(function (x) { return x.tier === 2; });
-        discovered.gemini = ft.slice(0, 3).concat(lt.slice(0, 2), bt.slice(0, 1), ft.slice(3), lt.slice(2), bt.slice(1)).slice(0, 8).map(function (x) { return x.id; });
+        discovered.gemini = ft.slice(0, 3).concat(lt.slice(0, 2), bt.slice(0, 2), ft.slice(3), lt.slice(2), bt.slice(2)).slice(0, 9).map(function (x) { return x.id; });
         LOG('gemini models available right now (best first):', discovered.gemini.join(', ') || '(none found)');
         return discovered.gemini;
       }, function (e) { if (e && e.fatal) throw e; LOG('gemini model list unavailable:', e && e.message); return []; })
@@ -1532,7 +2008,7 @@
           return { id: m.id, tier: tier, size: sizeOf(l) || 30, ver: versionOf(l), ctx: m.context_window || m.context_length || 0 };
         });
         list.sort(function (a, b) { return a.tier - b.tier || b.size - a.size || b.ver - a.ver || b.ctx - a.ctx || (a.id < b.id ? -1 : 1); });
-        discovered[provider] = list.slice(0, 6).map(function (x) { return x.id; });
+        discovered[provider] = list.slice(0, 10).map(function (x) { return x.id; });
         LOG(provider + ' models available right now (best first):', discovered[provider].join(', ') || '(none found)');
         return discovered[provider];
       }).catch(function (e) { if (e && e.fatal) throw e; LOG(provider + ' model list unavailable:', e && e.message); return []; });
@@ -1550,10 +2026,10 @@
     if (relayMode[provider] && ep) return viaRelay();
     var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
     if (provider === 'openrouter') headers['X-Title'] = 'Autonom AI Shorts Generator';
-    return fetchWithTimeout(cfg.endpoint, { method: 'POST', headers: headers, body: JSON.stringify(body) }, 90000).then(function (r) {
+    return fetchWithTimeout(cfg.endpoint, { method: 'POST', headers: headers, body: JSON.stringify(body) }, provider === 'openrouter' ? 60000 : 90000).then(function (r) {
       return r.text().then(function (t) { return { status: r.status, text: t }; });
     }, function (e) {
-      if (!ep) throw e;
+      if (!ep || (e && e.name === 'AbortError')) throw e;
       LOG(provider + ': direct call failed (' + (e && e.message) + '), using the site relay from now on');
       relayMode[provider] = true;
       return viaRelay();
@@ -1585,7 +2061,7 @@
     return 60000;
   }
 
-  function callCompat(provider, key, prompt, kind) {
+  function callCompat(provider, key, prompt, kind, o0) {
     var cfg = COMPAT[provider], st = state.settings;
     var explicit = String((kind === 'write' && st[cfg.writeField]) || st[cfg.modelField] || '').trim();
     var est = estTokens(prompt) + 1200;
@@ -1594,7 +2070,7 @@
       // The cooldown maps skip models that just failed, so the best available
       // model is tried first on every call. When a cooldown lifts, the best
       // model returns to the front automatically.
-      var ordered = found.slice();
+      var ordered = orderByStrategy(provider, found.slice(), o0 && o0.best);
       var models = [];
       (explicit ? [explicit] : []).concat(ordered).forEach(function (m) { if (m && models.indexOf(m) === -1) models.push(m); });
       if (explicit && isGone(provider + ':' + explicit)) LOG(provider + ': the model "' + explicit + '" in Settings was refused as unknown and is being skipped. Clear that field to auto-pick.');
@@ -1709,8 +2185,20 @@
   function callOne(provider, prompt, kind, o) {
     var key = keyFor(provider);
     if (provider === 'gemini') return callGemini(prompt, kind === 'write' ? String(state.settings.geminiWriteModel || '').trim() : '', o);
-    if (COMPAT[provider]) return callCompat(provider, key, prompt, kind);
+    if (COMPAT[provider]) return callCompat(provider, key, prompt, kind, o);
     return callOpenAICompat(provider, key, prompt);
+  }
+  // Which model did which step, kept per script so the review card can show it.
+  var llmTrail = [], trailPhase = '';
+  function trailStep(ph) {
+    ph = String(ph || '');
+    return /extract/i.test(ph) ? 'Facts' : /checking each fact/i.test(ph) ? 'Fact check' : /compar|second outlet|looking for|reading/i.test(ph) ? 'Cross-check'
+      : /analysis/i.test(ph) ? 'Analysis' : /audit|applying/i.test(ph) ? 'Audit' : /writing script|revision/i.test(ph) ? 'Script' : 'Other';
+  }
+  function trailSummary() {
+    var seen = {}, out = [];
+    llmTrail.forEach(function (x) { var step = trailStep(x.ph), k = step + '|' + x.p + '|' + x.m; if (!seen[k]) { seen[k] = 1; out.push({ step: step, provider: x.p, model: x.m }); } });
+    return out;
   }
   function callLLM(prompt, kind, opts) {
     var primary = state.settings.llmProvider;
@@ -1721,9 +2209,17 @@
     if (state.settings.fallbackProviders !== false && !(opts && opts.noFallback)) {
       ['gemini', 'groq', 'openrouter', 'openai', 'deepseek'].forEach(function (p) { if (p !== primary && keyFor(p)) order.push(p); });
     }
+    var strat = state.settings.strategy || 'value';
+    if (strat !== 'value') {
+      // Cheapest first: providers with free tiers, then the cheaper paid one. Best quality first: the large-model providers.
+      var pref = strat === 'cheap' ? ['groq', 'openrouter', 'gemini', 'deepseek', 'openai'] : ['openai', 'gemini', 'deepseek', 'groq', 'openrouter'];
+      var allowAll = state.settings.fallbackProviders !== false && !(opts && opts.noFallback);
+      var ord2 = pref.filter(function (p) { return keyFor(p) && (p === primary || allowAll); });
+      if (ord2.length) order = ord2;
+    }
     // Provider-level stickiness: whichever provider answered most recently goes first (unless in cooldown).
     // This spreads load across providers on free tiers; it does NOT prefer the cheap model within a provider.
-    if (lastGoodProvider && order.indexOf(lastGoodProvider) > 0 && !(providerDown[lastGoodProvider] > Date.now())) {
+    if (strat === 'value' && lastGoodProvider && order.indexOf(lastGoodProvider) > 0 && !(providerDown[lastGoodProvider] > Date.now())) {
       order = [lastGoodProvider].concat(order.filter(function (p) { return p !== lastGoodProvider; }));
     }
     var now = Date.now();
@@ -1738,8 +2234,9 @@
       }
       var p = order[i];
       if (i > 0) LOG('falling back to ' + p + ' because ' + order[i - 1] + ' did not answer');
-      return callOne(p, prompt, kind, { quick: i < order.length - 1 }).then(function (r) {
+      return callOne(p, prompt, kind, { quick: i < order.length - 1, best: !!(opts && opts.best) }).then(function (r) {
         if (!(opts && opts.noSticky)) lastGoodProvider = p;
+        llmTrail.push({ ph: trailPhase, p: (r && r.provider) || p, m: (r && r.model) || '' });
         say('');
         return r;
       }).catch(function (e) {
@@ -1799,8 +2296,91 @@
   }
 
   function goodScripts() { return state.scripts.filter(function (s) { return !s.gated; }); }
+
+  var LENS_EX = { between: 'The timing suggests the move is aimed less at A than at B.', contrarian: 'The easy reading is X. But the facts also fit Y.', simple: 'In plain words: here is what is actually going on.', winners: 'A appears to benefit. B looks exposed.', skeptic: 'Claimed by X. Not yet confirmed: the rest.', watch: 'If the next statement changes tone, that would suggest a shift.' };
+  var HOOK_EX = { event: '[Who] did [what], [specific detail].', question: 'Why did [who] do this now?', contrast: '[A] says one thing, but [B].' };
+  function budgetFor(f, depth) {
+    var mid = Math.round((f.wordCountMin + f.wordCountMax) / 2);
+    var ana = depth ? Math.max(24, Math.min(80, Math.round(f.wordCountMax * 0.3))) : 0;
+    var hook = 13, cta = 13, body = Math.max(12, mid - hook - cta - ana);
+    return { hook: hook, body: body, analysis: ana, cta: cta, total: hook + body + ana + cta };
+  }
+  function optRow(label, content, note) {
+    var r = el('div', { class: 'asg-o-row' });
+    r.appendChild(el('span', { class: 'asg-o-label', text: label }));
+    var c = el('div', { class: 'asg-o-body' }); [].concat(content).forEach(function (n) { c.appendChild(n); });
+    if (note) c.appendChild(el('p', { class: 'asg-o-note', html: note }));
+    r.appendChild(c); return r;
+  }
+  function renderScriptOptions() {
+    var box = $('#asg-script-options'); if (!box) return;
+    box.innerHTML = '';
+    var p = state.profile; if (!p || !p.format) return;
+    var depthOn = state.settings.depth !== false;
+    var card = el('div', { class: 'asg-opts' });
+
+    // Length: a simple timeline
+    var cur = p.format.targetDurationSec, ci = 0, best = 1e9;
+    LEN_CHOICES.forEach(function (sec, k) { if (Math.abs(sec - cur) < best) { best = Math.abs(sec - cur); ci = k; } });
+    var autoLen = state.settings.autoLen !== false, autoLens = state.settings.autoLens !== false, autoHook = state.settings.autoHook !== false;
+    var dial = el('div', { class: 'asg-dial' + (autoLen ? ' is-auto' : ''), role: 'group', 'aria-label': 'Video length' });
+    function autoBtn(on, field, label) {
+      var b = el('button', { type: 'button', class: 'asg-opt asg-opt-auto' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false', text: label || 'Auto · recommended' });
+      b.addEventListener('click', function () { state.settings[field] = true; persistSettings(); renderScriptOptions(); renderGenerateStatus(); });
+      return b;
+    }
+    dial.appendChild(el('div', { class: 'asg-dial-track' }, [el('div', { class: 'asg-dial-fill', style: 'width:' + (ci / (LEN_CHOICES.length - 1) * 100) + '%' })]));
+    var stops = el('div', { class: 'asg-dial-stops' });
+    LEN_CHOICES.forEach(function (sec, k) {
+      var f = formatFor(sec), on = !autoLen && cur === sec;
+      var b = el('button', { type: 'button', class: 'asg-dial-stop' + (on ? ' is-on' : '') + (k < ci ? ' is-passed' : ''), 'aria-pressed': on ? 'true' : 'false' }, [el('span', { class: 'asg-dot' }), el('strong', { text: sec + ' s' })]);
+      b.addEventListener('click', function () {
+        p.format.targetDurationSec = f.targetDurationSec; p.format.wordCountMin = f.wordCountMin; p.format.wordCountMax = f.wordCountMax; p.format.lengthV2 = true;
+        state.settings.autoLen = false; persistSettings();
+        persistProfile(); renderProfile(); renderScriptOptions(); renderGenerateStatus();
+      });
+      stops.appendChild(b);
+    });
+    dial.appendChild(stops);
+    var bd = budgetFor(p.format, depthOn);
+    var anat = el('div', { class: 'asg-anat' });
+    [['hook', bd.hook], ['body', bd.body], ['analysis', bd.analysis], ['cta', bd.cta]].forEach(function (x) { if (x[1]) anat.appendChild(el('i', { class: 'is-' + x[0], style: 'flex-grow:' + x[1] + ';' })); });
+    var lenNote = 'About ' + bd.total + ' words: hook ' + bd.hook + ', story ' + bd.body + (bd.analysis ? ', analysis ' + bd.analysis : '') + ', question ' + bd.cta + '.';
+    card.appendChild(optRow('Length', [autoBtn(autoLen, 'autoLen'), dial, anat], autoLen ? 'Chosen per story: 45 s for most, 60 s when several outlets cover it or there is a lot of detail. Shorter shorts hold viewers better. Pick a length to override.' : lenNote));
+
+    // Lens: one line of choices, one line of explanation
+    var lensKeys = Object.keys(LENSES);
+    var chips = el('div', { class: 'asg-chipset', role: 'group', 'aria-label': 'Analysis lens' });
+    chips.appendChild(autoBtn(autoLens, 'autoLens'));
+    lensKeys.forEach(function (k) {
+      var on = !autoLens && baseLens() === k;
+      var b = el('button', { type: 'button', class: 'asg-opt' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false', text: LENSES[k].label });
+      b.disabled = !depthOn;
+      b.addEventListener('click', function () { state.settings.lens = k; state.settings.autoLens = false; persistSettings(); renderScriptOptions(); renderGenerateStatus(); });
+      chips.appendChild(b);
+    });
+    var tog = el('label', { class: 'asg-switch' });
+    var cb = el('input', { type: 'checkbox' }); cb.checked = depthOn;
+    cb.addEventListener('change', function () { state.settings.depth = cb.checked; persistSettings(); renderScriptOptions(); });
+    tog.appendChild(cb); tog.appendChild(el('span', { class: 'asg-switch-ui' })); tog.appendChild(el('span', { text: 'Include analysis' }));
+    var lensNote = !depthOn ? 'Analysis is off. The script is a plain explainer.' : autoLens ? 'Picked per story from its headline: claims, money, what comes next, technical topics. Pick an angle to override.' : LENSES[baseLens()].desc + ' <em>' + LENS_EX[baseLens()] + '</em>';
+    card.appendChild(optRow('Angle', [chips, tog], lensNote));
+
+    // Hook
+    var hc = el('div', { class: 'asg-chipset', role: 'group', 'aria-label': 'Hook style' });
+    hc.appendChild(autoBtn(autoHook, 'autoHook'));
+    Object.keys(HOOKS).forEach(function (k) {
+      var on = !autoHook && baseHook() === k;
+      var b = el('button', { type: 'button', class: 'asg-opt' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false', text: HOOKS[k].label });
+      b.addEventListener('click', function () { state.settings.hook = k; state.settings.autoHook = false; persistSettings(); renderScriptOptions(); renderGenerateStatus(); });
+      hc.appendChild(b);
+    });
+    card.appendChild(optRow('Opening', hc, autoHook ? 'A question when the outcome is open, a contrast when the headline turns on one, the event when it is finished. Pick one to override.' : '<em>' + HOOK_EX[baseHook()] + '</em>'));
+    box.appendChild(card);
+  }
   var generating = false;
   function renderGenerateStatus() {
+    renderScriptOptions();
     var box = $('#asg-generate-summary'); if (!box) return;
     box.innerHTML = '';
     var sel = state.stories.filter(function (x) { return state.selectedStoryIds[x.id]; });
@@ -1809,8 +2389,16 @@
     var wrap = el('div', { class: 'asg-hint', style: 'margin:0 0 14px;padding:12px;background:#f4f6fa;border:1px solid #dfe4ee;border-radius:8px;color:#1f2a44;' });
     wrap.appendChild(el('strong', { text: sel.length + (sel.length === 1 ? ' story selected' : ' stories selected') }));
     var ul = el('ul', { style: 'margin:8px 0 8px 18px;padding:0;' });
-    sel.forEach(function (x) { ul.appendChild(el('li', { text: x.title + ' (' + x.source + ')' })); });
+    sel.forEach(function (x) { var rl = recLabel(x); var li = el('li', { text: x.title + ' (' + x.source + ')' }); if (rl) li.appendChild(el('span', { class: 'asg-rec', text: ' → ' + rl, title: recommendFor(x).why })); ul.appendChild(li); });
     wrap.appendChild(ul);
+    if (sel.length > 1) {
+      var cg = groupsFor(sel).filter(function (g) { return g.length > 1; });
+      if (cg.length) wrap.appendChild(el('p', { class: 'asg-hint', style: 'margin:0 0 8px;', text: cg.map(function (g) { return g.length + ' of these cover the same story (' + g.map(function (x) { return x.source; }).join(', ') + '): one script will be written from ' + (consFor(g) ? 'the consolidated facts' : 'the main story, cross-checked against another outlet') + ', and all are marked used.'; }).join(' ') }));
+    }
+    if (sel.length > 1) {
+      var nVid = groupsFor(sel).length;
+      if (nVid >= 3) wrap.appendChild(el('p', { class: 'asg-hint', style: 'margin:0 0 8px;', text: nVid + ' separate videos will be made. Shorts channels tend to do better publishing one or two polished videos a day than four to six, because new uploads compete with the ones before them. Consider publishing the strongest one or two now and spacing out the rest.' }));
+    }
     var ai = el('div', { style: 'margin-top:4px;' });
     if (llmReady) {
       var others = ['gemini', 'groq', 'openrouter', 'openai', 'deepseek'].filter(function (p) { return p !== provider && keyFor(p); });
@@ -1839,7 +2427,67 @@
     if (btn) {
       btn.disabled = generating;
       btn.textContent = generating ? 'Generating…' : (state.scripts.length && sel.length ? 'Generate scripts (keep the rest)' : 'Generate scripts');
+      var sb = $('#asg-stop-btn'); if (sb) sb.hidden = !generating;
     }
+  }
+  function cleanAltTitles(arr, mainTitle, articleText) {
+    var hay = ' ' + normText(articleText || '') + ' ', out = [], seen = {};
+    var STOP = { the: 1, this: 1, that: 1, what: 1, why: 1, how: 1, who: 1, can: 1, will: 1, could: 1 };
+    function okTitle(t) {
+      if (!t || t.length < 12 || t.length > 80) return false;
+      if (t === t.toUpperCase() || /[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(t)) return false;
+      if (unsupportedNumbers(t, articleText || '').length) return false;
+      var caps = (t.match(/[A-Z][A-Za-z'\u2019-]{2,}/g) || []).slice(1);
+      for (var i = 0; i < caps.length; i++) {
+        var w = normText(caps[i]);
+        if (STOP[w] || /^[a-z]{1,3}$/.test(w)) continue;
+        if (hay.indexOf(w) === -1 && hay.indexOf(w.replace(/s$/, '')) === -1) return false;
+      }
+      return true;
+    }
+    (Array.isArray(arr) ? arr : []).forEach(function (a) {
+      var t = str(a && (a.text || a.title || a)).replace(/^["'\u201c]+|["'\u201d]+$/g, '').replace(/\s+/g, ' ').trim();
+      var k = t.toLowerCase();
+      if (!okTitle(t) || seen[k] || k === String(mainTitle || '').toLowerCase()) return;
+      seen[k] = 1; out.push({ style: a && a.style === 'engaging' ? 'engaging' : 'match', text: t });
+    });
+    return out.slice(0, 3);
+  }
+  function capsSupported(t, articleText) {
+    var hay = ' ' + normText(articleText || '') + ' ';
+    var STOP = { the: 1, this: 1, that: 1, what: 1, why: 1, how: 1, who: 1, can: 1, will: 1, could: 1 };
+    var caps = [], m, re = /[A-Z][A-Za-z'\u2019-]{2,}/g;
+    while ((m = re.exec(t))) { if (m.index === 0 || /[.?!]\s+$/.test(t.slice(0, m.index))) continue; caps.push(m[0]); }
+    for (var i = 0; i < caps.length; i++) {
+      var w = normText(caps[i]);
+      if (STOP[w] || /^[a-z]{1,3}$/.test(w)) continue;
+      if (hay.indexOf(w) === -1 && hay.indexOf(w.replace(/s$/, '')) === -1) return false;
+    }
+    return true;
+  }
+  function plainWords(t) { return String(t || '').toLowerCase().replace(/(\d)[,.](\d)/g, '$1$2').replace(/[^a-z0-9%$ ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function cleanCallouts(arr, narration, articleText) {
+    var nt = ' ' + plainWords(narration) + ' ', out = [];
+    (Array.isArray(arr) ? arr : []).forEach(function (c) {
+      var t = str(c && c.text).replace(/\s+/g, ' ').trim(), at = plainWords(c && c.at);
+      if (!t || t.length > 28 || t.split(' ').length > 5 || !at) return;
+      if (unsupportedNumbers(t, articleText || '').length || !capsSupported(t, articleText)) return;
+      if (nt.indexOf(' ' + at + ' ') === -1) return;
+      out.push({ text: t, at: str(c.at).trim() });
+    });
+    return out.slice(0, 3);
+  }
+  function cleanBanner(t, articleText) {
+    t = str(t).replace(/\s+/g, ' ').trim();
+    if (t.length < 12 || t.length > 70 || /#/.test(t)) return '';
+    if (unsupportedNumbers(t, articleText || '').length || !capsSupported(t, articleText)) return '';
+    return t;
+  }
+  function cleanPinned(t, articleText) {
+    t = str(t).replace(/\s+/g, ' ').trim();
+    if (t.length < 10 || t.length > 240 || /#/.test(t)) return '';
+    if (unsupportedNumbers(t, articleText || '').length || !capsSupported(t, articleText)) return '';
+    return t;
   }
   function scriptFromParsed(parsed, story, meta) {
     meta = meta || {};
@@ -1905,7 +2553,7 @@
     }).catch(function (e) { LOG('open-outlet search failed:', e.message); return null; });
   }
   function sourceMeta(src) {
-    return { sourceName: src.story.source, sourceUrl: cleanUrl(src.story.url), via: src.via, sources: [cleanUrl(src.story.url)] };
+    return { sourceName: src.story.source, sourceUrl: cleanUrl(src.story.url), via: src.via, sources: [cleanUrl(src.story.url)], lens: currentLens(), hookStyle: currentHook(), targetSec: state.profile && state.profile.format ? state.profile.format.targetDurationSec : LEN.defaultSec, analysisOn: state.settings.depth !== false };
   }
   function outletAllow(corr) {
     var words = [];
@@ -1918,7 +2566,7 @@
     var parts = splitSentences(a);
     var keep = parts.filter(function (x) {
       var low = normText(x);
-      return !/\d/.test(x) && !repeatsFact(x, facts) && !unsupportedTerms(x, articleText, allow).length && !/\b(always|never|everyone|nobody|guaranteed)\b/.test(low) && !forecastIssues(x, '').length;
+      return !unsupportedNumbers(x, articleText).length && !repeatsFact(x, facts, 0.85) && !/\b(everyone|nobody|guaranteed)\b/.test(low) && !forecastIssues(x, '').length;
     });
     parsed.analysis = keep.join(' ').trim();
     return parts.length - keep.length;
@@ -1985,14 +2633,14 @@
     });
   }
   function stem5(w) { return w.slice(0, 5); }
-  function repeatsFact(sentence, facts) {
+  function repeatsFact(sentence, facts, thr) {
     var toks = {}, n = 0;
     String(sentence).toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).forEach(function (w) { if (w.length >= 5 && !toks[stem5(w)]) { toks[stem5(w)] = true; n++; } });
     if (n < 4) return false;
     return (facts || []).some(function (f) {
       var hay = {}; String(f.claim).toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).forEach(function (w) { if (w.length >= 5) hay[stem5(w)] = true; });
       var hit = 0; Object.keys(toks).forEach(function (t) { if (hay[t]) hit++; });
-      return hit / n >= 0.6;
+      return hit / n >= (thr || 0.6);
     });
   }
   function checkScript(parsed, articleText, used, extraAllow, facts) {
@@ -2002,19 +2650,23 @@
     var all = main + '\n' + str(parsed.title) + '\n' + str(parsed.description);
     var badNums = unsupportedNumbers(all, articleText);
     var allowTerms = allowWordsFor(used, state.profile).concat(extraAllow || []);
-    var badTerms = unsupportedTerms(main, articleText, allowTerms);
+    var badTerms = unsupportedTerms(factual, articleText, allowTerms);
     var wording = wordingIssues(factual, all, articleText);
     var problems = [];
     if (ana) {
-      var dig = ana.match(/\d[\d,.]*/g);
-      if (dig) { dig.forEach(function (d) { if (badNums.indexOf(d) === -1) badNums.push(d); }); }
-      var rp = splitSentences(ana).filter(function (x) { return repeatsFact(x, facts); });
+      var rp = splitSentences(ana).filter(function (x) { return repeatsFact(x, facts, 0.85); });
       if (rp.length) problems.push('The analysis repeats facts already in the script ("' + rp[0].slice(0, 70) + '…"). Write something the facts do not say (a specific reading of THIS story), or return an empty string.');
       var f2 = forecastIssues(ana, '');
       if (f2.length) wording.push('forecast in the analysis: ' + f2.join(', '));
-      var ab = normText(ana).match(/\b(always|never|everyone|nobody|guaranteed)\b/);
+      var ab = normText(ana).match(/\b(everyone|nobody|guaranteed)\b/);
       if (ab) wording.push('absolute in the analysis: "' + ab[1] + '"');
     }
+    var hk = str(parsed.hook).trim(), srcN = String((used && used.source) || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim(), hn = normText(hk);
+    if (/^(according to|per )/i.test(hk) || (srcN.length >= 3 && hn.indexOf(srcN) === 0 && /\b(reports?|says?|said|writes|according)\b/.test(hn.slice(0, srcN.length + 14)))) {
+      problems.push('The hook starts with the outlet. Open with the event and why it matters to someone who has never heard of the story. Name the source later, once, briefly.');
+    }
+    var robo = (main + '\n' + str(parsed.title)).match(/\b(from one outlet|single[- ]source|one outlet|this (script|video|short|report|story)|the (article|report) (states|says|notes|mentions)|both [^.,;]{2,50} (?:and [^.,;]{2,40} )?report|it is worth noting|it(?:'s| is) important to note|in conclusion|in summary|delve|tapestry|landscape of|moreover|furthermore)\b/i);
+    if (robo) problems.push('Robotic phrasing: "' + robo[0] + '". Rewrite that sentence the way a person would say it out loud. Never talk about the script, the sources or how many outlets there are.');
     if (badNums.length) problems.push('These numbers do not appear in the source: ' + badNums.join(', '));
     if (badTerms.length) problems.push('These names or terms do not appear in the source: ' + badTerms.join(', '));
     wording.forEach(function (w) { problems.push('Wording: ' + w); });
@@ -2055,10 +2707,66 @@
       return { ran: false, flags: [], error: e.message };
     });
   }
+  // When the checks strip the analysis (numbers, names outside the article, repeated facts), ask once more for the
+  // analysis alone, with the reasons, and run it through the same filters and the audit before accepting it.
+  function repairAnalysis(sc, src, verified, corr, setLabel) {
+    var depth = state.settings.depth !== false;
+    if (!depth || !sc || sc.isTemplate || sc.gated || wordCount(sc.analysis || '') >= 25) return Promise.resolve(sc);
+    setLabel('Writing the analysis…');
+    var lens = currentLens(), f = state.profile.format, capW = (f && f.wordCountMax) || 150;
+    var room = Math.max(24, Math.min(80, Math.round(capW * 0.3)));
+    var lines = [
+      'You are the analyst of a faceless news channel. The short is written. Your job is the analysis that comes after the story and before the closing question. It is the part that makes this channel worth following instead of just reading the news, so it must say something the news does not.',
+      '', 'CHANNEL VOICE AND STANCE (stay inside it):'
+    ].concat(dnaText(state.profile).split('\n'), ['', 'STORY: ' + sc.storyTitle, 'HOOK: ' + sc.hook, 'BODY: ' + sc.body, '', 'FACTS:']);
+    verified.ok.forEach(function (x) { lines.push('- ' + x.claim); });
+    lines.push('', 'ANGLE: ' + LENSES[lens].rule, '',
+      'Write 3 or 4 spoken sentences, at most ' + room + ' words, with a clear point of view.',
+      '- Say what the story does not say: what the move is really for, who gains and who pays, what the timing or wording gives away, what is conspicuously missing, how situations like this have usually played out. Use what an informed person knows about these actors and this kind of situation.',
+      '- Frame readings as readings ("looks like", "reads as", "suggests", "the simplest reading is"), never as proven intent. No forecasts stated as certain.',
+      '- No invented numbers, dates, statistics or quotes. Do not repeat what the body already says.',
+      '- It must be about THIS story. If the paragraph would fit any story on the topic, rewrite it.',
+      '- Plain spoken words, contractions, a human voice. Never mention sources, outlets, the script or the word analysis.',
+      '- End on the sharpest open question or the thing that settles it ("The test is whether...").',
+      'Good: "The interesting part is who the message is for. Tehran is not really talking to Washington here, it is talking to hardliners at home, and that makes a quiet climb-down much harder. The tell is that no one is offering a way out, only a price."',
+      'Bad: "This situation could have significant consequences for the region and global markets." (generic, fits any story)',
+      '', 'Return STRICT JSON only: {"analysis":"..."}');
+    var prompt = lines.join('\n');
+    var allow = allowWordsFor(src.story, state.profile).concat(outletAllow(corr)).concat(sigTokens(sc.hook + ' ' + sc.body));
+    function ask(note) {
+      return callLLM(prompt + (note ? '\n\n' + note : ''), 'write', { best: true }).then(function (r) {
+        var j = extractJson(r.text), tmp = { analysis: str(j.analysis) };
+        sanitizeAnalysis(tmp, src.allText || src.art.text, allow, verified.ok);
+        function again(why) {
+          if (note) return sc;
+          LOG('analysis step: ' + why + ', asking once more');
+          return sleep(600).then(function () { return ask('Your previous analysis was rejected (' + why + '). Write a different one: a real point of view in plain words, built on this story. No digits unless they are in the facts, no restating facts, no certain forecasts.'); });
+        }
+        if (!tmp.analysis) return again('nothing usable survived the checks');
+        return sleep(500).then(function () { return auditScript({ hook: sc.hook, body: sc.body, analysis: tmp.analysis, cta: sc.cta }, verified.ok, src.story, corr); }).then(function (a) {
+          var bad = {}; a.flags.filter(function (x) { return x.id.charAt(0) === 'I' && x.severity !== 'minor'; }).forEach(function (x) { bad[x.sentence] = true; });
+          var sents = splitSentences(tmp.analysis).filter(function (x) { return !bad[x]; }).slice(0, 4);
+          if (!sents.length) return again('the audit flagged every sentence');
+          sc.analysis = sents.join(' ');
+          if (sc.checks) { sc.checks.analysisRepaired = true; sc.checks.words = wordCount([sc.hook, sc.body, sc.analysis, sc.cta].map(str).join(' ')); }
+          return sc;
+        });
+      });
+    }
+    return ask('').catch(function (e) { LOG('analysis step failed:', e && e.message); return sc; });
+  }
+  function rewriteAnalysis(sc) {
+    var txt = (sc.facts || []).map(function (f) { return f.claim + ' ' + f.quote; }).join('\n');
+    var src = { story: { title: sc.storyTitle || sc.title, source: sc.sourceName || '' }, art: { text: txt }, allText: txt };
+    return repairAnalysis(sc, src, { ok: sc.facts || [] }, sc.corroboration || { status: 'none' }, function () {});
+  }
   function writeAndCheck(story, src, verified, extractedCount, feedback, attempt, setLabel) {
+    return writeAndCheckCore(story, src, verified, extractedCount, feedback, attempt, setLabel).then(function (sc) { return repairAnalysis(sc, src, verified, verified.corr || { status: 'none' }, setLabel); });
+  }
+  function writeAndCheckCore(story, src, verified, extractedCount, feedback, attempt, setLabel) {
     var corr = verified.corr || { status: 'none', conflicts: [] };
     setLabel('Writing script' + (attempt ? ' (revision)' : '') + '…');
-    return callLLM(writePrompt(src.story, state.profile, verified.ok, feedback, corr), 'write').then(function (res) {
+    return callLLM(writePrompt(src.story, state.profile, verified.ok, feedback, corr), 'write', { best: true }).then(function (res) {
       var parsed = extractJson(res.text);
       var dropped = 0;
       if (state.settings.depth === false) parsed.analysis = '';
@@ -2073,7 +2781,7 @@
       var revise = det.problems.concat(det.lengthProblem ? [det.lengthProblem] : []);
       if (revise.length && attempt < 1) {
         LOG('code checks failed, revising:', revise.join(' | '));
-        return writeAndCheck(story, src, verified, extractedCount, revise, attempt + 1, setLabel);
+        return writeAndCheckCore(story, src, verified, extractedCount, revise, attempt + 1, setLabel);
       }
       setLabel('Auditing every sentence against the source…');
       return sleep(700).then(function () { return auditScript(parsed, verified.ok, src.story, corr); }).then(function (audit) {
@@ -2082,7 +2790,7 @@
             return f.id + ' "' + f.sentence + '" (' + f.type + '): ' + f.problem + (f.fix ? ' Suggested: ' + f.fix : '');
           }));
           LOG('audit flagged ' + audit.flags.length + ' sentence(s), revising');
-          return writeAndCheck(story, src, verified, extractedCount, fb, attempt + 1, setLabel);
+          return writeAndCheckCore(story, src, verified, extractedCount, fb, attempt + 1, setLabel);
         }
         var fixedN = 0;
         function finalize(audit) {
@@ -2096,13 +2804,17 @@
           var url = cleanUrl(src.story.url);
           var sc = scriptFromParsed(parsed, src.story, { model: res.model, provider: res.provider, level: 'article' });
           sc.storyId = story.id; sc.storyTitle = story.title;
+          sc.altTitles = cleanAltTitles(parsed.alt_titles, sc.title, src.allText || src.art.text);
+          sc.pinned = cleanPinned(parsed.pinned_comment, src.allText || src.art.text);
+          sc.banner = cleanBanner(parsed.banner, src.allText || src.art.text);
+          sc.callouts = cleanCallouts(parsed.callouts, [parsed.hook, parsed.body, parsed.analysis].map(str).join(' '), src.allText || src.art.text);
           var desc = str(parsed.description).trim();
           sc.description = (desc ? desc + '\n\n' : '') + 'Source: ' + src.story.source + ' — ' + url;
-          if (corr.url && corr.status !== 'none') sc.description += '\nSecond source: ' + corr.outlet + ' — ' + corr.url;
+          if (corr.status !== 'none') { (corr.urls && corr.urls.length ? corr.urls : [corr.url]).forEach(function (u, k) { if (u) sc.description += '\n' + (corr.urls && corr.urls.length > 1 ? 'Also: ' : 'Second source: ') + ((corr.outlets && corr.outlets[k]) || corr.outlet) + ' — ' + u; }); }
           sc.analysis = str(parsed.analysis).trim();
           sc.analysisDropped = dropped;
           sc.facts = verified.ok;
-          sc.corroboration = { status: corr.status, outlet: corr.outlet || '', url: corr.url || '', confirmed: corr.confirmed || 0, total: corr.total || 0, extra: corr.extra || 0, conflicts: corr.conflicts || [], possible: corr.possible || [], reason: corr.reason || '' };
+          sc.corroboration = { status: corr.status, outlet: corr.outlet || '', outlets: corr.outlets || [], urls: corr.urls || [], url: corr.url || '', confirmed: corr.confirmed || 0, total: corr.total || 0, extra: corr.extra || 0, conflicts: corr.conflicts || [], possible: corr.possible || [], reason: corr.reason || '' };
           sc.checks = {
             factsVerified: verified.ok.length, factsExtracted: extractedCount,
             badNums: det.badNums, badTerms: det.badTerms, wording: det.wording,
@@ -2113,7 +2825,7 @@
             revised: attempt > 0
           };
           Object.assign(sc, sourceMeta(src));
-          if (corr.url && corr.status !== 'none') sc.sources.push(corr.url);
+          if (corr.status !== 'none') (corr.urls && corr.urls.length ? corr.urls : [corr.url]).forEach(function (u) { if (u) sc.sources.push(u); });
           return sc;
         }
         var fixable = audit.ran && attempt >= 1 && audit.flags.some(function (f) { return f.severity !== 'minor' && f.id.charAt(0) !== 'I' && f.fix; });
@@ -2144,12 +2856,12 @@
       });
     });
   }
-  function runLlmPipeline(story, src, setLabel) {
-    setLabel('Extracting facts…');
+  function extractFactsFor(story, art, setLabel) {
+    setLabel('Extracting facts from ' + (story.source || 'the article') + '…');
     // An answer with no facts at all means the model failed, not that the article is thin (a thin article still
     // yields a few facts). Ask once more, with a reminder of the format, before giving up.
     function getFacts(attempt) {
-      var prompt = extractPrompt(src.story, src.art) + (attempt ? '\n\nYour previous answer contained no facts. Return JSON of the form {"facts":[{"claim":"...","quote":"exact words from the article"}]} with 6 to 12 facts.' : '');
+      var prompt = extractPrompt(story, art) + (attempt ? '\n\nYour previous answer contained no facts. Return JSON of the form {"facts":[{"claim":"...","quote":"exact words from the article"}]} with 6 to 12 facts.' : '');
       return callLLM(prompt).then(function (r) {
         var j = extractJson(r.text);
         var arr = Array.isArray(j) ? j : (Array.isArray(j.facts) ? j.facts : []);
@@ -2158,43 +2870,276 @@
       });
     }
     return getFacts(0).then(function (got) {
-      var r1 = got.r, j1 = { facts: got.facts };
-      var v = verifyFacts(j1.facts, src.art.text);
-      var total = Array.isArray(j1.facts) ? j1.facts.length : 0;
+      var r1 = got.r, v = verifyFacts(got.facts, art.text), total = got.facts.length;
       if (!total) {
         var e0 = new Error('The AI (' + (r1.provider || '?') + ' ' + (r1.model || '') + ') returned no facts for this article twice. That is a model problem, not a thin article. Use "Retry with AI" to try again.');
         e0.gate = true; e0.retryable = true; throw e0;
       }
-      LOG('facts verified: ' + v.ok.length + '/' + total + ' for "' + src.story.title + '"');
+      LOG('facts verified: ' + v.ok.length + '/' + total + ' for "' + story.title + '"');
       return sleep(700).then(function () { setLabel('Checking each fact against its quote…'); return verifyClaims(v.ok); }).then(function (okFacts) {
-        v = { ok: okFacts, bad: v.bad };
-        if (v.ok.length < 3) {
-          var e = new Error('The source article is too thin or the model could not support enough facts with exact quotes (' + v.ok.length + ' of ' + total + ' verified). No script written.');
+        if (okFacts.length < 3) {
+          var e = new Error('The source article is too thin or the model could not support enough facts with exact quotes (' + okFacts.length + ' of ' + total + ' verified). No script written.');
           e.gate = true; throw e;
         }
-        var factsA = fixOverreachClaims(v.ok).map(function (f) { return { claim: f.claim, quote: f.quote, outlet: src.story.source, status: 'single', other: null }; });
-        return sleep(900).then(function () { return corroborate(src, factsA, setLabel); }).then(function (c) {
-          if (state.settings.requireSecond && !c.art) {
-            var e2 = new Error('Settings require a second outlet, but none could be read and matched. ' + (c.corr.reason || ''));
-            e2.gate = true; throw e2;
-          }
-          src.allText = src.art.text + (c.art ? '\n' + c.art.text : '');
-          return sleep(900).then(function () { return writeAndCheck(story, src, { ok: c.facts, corr: c.corr }, total, null, 0, setLabel); });
+        var factsA = fixOverreachClaims(okFacts).map(function (f) { return { claim: f.claim, quote: f.quote, outlet: story.source, status: 'single', other: null }; });
+        return { facts: factsA, total: total };
+      });
+    });
+  }
+  // Length follows the material: how many quote-checked facts there are, how much article text there is, and how
+  // many outlets. A thin story gets a short short; a rich, multi-outlet story gets room. Never more than the
+  // articles can honestly fill.
+  function autoSecFor(facts, textWords, outlets, rec) {
+    var byFacts = 25 + 5 * facts.length + (outlets > 1 ? 5 : 0);
+    var byText = 0.55 * textWords / LEN.wps;
+    var sec = Math.min(byFacts, byText, rec && rec.breaking ? 60 : LEN.maxSec);
+    var best = LEN_CHOICES[0];
+    LEN_CHOICES.forEach(function (c) { if (Math.abs(c - sec) < Math.abs(best - sec)) best = c; });
+    return best;
+  }
+  function factBudget(sec) {
+    var words = Math.round(sec * LEN.wps);
+    return Math.max(4, Math.round((words * 0.74 - 26) / 16));
+  }
+  // The writer gets only as many facts as the video has room for: differences between outlets first, then facts
+  // several outlets confirm, then the rest in the order of importance the extractor gave them.
+  function fitFacts(facts, sec) {
+    var n = factBudget(sec);
+    if (facts.length <= n) return facts;
+    var rank = function (f) { return f.status === 'conflict' || f.status === 'possible' ? 0 : f.status === 'confirmed' ? 1 : 2; };
+    var order = facts.map(function (f, i) { return { i: i, r: rank(f) }; }).sort(function (a, b) { return a.r - b.r || a.i - b.i; });
+    var chosen = order.slice(0, n).map(function (x) { return x.i; }).sort(function (a, b) { return a - b; });
+    LOG('fact budget: using ' + chosen.length + ' of ' + facts.length + ' facts for ' + sec + ' s');
+    return chosen.map(function (i) { return facts[i]; });
+  }
+  function planLength(story, facts, textWords, outlets) {
+    var f = state.profile && state.profile.format;
+    if (!f) return facts;
+    if (state.settings.autoLen !== false) {
+      var sec = autoSecFor(facts, textWords, outlets, recommendFor(story));
+      Object.assign(f, formatFor(sec));
+      story._autoSec = sec;
+      LOG('length chosen from the material: ' + sec + ' s (' + facts.length + ' facts, ' + textWords + ' words of article, ' + outlets + ' outlet(s))');
+    }
+    return fitFacts(facts, f.targetDurationSec);
+  }
+  function runLlmPipeline(story, src, setLabel) {
+    var c0 = story._cons;
+    if (c0 && c0.facts && c0.facts.length) {
+      // The Consolidate step already read every outlet and merged the quote-checked facts.
+      src.allText = c0.texts.join('\n');
+      var fs0 = planLength(story, c0.facts, wordCount(src.allText), (c0.outlets && c0.outlets.length) || 1);
+      return sleep(400).then(function () { return writeAndCheck(story, src, { ok: fs0, corr: c0.corr }, c0.total, null, 0, setLabel); });
+    }
+    return extractFactsFor(src.story, src.art, setLabel).then(function (ex) {
+      return sleep(900).then(function () { return corroborate(src, ex.facts, setLabel); }).then(function (c) {
+        if (state.settings.requireSecond && !c.art) {
+          var e2 = new Error('Settings require a second outlet, but none could be read and matched. ' + (c.corr.reason || ''));
+          e2.gate = true; throw e2;
+        }
+        src.allText = src.art.text + (c.art ? '\n' + c.art.text : '');
+        var fs1 = planLength(story, c.facts, wordCount(src.allText), c.art ? 2 : 1);
+        return sleep(900).then(function () { return writeAndCheck(story, src, { ok: fs1, corr: c.corr }, ex.total, null, 0, setLabel); });
+      });
+    });
+  }
+
+  // ---------- Consolidate: several outlets on one event become one quote-checked, outlet-tagged fact list ----------
+  function mergeCorroborations(factsA, results) {
+    var none = { facts: factsA, corr: { outlet: '', outlets: [], url: '', urls: [], status: 'none', confirmed: 0, conflicts: [], possible: [], extra: 0, total: factsA.length, reason: 'None of the other outlets reported the same key facts.' } };
+    if (!results.length) return none;
+    if (results.length === 1) { var o = results[0].out; o.corr.outlets = [o.corr.outlet]; o.corr.urls = [o.corr.url]; return o; }
+    var merged = factsA.map(function (f) { return { claim: f.claim, quote: f.quote, outlet: f.outlet, status: 'single', other: null, confirmedBy: [] }; });
+    results.forEach(function (r) {
+      r.out.facts.forEach(function (f, i) {
+        if (i >= factsA.length) return;
+        var m = merged[i];
+        if (f.status === 'confirmed') { m.confirmedBy.push(f.other.outlet); if (!m.other) m.other = f.other; if (m.status !== 'conflict') m.status = 'confirmed'; }
+        else if (f.status === 'conflict') { m.status = 'conflict'; m.other = f.other; }
+        else if (f.status === 'possible' && m.status === 'single') { m.status = 'possible'; m.other = f.other; }
+      });
+    });
+    var extra = 0;
+    results.forEach(function (r) {
+      r.out.facts.slice(factsA.length).forEach(function (x) {
+        var xt = sigTokens(x.claim);
+        var dup = merged.some(function (m) { var mt = sigTokens(m.claim), sh = xt.filter(function (w) { return mt.indexOf(w) !== -1; }).length; return sh >= Math.ceil(Math.min(xt.length, mt.length) * 0.6); });
+        if (dup) return;
+        merged.push({ claim: x.claim, quote: x.quote, outlet: x.outlet, status: 'single', other: null, confirmedBy: [] }); extra++;
+      });
+    });
+    var names = results.map(function (r) { return r.out.corr.outlet; }), urls = results.map(function (r) { return r.out.corr.url; });
+    var corr = { outlet: names.join(' and '), outlets: names, url: urls[0], urls: urls, status: 'none', confirmed: 0, conflicts: [], possible: [], extra: extra, total: factsA.length, reason: '' };
+    merged.forEach(function (f) {
+      if (f.status === 'confirmed') corr.confirmed++;
+      else if (f.status === 'conflict') corr.conflicts.push({ claim: f.claim, outlet: f.outlet, other: f.other });
+      else if (f.status === 'possible') corr.possible.push({ claim: f.claim, outlet: f.outlet, other: f.other });
+    });
+    corr.status = corr.conflicts.length ? 'conflict' : corr.confirmed >= 2 ? 'corroborated' : corr.confirmed ? 'partial' : 'none';
+    if (corr.status === 'none') return none;
+    return { facts: merged, corr: corr };
+  }
+  function consolidateGroup(g, say) {
+    var primary = g[0], mates = g.slice(1, 3);
+    say('Reading ' + primary.source + '…');
+    var pP = primary._srcP || (primary._srcP = resolveSource(primary));
+    return pP.then(function (srcA) {
+      if (!srcA) { primary._srcP = null; throw new Error('The main article (' + primary.source + ') could not be read.'); }
+      return extractFactsFor(srcA.story, srcA.art, say).then(function (ex) {
+        var results = [], texts = [srcA.art.text], urls = [cleanUrl(srcA.story.url)], skipped = [], noMatch = [], i = 0;
+        function nextMate() {
+          if (i >= mates.length) return Promise.resolve();
+          var m = mates[i++];
+          say('Reading ' + m.source + '…');
+          return (m._srcP || (m._srcP = resolveSource(m))).then(function (srcB) {
+            if (!srcB || !srcB.art || String(srcB.art.text || '').length < 600) { m._srcP = null; skipped.push(m.source); return null; }
+            var nameB = srcB.story.source || m.source;
+            if (rootHost(hostOf(srcB.story.url)) === rootHost(hostOf(srcA.story.url))) { skipped.push(nameB + ' (same outlet)'); return null; }
+            say('Comparing ' + nameB + ' with ' + primary.source + '…');
+            return sleep(700).then(function () { return callLLM(corroboratePrompt(srcA.story, ex.facts, srcB.art, nameB), 'write'); }).then(function (r) {
+              var out = applyCorroboration(ex.facts, extractJson(r.text), srcB.art, nameB, cleanUrl(srcB.art.finalUrl || srcB.story.url));
+              LOG('consolidation with ' + nameB + ': ' + out.corr.status + ' · confirmed ' + out.corr.confirmed + '/' + out.corr.total + ' · extra ' + out.corr.extra);
+              if (out.corr.status === 'none') { noMatch.push(nameB); return null; }
+              results.push({ out: out }); texts.push(srcB.art.text); urls.push(cleanUrl(srcB.art.finalUrl || srcB.story.url));
+            }).catch(function (e) { if (e.fatal || e.code === 'QUOTA') throw e; LOG('consolidation compare failed:', e.message); skipped.push(nameB); });
+          }).then(nextMate);
+        }
+        return nextMate().then(function () {
+          var mg = mergeCorroborations(ex.facts, results);
+          return { sig: g.map(function (x) { return x.id; }).join(','), facts: mg.facts, corr: mg.corr, texts: texts, urls: urls, total: ex.total, outlets: [primary.source].concat(mg.corr.outlets || []), skipped: skipped, noMatch: noMatch, at: Date.now() };
         });
       });
     });
   }
-  function generateScripts(onlyIds) {
+  // Groups: stories ticked together that cover the same event (at most three outlets per group). The user can move a
+  // story to another group or let it stand alone.
+  function sigOf(g) { return g.map(function (x) { return x.id; }).join(','); }
+  function groupsFor(list) {
+    var ids = list.map(function (x) { return x.id; }), byId = {};
+    list.forEach(function (x) { byId[x.id] = x; });
+    var out = [], placed = {};
+    (state.consGroups || []).forEach(function (gi) {
+      var g = gi.filter(function (id) { return byId[id]; }).map(function (id) { return byId[id]; });
+      g.forEach(function (x) { placed[x.id] = true; });
+      if (g.length) out.push(g);
+    });
+    var rest = list.filter(function (x) { return !placed[x.id]; });
+    if (rest.length) {
+      if (!out.length) clusterStories(rest).forEach(function (g) { out.push(g.slice(0, 3)); g.slice(3).forEach(function (x) { out.push([x]); }); });
+      else rest.forEach(function (x) {
+        var g = out.filter(function (g0) { return g0.length < 3 && sameStory(g0[0], x) && rootHost(hostOf(g0[0].url)) !== rootHost(hostOf(x.url)); })[0];
+        if (g) g.push(x); else out.push([x]);
+      });
+    }
+    state.consGroups = out.map(function (g) { return g.map(function (x) { return x.id; }); });
+    return out;
+  }
+  function consFor(g) { var r = (state.consRes || {})[g[0].id]; return r && r.sig === sigOf(g) ? r : null; }
+  function selectedList() { return state.stories.filter(function (x) { return state.selectedStoryIds[x.id]; }); }
+  var consBusy = false;
+  function renderConsolidate() {
+    var box = $('#asg-cons-list'); if (!box) return;
+    box.innerHTML = '';
+    var groups = groupsFor(selectedList());
+    var multi = groups.filter(function (g) { return g.length > 1; }).length;
+    var runBtn = $('#asg-cons-run'); if (runBtn) { runBtn.hidden = !multi; runBtn.disabled = consBusy; }
+    box.appendChild(el('p', { class: 'asg-hint', text: multi
+      ? multi + (multi === 1 ? ' group of stories covers' : ' groups of stories cover') + ' the same event. Consolidating reads each outlet, extracts quote-checked facts and merges them into one fact list tagged by outlet. It changes nothing in the stories. The script writer then decides how to use the facts.'
+      : 'Every selected story stands alone, so there is nothing to merge. Continue to Generate.' }));
+    groups.forEach(function (g, gi) {
+      var card = el('div', { class: 'asg-cons-card' });
+      var res = consFor(g);
+      var head = el('div', { class: 'asg-cons-head' });
+      head.appendChild(el('strong', { text: g.length > 1 ? 'One story · ' + g.length + ' outlets' : 'One outlet' }));
+      if (res) head.appendChild(el('span', { class: 'asg-chip is-ok', text: 'Consolidated · ' + res.facts.length + ' facts' + (res.corr.confirmed ? ' · ' + res.corr.confirmed + ' confirmed by 2+' : '') + (res.corr.conflicts && res.corr.conflicts.length ? ' · ' + res.corr.conflicts.length + ' conflict' : '') }));
+      card.appendChild(head);
+      g.forEach(function (x, xi) {
+        var row = el('div', { class: 'asg-cons-row' });
+        var t = el('div', { class: 'asg-cons-title' });
+        t.appendChild(el('span', { text: x.title }));
+        t.appendChild(el('span', { class: 'asg-cons-src', text: ' · ' + x.source + (xi === 0 && g.length > 1 ? ' · main' : '') }));
+        row.appendChild(t);
+        if (groups.length > 1 || g.length > 1) {
+          var sel = el('select', { class: 'asg-cons-move', 'aria-label': 'Move this story' });
+          sel.appendChild(el('option', { value: '', text: 'Move…' }));
+          if (g.length > 1) sel.appendChild(el('option', { value: 'own', text: 'Stand alone' }));
+          groups.forEach(function (g2, gj) { if (gj !== gi && g2.length < 3) sel.appendChild(el('option', { value: String(gj), text: 'Group with: ' + g2[0].title.slice(0, 44) + (g2[0].title.length > 44 ? '…' : '') })); });
+          sel.addEventListener('change', function () {
+            if (!sel.value) return;
+            var ids = state.consGroups.map(function (a) { return a.slice(); });
+            ids[gi] = ids[gi].filter(function (id) { return id !== x.id; });
+            if (sel.value === 'own') ids.push([x.id]); else ids[parseInt(sel.value, 10)].push(x.id);
+            state.consGroups = ids.filter(function (a) { return a.length; });
+            renderConsolidate();
+          });
+          if (sel.options.length > 1) row.appendChild(sel);
+        }
+        card.appendChild(row);
+      });
+      var st = el('p', { class: 'asg-hint asg-cons-status', style: 'margin:8px 0 0;' });
+      if (g.length > 1) {
+        var b = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: res ? 'Consolidate again' : 'Consolidate this group' });
+        b.disabled = consBusy;
+        b.addEventListener('click', function () { runConsolidation([g]); });
+        card.appendChild(b);
+        card.appendChild(st);
+        st.textContent = res ? (res.outlets.length + ' outlets merged' + (res.skipped.length ? ' · could not read: ' + res.skipped.join(', ') : '') + (res.noMatch.length ? ' · did not match: ' + res.noMatch.join(', ') : '')) : 'Not consolidated yet. If you skip this, the script is still written from the main story and one cross-checked outlet.';
+        g._st = st;
+      }
+      if (res) {
+        var det = el('details', { style: 'margin:8px 0 0;' });
+        det.appendChild(el('summary', { text: 'See the consolidated facts' }));
+        var ul = el('ul', { style: 'margin:8px 0 0 18px;padding:0;' });
+        res.facts.forEach(function (f) {
+          var tag = f.status === 'confirmed' ? 'confirmed by ' + (1 + (f.confirmedBy && f.confirmedBy.length ? f.confirmedBy.length : 1)) + ' outlets' : f.status === 'conflict' ? 'outlets differ' : f.status === 'possible' ? 'possible difference' : (f.outlet || '') + ' only';
+          var li = el('li', { style: 'margin-bottom:6px;' });
+          li.appendChild(el('span', { class: 'asg-chip ' + (f.status === 'confirmed' ? 'is-ok' : 'is-muted'), text: tag, style: 'margin-right:6px;' }));
+          li.appendChild(document.createTextNode(f.claim));
+          ul.appendChild(li);
+        });
+        det.appendChild(ul); card.appendChild(det);
+      }
+      box.appendChild(card);
+    });
+    var nb = $('#asg-cons-next'); if (nb) nb.disabled = consBusy;
+  }
+  function runConsolidation(groups) {
+    if (consBusy) return;
+    consBusy = true; state.consRes = state.consRes || {};
+    var todo = groups.filter(function (g) { return g.length > 1; }), i = 0;
+    renderConsolidate();
+    function paint(g, t) { var els = $$('.asg-cons-status'); els.forEach(function (e) { if (e.dataset.sig === sigOf(g)) e.textContent = t; }); }
+    function next() {
+      if (i >= todo.length) { consBusy = false; renderConsolidate(); toast('Consolidation finished.', 'success'); return Promise.resolve(); }
+      var g = todo[i++];
+      var cards = $$('.asg-cons-card'), my = null;
+      groupsFor(selectedList()).forEach(function (g2, k) { if (sigOf(g2) === sigOf(g) && cards[k]) my = cards[k].querySelector('.asg-cons-status'); });
+      function say(t) { if (my) my.textContent = t; }
+      return consolidateGroup(g, say).then(function (r) { state.consRes[g[0].id] = r; }).catch(function (e) {
+        LOG('consolidation failed:', e && e.message);
+        toast('Could not consolidate "' + g[0].title.slice(0, 50) + '": ' + (e && e.message || e), 'error');
+        if (e && e.fatal) throw e;
+      }).then(next, function (e) { consBusy = false; renderConsolidate(); });
+    }
+    return next();
+  }
+
+    function generateScripts(onlyIds) {
     if (generating) { toast('Already generating. Wait for it to finish.', 'error'); return; }
     var retryMode = Array.isArray(onlyIds);
     var stories = state.stories.filter(function (s) { return retryMode ? onlyIds.indexOf(s.id) !== -1 : state.selectedStoryIds[s.id]; });
     if (!stories.length) { toast('No stories selected. Go to the Feed step and tick the stories first.', 'error'); return; }
     var llmReady = state.settings.llmProvider !== 'none' && !!currentLlmKey();
+    var mergedCount = 0;
+    if (stories.length > 1) {
+      var groups = groupsFor(stories);
+      stories = groups.map(function (g) { g[0]._mates = g.slice(1); g[0]._cons = consFor(g); mergedCount += g.length - 1; return g[0]; });
+    } else stories.forEach(function (s) { s._mates = []; s._cons = null; });
     LOG('generateScripts start', { stories: stories.length, llmReady: llmReady, provider: state.settings.llmProvider });
     var list = $('#asg-script-list'); list.innerHTML = '';
     // Keep every script whose story is NOT being regenerated. Only the stories
     // selected this run have their old scripts replaced; everything else stays.
-    var regenIds = stories.map(function (s) { return s.id; });
+    var regenIds = stories.map(function (s) { return s.id; }).concat([].concat.apply([], stories.map(function (s) { return (s._mates || []).map(function (m) { return m.id; }); })));
     var keptScripts = state.scripts.filter(function (x) { return regenIds.indexOf(x.storyId) === -1; });
     state.scripts = keptScripts.slice();
     generating = true; renderGenerateStatus();
@@ -2203,6 +3148,10 @@
     var counts = { verified: 0, review: 0, template: 0, gated: 0, two: 0 };
     var usedUrls = {};
     keptScripts.forEach(function (x) { if (x.url && !x.gated) usedUrls[x.url] = true; });
+    var run = { cancelled: false, ctrl: new AbortController() };
+    genRun = run;
+    run.cancelP = new Promise(function (res) { run.release = res; });
+    function add(x) { if (!run.cancelled) state.scripts.push(x); }
     var failStreak = 0;
     var firstError = '';
     var stop = { reason: '' };
@@ -2211,11 +3160,18 @@
       var sc = scriptFromParsed(buildLocalScript(src.story, state.profile, { article: src.art }), src.story, { template: true, reason: reason, level: 'article' });
       sc.storyId = story.id; sc.storyTitle = story.title;
       Object.assign(sc, sourceMeta(src));
-      state.scripts.push(sc);
+      add(sc);
       counts.template++;
       if (isError && !firstError) firstError = reason;
     }
+    function endRun() {
+      if (run.origFmt && state.profile && state.profile.format) { Object.assign(state.profile.format, run.origFmt); run.origFmt = null; }
+      runOver = null;
+    }
     function finish() {
+      if (run.cancelled) return;
+      endRun();
+      genRun = null;
       fill.style.width = '100%';
       label.textContent = 'Done.';
       setTimeout(function () { prog.hidden = true; }, 600);
@@ -2223,6 +3179,7 @@
       persistScripts(); renderScripts(); updateStepAvailability();
       $('#asg-continue-video').hidden = goodScripts().length === 0;
       renderGenerateStatus();
+      if (state.stories.length) { try { renderStories(); } catch (eR) {} }
       setStep('scripts');
       var parts = [];
       if (counts.verified) parts.push(counts.verified + ' passed all checks');
@@ -2230,11 +3187,26 @@
       if (counts.review) parts.push(counts.review + ' need review');
       if (counts.template) parts.push(counts.template + ' template');
       if (counts.gated) parts.push(counts.gated + ' skipped');
+      if (mergedCount) parts.push(mergedCount + ' similar stor' + (mergedCount === 1 ? 'y' : 'ies') + ' merged and marked used');
       var msg = (parts.join(', ') || 'No scripts');
       if (firstError) msg += ' — AI problem: ' + firstError.slice(0, 160);
       toast(msg, (firstError || counts.gated) ? 'error' : 'success');
     }
+    run.stop = function () {
+      if (run.cancelled) return;
+      run.cancelled = true; stopGrace = Date.now() + 15000;
+      endRun();
+      try { run.ctrl.abort(); } catch (e) {}
+      run.release();
+      genRun = null; generating = false; waitNotice = null; llmStatus = null;
+      prog.hidden = true;
+      persistScripts(); renderScripts(); updateStepAvailability();
+      $('#asg-continue-video').hidden = goodScripts().length === 0;
+      renderGenerateStatus();
+      toast('Stopped. ' + (goodScripts().length ? goodScripts().length + ' finished script' + (goodScripts().length === 1 ? ' is' : 's are') + ' kept. The story in progress was dropped.' : 'Nothing was kept. Change the options and press Generate again.'), 'success');
+    };
     function next() {
+      if (run.cancelled) return;
       if (i >= stories.length) { finish(); return; }
       var story = stories[i++];
       var n = i;
@@ -2242,45 +3214,59 @@
       // (which model is being asked, which one was overloaded, how long it is waiting).
       var phase = '', detail = '';
       function paint() { label.textContent = 'Story ' + n + ' of ' + stories.length + ': ' + phase + (detail ? ' · ' + detail : ''); }
-      function setLabel(t) { phase = t; detail = ''; paint(); }
+      function setLabel(t) { phase = t; trailPhase = t; detail = ''; paint(); }
       llmStatus = function (d) { detail = d || ''; paint(); };
       waitNotice = function (pv, sec) { detail = 'waiting ' + sec + ' s for ' + pv + ' limits'; paint(); };
       fill.style.width = Math.round((n - 1) / stories.length * 100) + '%';
       setLabel('finding a readable source…');
-      resolveSource(story).then(function (src) {
+      var st0 = state.settings, rec0 = recommendFor(story);
+      runOver = { lens: st0.autoLens !== false ? rec0.lens : null, hook: st0.autoHook !== false ? rec0.hook : null };
+      if (state.profile && state.profile.format) {
+        if (!run.origFmt) run.origFmt = Object.assign({}, state.profile.format);
+        Object.assign(state.profile.format, st0.autoLen !== false ? formatFor(rec0.sec) : run.origFmt);
+      }
+      var work = (story._srcP || resolveSource(story)).then(function (src) {
         if (!src) {
+          story._srcP = null;
           var why = story.readable === 'paywalled'
             ? 'Paywalled source (' + story.source + '). Its text cannot be read, and no open outlet covering the same story was found (searched this scan and the publisher feeds by headline). Nothing was written, because a script without a readable source would be guesswork.'
             : story.readable === 'thin'
             ? 'Live blog or video page (' + story.source + '): there is no article text to read, and no open outlet with a full article on the same story was found in this scan.'
-            : 'No readable source article could be fetched (aggregator link, blocked page, or paywall), and no open outlet covering the same story was found (searched this scan and the publisher feeds by headline). Nothing was written, because a script without a readable source would be guesswork.';
-          state.scripts.push(gatedScript(story, why)); counts.gated++;
+            : 'The article could not be read' + (fetchWhy(story.url) ? ': ' + fetchWhy(story.url) : ' (aggregator link, blocked page, or paywall)') + ', and no open outlet covering the same story was found (searched this scan and the publisher feeds by headline). Nothing was written, because a script without a readable source would be guesswork.';
+          var gs = gatedScript(story, why); gs.srcFail = true;
+          add(gs); counts.gated++;
+          markUnusable(story, why);
           return;
         }
         if (usedUrls[src.story.url]) {
-          state.scripts.push(gatedScript(story, 'Same event as another selected story that already has a script from ' + src.story.source + '. Skipped to avoid a duplicate.')); counts.gated++;
+          add(gatedScript(story, 'Same event as another selected story that already has a script from ' + src.story.source + '. Skipped to avoid a duplicate.')); counts.gated++;
           return;
         }
         usedUrls[src.story.url] = true;
         if (!llmReady) { pushTemplate(story, src, state.settings.llmProvider === 'none' ? 'The AI provider is set to None in Settings.' : 'No API key is saved for the selected AI provider (' + state.settings.llmProvider + '). Open Settings, paste the key and click Save settings (the Test button alone does not save it).', true); return; }
         if (stop.reason) { pushTemplate(story, src, 'AI skipped: ' + stop.reason, true); return; }
+        if (story._mates && story._mates.length) src.mates = story._mates;
+        llmTrail = [];
         return runLlmPipeline(story, src, setLabel).then(function (sc) {
-          state.scripts.push(sc);
+          sc.models = trailSummary();
+          if (story._mates && story._mates.length) sc.mergedStories = story._mates.map(function (m) { return { title: m.title, url: cleanUrl(m.url), source: m.source }; });
+          add(sc);
           failStreak = 0;
           if (sc.checks.status === 'checked') counts.verified++; else counts.review++;
           if (sc.corroboration && (sc.corroboration.status === 'corroborated' || sc.corroboration.status === 'partial')) counts.two++;
           return sleep(1200);
         }).catch(function (e) {
           LOG('pipeline error for "' + story.title + '":', e.message);
-          if (e.gate) { state.scripts.push(gatedScript(story, e.message, e.retryable)); counts.gated++; return; }
+          if (e.gate) { add(gatedScript(story, e.message, e.retryable)); counts.gated++; return; }
           failStreak++;
           if (e.fatal || failStreak >= 2) stop.reason = e.message;
           pushTemplate(story, src, e.message, true);
         });
       }).catch(function (e) {
         LOG('unexpected error for "' + story.title + '":', e && e.message);
-        state.scripts.push(gatedScript(story, 'Unexpected error: ' + (e && e.message || e))); counts.gated++;
-      }).then(next);
+        add(gatedScript(story, 'Unexpected error: ' + (e && e.message || e))); counts.gated++;
+      });
+      Promise.race([work, run.cancelP]).then(function () { if (!run.cancelled) next(); });
     }
     next();
   }
@@ -2293,7 +3279,7 @@
   }
   function cleanTag(t) { return String(t).replace(/^#+/, '').replace(/[^A-Za-z0-9_]/g, ''); }
   function factLabel(f, sc) {
-    if (f.status === 'confirmed') return 'both outlets';
+    if (f.status === 'confirmed') return f.confirmedBy && f.confirmedBy.length > 1 ? 'confirmed by ' + (1 + f.confirmedBy.length) + ' outlets' : 'both outlets';
     if (f.status === 'conflict') return 'outlets differ';
     if (f.status === 'possible') return 'possible difference';
     return (f.outlet || (sc && (sc.sourceName || sc.source)) || 'one outlet') + ' only';
@@ -2311,6 +3297,10 @@
     state.scripts.splice(idx, 1);
     persistScripts();
     renderScripts();
+    var fs = state.stories.filter(function (x) { return x.id === sc.storyId; })[0];
+    delete state.selectedStoryIds[sc.storyId];
+    if (fs && sc.gated && (sc.srcFail || /No readable source|Paywalled source|Live blog or video page|could not be read/i.test(sc.reason || ''))) markUnusable(fs, sc.reason);
+    if (state.stories.length) { renderStories(); updateStepAvailability(); }
     ensureModalStyle();
     var t = el('div', { class: 'asg-toast is-on asg-toast-undo' });
     t.appendChild(el('span', { text: 'Script deleted.' }));
@@ -2452,7 +3442,15 @@
       if (sc.checks && sc.checks.words) {
         srcLine.appendChild(document.createTextNode(' · ' + sc.checks.words + ' words ≈ ' + Math.round(sc.checks.words / LEN.wps) + ' s'));
       }
+      if (sc.lens && LENSES[sc.lens] && sc.analysisOn !== false) srcLine.appendChild(document.createTextNode(' · lens: ' + LENSES[sc.lens].label));
       card.appendChild(srcLine);
+      if (sc.models && sc.models.length) {
+        var md = el('details', { class: 'asg-hint', style: 'margin:2px 0 8px;' });
+        md.appendChild(el('summary', { text: 'Models used (' + sc.models.length + ')' }));
+        var ml = el('ul', { style: 'margin:6px 0 0 18px;padding:0;' });
+        sc.models.forEach(function (m) { ml.appendChild(el('li', { text: m.step + ': ' + (m.provider ? m.provider + ' · ' : '') + m.model })); });
+        md.appendChild(ml); card.appendChild(md);
+      }
       if (sc.facts && sc.facts.length) {
         var det = el('details', { style: 'margin:6px 0 10px;' });
         det.appendChild(el('summary', { text: 'Facts used (' + sc.facts.length + ') with source quotes' + (sc.corroboration && sc.corroboration.status !== 'none' ? ', tagged by outlet' : '') }));
@@ -2475,13 +3473,55 @@
       if (sc.analysis || (sc.checks && sc.checks.analysisDropped)) {
         var aw = el('div', { class: 'asg-hint', style: 'margin:10px 0 4px;padding:8px 10px;border-radius:8px;background:#eef3ff;border:1px solid #cddafc;color:#243b7a;' });
         aw.appendChild(el('strong', { text: 'Analysis: the channel\'s own read of this story. ' }));
-        aw.appendChild(document.createTextNode('Not from the article and not backed by a quote. It may not contain numbers, names or quotes, and it was checked separately' + (sc.checks && sc.checks.analysisDropped ? ' (' + sc.checks.analysisDropped + ' sentence' + (sc.checks.analysisDropped === 1 ? '' : 's') + ' removed by the checks)' : '') + '. Read it once before publishing.'));
+        aw.appendChild(document.createTextNode('Not from the article and not backed by a quote. It is checked for invented figures and risky claims, separately from the story' + (sc.checks && sc.checks.analysisDropped ? ' (' + sc.checks.analysisDropped + ' sentence' + (sc.checks.analysisDropped === 1 ? '' : 's') + ' removed by the checks)' : '') + '. Read it once before publishing.'));
         card.appendChild(aw);
       }
       if (sc.analysis) card.appendChild(scriptSection('Analysis', sc.analysis, function (v) { sc.analysis = v; persistScripts(); }, true));
+      if (!sc.analysis && state.settings.depth !== false && !sc.isTemplate && !sc.gated && sc.facts && sc.facts.length) {
+        var nb = el('div', { class: 'asg-hint', style: 'margin:10px 0 4px;padding:8px 10px;border-radius:8px;background:#fff5e6;border:1px solid #f0d9ad;color:#6b4a00;' });
+        nb.appendChild(el('strong', { text: 'No analysis was kept. ' }));
+        nb.appendChild(document.createTextNode('The checks removed it, or the model did not return one (a busy or rate-limited model can do that). '));
+        var rb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Write the analysis again', style: 'margin-top:6px;' });
+        rb.addEventListener('click', function () {
+          rb.disabled = true; rb.textContent = 'Writing…';
+          rewriteAnalysis(sc).then(function (r) {
+            persistScripts();
+            if (r && r.analysis) { toast('Analysis added.', 'ok'); renderScripts(); }
+            else { rb.disabled = false; rb.textContent = 'Write the analysis again'; toast('No analysis passed the checks this time. Try again in a minute, or pick a stronger model in Settings.', 'warn', 6000); }
+          });
+        });
+        nb.appendChild(rb);
+        card.appendChild(nb);
+      }
       card.appendChild(scriptSection('CTA', sc.cta, function (v) { sc.cta = v; persistScripts(); }));
       card.appendChild(scriptSection('YouTube Title', sc.title, function (v) { sc.title = v; persistScripts(); }));
+      if (sc.altTitles && sc.altTitles.length) {
+        var alts = el('div', { class: 'asg-alt-titles' });
+        alts.appendChild(el('span', { text: 'Other titles:' }));
+        sc.altTitles.forEach(function (a) {
+          var ab = el('button', { type: 'button', class: 'asg-opt', text: (a.style === 'engaging' ? 'Most engaging · ' : 'Matches your style · ') + a.text, title: 'Use this title' });
+          ab.addEventListener('click', function () {
+            var old = sc.title; sc.title = a.text;
+            sc.altTitles = sc.altTitles.filter(function (x) { return x !== a; }).concat([{ style: 'match', text: old }]);
+            persistScripts(); renderScripts();
+          });
+          alts.appendChild(ab);
+        });
+        card.appendChild(alts);
+      }
       card.appendChild(scriptSection('Description', sc.description, function (v) { sc.description = v; persistScripts(); }, true));
+      card.appendChild(scriptSection('On-screen headline (first seconds of the video)', sc.banner || ((sc.title || '').length <= 60 ? sc.title : ''), function (v) { sc.banner = v; persistScripts(); }));
+      card.appendChild(scriptSection('Pinned comment (post it under the video and pin it)', sc.pinned || sc.cta, function (v) { sc.pinned = v; persistScripts(); }));
+      if (sc.callouts && sc.callouts.length) {
+        var co = el('div', { class: 'asg-alt-titles' });
+        co.appendChild(el('span', { text: 'On-screen callouts:' }));
+        sc.callouts.forEach(function (c) {
+          var cb2 = el('button', { type: 'button', class: 'asg-opt', text: c.text + ' ✕', title: 'Shown when "' + c.at + '" is spoken. Click to remove.' });
+          cb2.addEventListener('click', function () { sc.callouts = sc.callouts.filter(function (x) { return x !== c; }); persistScripts(); renderScripts(); });
+          co.appendChild(cb2);
+        });
+        card.appendChild(co);
+      }
       var meta = el('div', { class: 'asg-script-meta' });
       (sc.tags || []).map(cleanTag).filter(Boolean).forEach(function (t) { meta.appendChild(el('span', { class: 'asg-chip is-muted', text: '#' + t })); });
       card.appendChild(meta);
@@ -2497,6 +3537,74 @@
     if (document.getElementById('asg-modal-style')) return;
     var st = document.createElement('style'); st.id = 'asg-modal-style';
     st.textContent = [
+      '.asg-seg{display:flex;flex-wrap:wrap;gap:6px;}',
+      '.asg-seg-btn{padding:6px 14px;border:1px solid var(--asg-border,#e1e4e9);border-radius:999px;background:var(--asg-bg,#fff);color:var(--asg-text,#1a1d23);font:inherit;font-size:13.5px;cursor:pointer;}',
+      '.asg-seg-btn:hover{border-color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-seg-btn.is-on{background:var(--asg-text,#1a1d23);border-color:var(--asg-text,#1a1d23);color:#fff;}',
+      '.asg-opts{margin:0 0 20px;padding:4px 0;border-top:1px solid var(--asg-border,#e1e4e9);border-bottom:1px solid var(--asg-border,#e1e4e9);}',
+      '.asg-o-row{display:grid;grid-template-columns:96px 1fr;gap:16px;padding:18px 0;}',
+      '.asg-o-row+.asg-o-row{border-top:1px solid var(--asg-border,#e1e4e9);}',
+      '.asg-o-label{font-size:13px;color:var(--asg-text-dim,#8a94a3);padding-top:6px;}',
+      '.asg-o-body{display:grid;gap:10px;min-width:0;}',
+      '.asg-o-note{margin:0;font-size:13px;color:var(--asg-text-muted,#5b6471);line-height:1.5;}',
+      '.asg-o-note em{color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-dial{position:relative;}',
+      '.asg-dial-track{position:absolute;left:10%;right:10%;top:11px;height:2px;background:var(--asg-border,#e1e4e9);}',
+      '.asg-dial-fill{height:100%;background:var(--asg-text,#1a1d23);transition:width .3s ease;}',
+      '.asg-dial-stops{position:relative;display:grid;grid-template-columns:repeat(5,1fr);}',
+      '.asg-dial-stop{display:grid;justify-items:center;gap:6px;padding:0;border:0;background:transparent;font:inherit;font-size:13px;color:var(--asg-text-muted,#5b6471);cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;}',
+      '.asg-dot{width:12px;height:12px;margin:5px 0 0;border-radius:50%;background:var(--asg-bg,#fff);border:2px solid var(--asg-border,#e1e4e9);transition:all .2s;}',
+      '.asg-dial-stop.is-passed .asg-dot{border-color:var(--asg-text,#1a1d23);background:var(--asg-text,#1a1d23);}',
+      '.asg-dial-stop.is-on .asg-dot{width:16px;height:16px;margin:3px 0 0;border-color:var(--asg-text,#1a1d23);background:var(--asg-text,#1a1d23);box-shadow:0 0 0 4px var(--asg-bg-muted,#eef1f6);}',
+      '.asg-dial-stop.is-on{color:var(--asg-text,#1a1d23);font-weight:600;}',
+      '.asg-dial-stop:hover .asg-dot{border-color:var(--asg-text,#1a1d23);}',
+      '.asg-dial-stop:focus-visible .asg-dot{box-shadow:0 0 0 3px var(--asg-accent-soft,#eef2fd),0 0 0 4px var(--asg-accent,#2a4fd6);}',
+      '.asg-anat{display:flex;gap:2px;height:4px;margin-top:4px;}',
+      '.asg-anat i{display:block;border-radius:2px;transition:flex-grow .35s ease;}',
+      '.asg-anat .is-hook{background:#1a1d23;}.asg-anat .is-body{background:#8a94a3;}.asg-anat .is-analysis{background:var(--asg-accent,#2a4fd6);}.asg-anat .is-cta{background:#c8ced8;}',
+      '.asg-chipset{display:flex;flex-wrap:wrap;gap:6px;}',
+      '.asg-opt{padding:6px 13px;border:1px solid var(--asg-border,#e1e4e9);border-radius:999px;background:var(--asg-bg,#fff);color:var(--asg-text-muted,#5b6471);font:inherit;font-size:13.5px;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;transition:border-color .15s,color .15s;}',
+      '.asg-opt:hover:not(:disabled){border-color:var(--asg-text-dim,#8a94a3);color:var(--asg-text,#1a1d23);}',
+      '.asg-opt.is-on{background:var(--asg-accent-soft,#eef2fd);border-color:var(--asg-accent,#2a4fd6);color:var(--asg-accent,#2a4fd6);font-weight:600;}',
+      '.asg-opt:disabled{opacity:.45;cursor:not-allowed;}',
+      '.asg-opt:focus-visible{box-shadow:0 0 0 3px var(--asg-accent-soft,#eef2fd);}',
+      '.asg-switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--asg-text-muted,#5b6471);cursor:pointer;justify-self:start;}',
+      '.asg-switch input{position:absolute;opacity:0;pointer-events:none;}',
+      '.asg-switch-ui{width:30px;height:18px;border-radius:999px;background:var(--asg-border,#e1e4e9);position:relative;transition:background .2s;}',
+      '.asg-switch-ui::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .2s;}',
+      '.asg-switch input:checked+.asg-switch-ui{background:var(--asg-text,#1a1d23);}',
+      '.asg-switch input:checked+.asg-switch-ui::after{transform:translateX(12px);}',
+      '.asg-switch input:focus-visible+.asg-switch-ui{outline:2px solid var(--asg-accent,#2a4fd6);outline-offset:2px;}',
+      '@media (max-width:560px){.asg-o-row{grid-template-columns:1fr;gap:8px;}.asg-o-label{padding-top:0;}}',
+      '@media (prefers-reduced-motion:reduce){.asg-opts *{transition:none!important;}}',
+      '.asg-pf-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}',
+      '.asg-pf-row select{flex:1;min-width:160px;}',
+      '.asg-pf-del:hover{color:var(--asg-critical,#d92b2b);border-color:var(--asg-critical,#d92b2b);}',
+      '#asg-set-profiles{margin:0 0 18px;padding:0 0 16px;border-bottom:1px solid var(--asg-border,#e1e4e9);}',
+      '.asg-story-side{display:grid;gap:6px;justify-items:end;align-content:start;}',
+      '.asg-chip.is-ok{background:var(--asg-ok-soft,#e8f7ee);color:var(--asg-ok,#17864a);border-color:transparent;}',
+      '.asg-chip.is-bad{background:#fdecec;color:var(--asg-critical,#d92b2b);border-color:transparent;}',
+      '.asg-chip.is-warn{background:var(--asg-warn-soft,#fff5e6);color:var(--asg-warn,#c47a00);border-color:transparent;}',
+      '.asg-story:has(input:disabled){opacity:.6;}',
+      '.asg-opt-auto{border-style:dashed;}',
+      '.asg-cons-card{border:1px solid var(--asg-border,#e1e4e9);border-radius:12px;padding:14px 16px;margin:0 0 12px;background:var(--asg-bg,#fff);}',
+      '.asg-cons-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 8px;}',
+      '.asg-cons-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--asg-border,#e1e4e9);}',
+      '.asg-cons-row:first-of-type{border-top:0;}',
+      '.asg-cons-title{flex:1 1 280px;font-size:14px;line-height:1.4;}',
+      '.asg-cons-src{color:var(--asg-text-dim,#8a94a3);font-size:12.5px;}',
+      '.asg-cons-move{font-size:12.5px;padding:4px 8px;max-width:220px;}',
+      '.asg-opt-auto.is-on{border-style:solid;}',
+      '.asg-dial.is-auto{opacity:.5;}',
+      '.asg-rec{color:var(--asg-accent,#2a4fd6);font-size:12.5px;}',
+      '.asg-alt-titles{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 10px;font-size:12.5px;color:var(--asg-text-muted,#5b6471);}',
+      '.asg-alt-titles button{max-width:100%;text-align:left;}',
+      '.asg-viral{padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:700;white-space:nowrap;}',
+      '.asg-viral.is-high{background:var(--asg-text,#1a1d23);color:#fff;}.asg-viral.is-mid{background:var(--asg-bg-muted,#eef1f6);color:var(--asg-text,#1a1d23);}.asg-viral.is-low{background:var(--asg-bg-muted,#eef1f6);color:var(--asg-text-muted,#5b6471);}',
+      '.asg-viral-detail{margin-top:6px;font-size:12px;color:var(--asg-text-muted,#5b6471);}',
+      '.asg-viral-sim{margin-top:3px;font-size:12px;color:var(--asg-text-dim,#8a94a3);}.asg-viral-sim a{color:var(--asg-accent,#2a4fd6);}',
+      '.asg-feed-tools{margin:16px 0 0;padding:14px 16px;border:1px solid var(--asg-border,#e1e4e9);border-radius:12px;background:var(--asg-bg-soft,#f7f8fa);display:grid;gap:8px;}',
+      '.asg-ft-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}',
       '.asg-topic-rows{display:grid;gap:8px;margin:8px 0;}',
       '.asg-topic-row{display:grid;grid-template-columns:1.2fr .5fr 2.2fr 34px;gap:8px;align-items:center;}',
       '.asg-topic-head{font-size:12px;font-weight:600;color:var(--asg-text-dim,#8a94a3);}',
@@ -2683,13 +3791,17 @@
 
   function openSettings() {
     $('#asg-settings-drawer').hidden = false;
+    renderProfileBar();
     $('#asg-set-yt').value = state.settings.youtubeKey || '';
     $('#asg-set-provider').value = state.settings.llmProvider || 'gemini';
     $('#asg-set-gemini').value = state.settings.geminiKey || '';
     var gm = $('#asg-set-gemini-model'); if (gm) gm.value = state.settings.geminiModel || '';
     var rq = $('#asg-set-require2'); if (rq) rq.checked = !!state.settings.requireSecond;
     var dp = $('#asg-set-depth'); if (dp) dp.checked = state.settings.depth !== false;
+    var mw = $('#asg-set-madewith'); if (mw) mw.checked = state.settings.madeWith !== false;
     var fb = $('#asg-set-fallback'); if (fb) fb.checked = state.settings.fallbackProviders !== false;
+    var stg = $('#asg-set-strategy'); if (stg) stg.value = state.settings.strategy || 'value';
+    var wb = $('#asg-set-writebest'); if (wb) wb.checked = state.settings.writeBest !== false;
     var wm = $('#asg-set-gemini-write-model'); if (wm) wm.value = state.settings.geminiWriteModel || '';
     $('#asg-set-openai').value = state.settings.openaiKey || '';
     $('#asg-set-deepseek').value = state.settings.deepseekKey || '';
@@ -2779,7 +3891,7 @@
    * -> real-time canvas + audio recording to MP4/WebM, all in the browser.
    * Finished media is stored in this browser (IndexedDB) next to the scripts.
    * ===================================================================== */
-  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true };
+  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true, callouts: true, endcard: true, banner: true };
   var BUILTIN_VOICES = [['am_echo', 'Echo · en-us · Male'], ['am_liam', 'Liam · en-us · Male'], ['af_heart', 'Heart · en-us · Female']];
   var STOCK = { pixabay: { name: 'Pixabay', keyField: 'pixabayKey' }, pexels: { name: 'Pexels', keyField: 'pexelsKey' } };
   function vopt() {
@@ -3013,10 +4125,19 @@
 
   /* ---------- timeline: sentences, scenes, caption chunks ---------- */
   function buildTimeline(parts) {
-    var rate = parts[0].rate, GAP = 0.2, LEAD = 0.35, TAIL = 0.9, t = LEAD, items = [];
+    var rate = parts[0].rate, GAP = 0.15, LEAD = 0.3, TAIL = 0.9, t = LEAD, items = [];
+    // Trim the near-silent lead-in and tail the voice adds to every sentence: it is what sounds like dead air.
+    function trimSilence(a, r) {
+      if (!a || !a.subarray) return a;
+      var th = 0.012, keep = Math.round(r * 0.05), st = 0, en = a.length;
+      while (st < en && Math.abs(a[st]) < th) st++;
+      while (en > st && Math.abs(a[en - 1]) < th) en--;
+      st = Math.max(0, st - keep); en = Math.min(a.length, en + keep);
+      return en - st > r * 0.25 ? a.subarray(st, en) : a;
+    }
     parts.forEach(function (p) {
-      var dur = p.samples.length / p.rate;
-      items.push({ text: p.text, start: t, end: t + dur, samples: p.samples });
+      var smp = trimSilence(p.samples, p.rate), dur = smp.length / p.rate;
+      items.push({ text: p.text, start: t, end: t + dur, samples: smp });
       t += dur + GAP;
     });
     var total = t - GAP + TAIL;
@@ -3242,6 +4363,82 @@
       });
     });
   }
+  // On-screen key-fact callouts: shown when the phrase they are tied to is spoken. A callout whose phrase is not found
+  // (the narration was edited) is simply left out.
+  function bannerText(sc, o) {
+    if (o.banner === false) return '';
+    var t = String(sc.banner || '').trim() || (String(sc.title || '').length <= 60 ? String(sc.title || '').replace(/\s*#\w+/g, '').trim() : '');
+    return t.slice(0, 80);
+  }
+  function drawBanner(ctx, W, H, text, now) {
+    var end = 3.2, t = now;
+    if (!text || t > end) return;
+    var a = Math.max(0, Math.min(1, t / 0.2, (end - t) / 0.35)), fs = Math.round(W * 0.07), family = 'system-ui,"Segoe UI",Roboto,Arial,sans-serif';
+    ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '900 ' + fs + 'px ' + family;
+    var maxW = W * 0.84, words = text.split(' '), lines = [], cur = '';
+    words.forEach(function (w) { var tt = cur ? cur + ' ' + w : w; if (cur && ctx.measureText(tt).width > maxW) { lines.push(cur); cur = w; } else cur = tt; });
+    if (cur) lines.push(cur);
+    lines = lines.slice(0, 3);
+    var lh = fs * 1.2, bh = lines.length * lh + fs * 0.8, bw = Math.min(W * 0.92, Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l).width; })) + fs * 1.1), cy = H * 0.24;
+    rrect(ctx, W / 2 - bw / 2, cy - bh / 2, bw, bh, fs * 0.35); ctx.fillStyle = 'rgba(0,0,0,.58)'; ctx.fill();
+    lines.forEach(function (l, i) { var y = cy - bh / 2 + fs * 0.4 + lh * (i + 0.5); ctx.fillStyle = '#fff'; ctx.fillText(l, W / 2, y); });
+    ctx.restore();
+  }
+  function calloutTimes(tl, list, minStart) {
+    var out = [];
+    if (!Array.isArray(list) || !list.length) return out;
+    var words = [];
+    function nw(x) { return String(x).toLowerCase().replace(/[^a-z0-9%$]/g, ''); }
+    tl.chunks.forEach(function (c) { c.words.forEach(function (w) { words.push({ n: nw(w.w), s: w.s }); }); });
+    var last = -9;
+    list.slice(0, 3).forEach(function (c) {
+      var at = plainWords(c.at).split(' ').map(nw).filter(Boolean), at0 = -1, i, j;
+      if (!c.text || !at.length) return;
+      for (i = 0; i <= words.length - at.length && at0 < 0; i++) { var ok = true; for (j = 0; j < at.length; j++) { if (words[i + j].n !== at[j]) { ok = false; break; } } if (ok) at0 = i; }
+      if (at0 < 0) { var key = at.filter(function (x) { return x.length >= 4 || /\d/.test(x); })[0]; if (key) for (i = 0; i < words.length; i++) if (words[i].n === key) { at0 = i; break; } }
+      if (at0 < 0) return;
+      var st = Math.max(minStart || 0.5, words[at0].s - 0.15);
+      if (st - last < 3.2) st = last + 3.2;
+      if (st + 1.2 > tl.total - 4.2) return;
+      out.push({ text: String(c.text), s: st, e: st + 2.8 }); last = st;
+    });
+    return out;
+  }
+  function rrect(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function drawCallout(ctx, W, H, c, now) {
+    var t = now - c.s, d = c.e - c.s;
+    if (t < 0 || t > d) return;
+    var a = Math.max(0, Math.min(1, t / 0.25, (d - t) / 0.3)), k = 0.92 + 0.08 * Math.min(1, t / 0.25);
+    var fs = Math.round(W * 0.085), padX = fs * 0.55, family = 'system-ui,"Segoe UI",Roboto,Arial,sans-serif', tw;
+    ctx.save(); ctx.globalAlpha = a; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.font = '900 ' + fs + 'px ' + family; tw = ctx.measureText(c.text).width;
+    while (tw > W * 0.88 - padX * 2 && fs > W * 0.04) { fs -= 2; ctx.font = '900 ' + fs + 'px ' + family; tw = ctx.measureText(c.text).width; }
+    var bw = tw + padX * 2, bh = fs * 1.7;
+    ctx.translate(W / 2, H * 0.27); ctx.scale(k, k);
+    ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = fs * 0.3;
+    rrect(ctx, -bw / 2, -bh / 2, bw, bh, bh * 0.22); ctx.fillStyle = '#ffd400'; ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#111'; ctx.fillText(c.text, 0, 2);
+    ctx.restore();
+  }
+  function drawEndcard(ctx, W, H, tl, now) {
+    var lastIt = tl.items[tl.items.length - 1], start = Math.max((lastIt ? lastIt.start : tl.total) - 0.2, tl.total - 4.2), t = now - start;
+    if (t < 0 || now > tl.total - 0.05) return;
+    var a = Math.min(1, t / 0.3), fs = Math.round(W * 0.042), family = 'system-ui,"Segoe UI",Roboto,Arial,sans-serif';
+    var labels = [['Like', '#ffffff', '#111'], ['Comment', '#ffffff', '#111'], ['Subscribe', '#ff1a3c', '#fff']];
+    ctx.save(); ctx.globalAlpha = a; ctx.textBaseline = 'middle'; ctx.textAlign = 'center'; ctx.font = '800 ' + fs + 'px ' + family;
+    var gap = fs * 0.5, padX = fs * 0.8, ws = labels.map(function (l) { return ctx.measureText(l[0]).width + padX * 2; });
+    var total = ws.reduce(function (x, y) { return x + y; }, 0) + gap * (labels.length - 1), x = (W - total) / 2, y = H * 0.82, bh = fs * 1.9;
+    labels.forEach(function (l, i) {
+      ctx.save(); var cx = x + ws[i] / 2; ctx.translate(cx, y);
+      if (i === 2) { var k = 1 + 0.045 * Math.sin(t * 6); ctx.scale(k, k); }
+      rrect(ctx, -ws[i] / 2, -bh / 2, ws[i], bh, bh / 2); ctx.fillStyle = l[1]; ctx.fill();
+      ctx.fillStyle = l[2]; ctx.fillText(l[0], 0, 2); ctx.restore();
+      x += ws[i] + gap;
+    });
+    ctx.restore();
+  }
   function renderVideo(tl, opts, onProgress, canvasHost, run) {
     var mimes = pickMimes();
     if (!mimes) return Promise.reject(new Error('This browser cannot record video. Use a current Chrome, Edge or Safari.'));
@@ -3306,6 +4503,9 @@
         var g2 = ctx.createLinearGradient(0, 0, 0, H * 0.18); g2.addColorStop(0, 'rgba(0,0,0,.4)'); g2.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H * 0.18);
         var ch = chunkAt(now); if (ch) drawCaption(ctx, W, H, ch, now);
+        if (opts.banner) drawBanner(ctx, W, H, opts.banner, now);
+        (opts.callouts || []).forEach(function (c) { drawCallout(ctx, W, H, c, now); });
+        if (opts.endcard) drawEndcard(ctx, W, H, tl, now);
         if (usedVideo && opts.tag) {
           ctx.font = '600 ' + Math.round(W * 0.028) + 'px system-ui,Arial,sans-serif'; ctx.textBaseline = 'top'; ctx.fillStyle = 'rgba(255,255,255,.85)';
           ctx.fillText('Illustrative footage', W * 0.045, H * 0.03);
@@ -3333,13 +4533,14 @@
     var disc = state.profile && state.profile.constraints && state.profile.constraints.requiredDisclosure;
     var desc = String(sc.description || '').trim();
     if (disc && desc.toLowerCase().indexOf(String(disc).toLowerCase()) < 0) desc += '\n\n' + disc;
+    if (state.settings.madeWith !== false) desc += '\n\nMade with Autonom Newsreel: ' + APP_URL;
     if (credits && credits.length) desc += '\n\nStock footage: ' + (provider || 'Pixabay') + ' (' + credits.join(', ') + ')';
     if (!/#shorts/i.test(desc)) desc += '\n\n#Shorts';
     var tags = (sc.tags || []).map(cleanTag).filter(Boolean);
     if (tags.map(function (t) { return t.toLowerCase(); }).indexOf('shorts') < 0) tags.push('Shorts');
-    return { title: title, description: desc, tags: tags };
+    return { title: title, description: desc, tags: tags, pinned: String(sc.pinned || sc.cta || '').trim() };
   }
-  function uploadText(m) { return 'TITLE\n' + m.title + '\n\nDESCRIPTION\n' + m.description + '\n\nTAGS\n' + m.tags.join(', ') + '\n'; }
+  function uploadText(m) { return 'TITLE\n' + m.title + '\n\nDESCRIPTION\n' + m.description + '\n\nTAGS\n' + m.tags.join(', ') + (m.pinned ? '\n\nPINNED COMMENT (post and pin it after upload)\n' + m.pinned : '') + '\n'; }
   function slugOf(sc, i) {
     var s = String(sc.title || sc.storyTitle || 'short').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'short';
     return (i + 1 < 10 ? '0' : '') + (i + 1) + '-' + s;
@@ -3425,6 +4626,14 @@
     var tc = el('input', { type: 'checkbox', id: 'asg-vid-tag' }); tc.checked = !!o.tag;
     fr.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [tc, 'Show an "Illustrative footage" label']));
     box.appendChild(fr);
+    var fr2 = el('div', { class: 'asg-vid-row' });
+    var cc = el('input', { type: 'checkbox', id: 'asg-vid-callouts' }); cc.checked = o.callouts !== false;
+    fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [cc, 'Key-fact callouts on screen']));
+    var ec = el('input', { type: 'checkbox', id: 'asg-vid-endcard' }); ec.checked = o.endcard !== false;
+    fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [ec, 'Like · Comment · Subscribe at the end']));
+    var bc = el('input', { type: 'checkbox', id: 'asg-vid-banner' }); bc.checked = o.banner !== false;
+    fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [bc, 'Headline banner in the first seconds']));
+    box.appendChild(fr2);
     var keyNote = el('p', { class: 'asg-vid-note' });
     var syncKey = function () {
       var p = STOCK[stockProvider()];
@@ -3441,7 +4650,7 @@
     var save = function () {
       var v = vopt();
       v.voice = voiceSel.value || v.voice; v.speed = Math.min(1.3, Math.max(0.7, parseFloat($('#asg-vid-speed').value) || 1));
-      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked;
+      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked; v.callouts = cc.checked; v.endcard = ec.checked; v.banner = bc.checked;
       persistSettings();
     };
     box.addEventListener('change', save);
@@ -3453,7 +4662,7 @@
     });
     return box;
   }
-  function field(label, value, rows) {
+  function vidField(label, value, rows) {
     var f = el('div', { class: 'asg-vid-field' });
     f.appendChild(el('label', { text: label }));
     var inp = rows ? el('textarea', { readonly: 'readonly', style: 'min-height:' + rows + 'px;' }) : el('input', { type: 'text', readonly: 'readonly' });
@@ -3505,10 +4714,14 @@
     else if (rec.plain) notes.push(rec.plain + ' scene' + (rec.plain === 1 ? '' : 's') + ' without footage');
     side.appendChild(el('p', { class: 'asg-vid-note', style: 'margin:0 0 10px;', text: notes.join(' · ') }));
     var m = uploadMeta(sc, rec.credits, rec.provider);
-    side.appendChild(field('Title', m.title)); side.appendChild(field('Description', m.description, 150)); side.appendChild(field('Tags', m.tags.join(', ')));
-    var del = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Delete this video' });
-    del.addEventListener('click', function () { dbDel('media', rec.id).then(function () { host.innerHTML = ''; setStatus(card, 'Video deleted.', ''); refreshStorageNote(); }); });
-    side.appendChild(del);
+    side.appendChild(vidField('Title', m.title)); side.appendChild(vidField('Description', m.description, 150)); side.appendChild(vidField('Tags', m.tags.join(', '))); if (m.pinned) side.appendChild(vidField('Pinned comment (post and pin it)', m.pinned));
+    var del = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-del', type: 'button', text: '🗑 Delete this video' });
+    del.addEventListener('click', function () {
+      if (vidBusy) return;
+      if (!confirm('Delete this video from this browser? The script stays.')) return;
+      Promise.all([dbDel('media', rec.id), dbDel('parts', rec.id)]).then(function () { host.innerHTML = ''; setStatus(card, 'Video deleted. The script is kept, so you can make it again.', ''); refreshStorageNote(); });
+    });
+    links.appendChild(del);
     host.appendChild(el('div', { class: 'asg-vid-preview' }, [player, side]));
     var pe = planEditor(sc, card, rec); if (pe) host.appendChild(pe);
   }
@@ -3579,7 +4792,7 @@
     }).then(function () {
       if (run.cancelled) throw cancelError();
       setStage('record'); setBar(0.8); setStatus(card, 'Recording the video (' + Math.round(tl.total) + ' s). Keep this tab open and visible.');
-      return renderVideo(tl, { w: W, h: H, tag: !!o.tag && info.footage !== 'plain' }, function (p) { setBar(0.8 + 0.2 * p); }, $('.asg-vid-live', card), run);
+      return renderVideo(tl, { w: W, h: H, tag: !!o.tag && info.footage !== 'plain', callouts: o.callouts !== false ? calloutTimes(tl, sc.callouts, bannerText(sc, o) ? 3.4 : 0.5) : [], endcard: o.endcard !== false, banner: bannerText(sc, o) }, function (p) { setBar(0.8 + 0.2 * p); }, $('.asg-vid-live', card), run);
     }).then(function (res) {
       $('.asg-vid-live', card).innerHTML = '';
       var rec = {
@@ -3731,6 +4944,8 @@
       if (!input) { toast('Enter a channel handle or URL.', 'error'); return; }
       var btn = this; btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Fetching…';
       fetchYouTube(input).then(function (p) {
+        var ex = state.profiles.filter(function (x) { return x.source && p.source && x.source.channelId && x.source.channelId === p.source.channelId; })[0];
+        if (ex) p.id = ex.id;
         state.profile = p; persistProfile(); renderProfile(); updateStepAvailability();
         toast('Profile derived', 'success');
       }).catch(function (e) { LOG('YT error', e); toast(e.message, 'error'); })
@@ -3757,7 +4972,7 @@
         schemaVersion: '1.0', id: 'tp_' + Date.now().toString(36), name: name,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         source: { mode: 'manual', language: 'en' },
-        identity: { oneLiner: oneLiner, positioning: oneLiner, audienceHint: '' },
+        identity: { oneLiner: oneLiner, positioning: oneLiner, audienceHint: '', dna: '' },
         topics: topics,
         tone: { style: tone, energy: 'urgent', formality: 'neutral-brief', pov: 'analyst', avoid: ['clickbait hyperbole'] },
         format: mfmt,
@@ -3781,9 +4996,14 @@
     $('#asg-continue-scripts').addEventListener('click', function () {
       var n = Object.keys(state.selectedStoryIds).length;
       if (!n) { toast('Tick at least one story first.', 'error'); return; }
-      setStep('generate');
+      setStep(n > 1 ? 'consolidate' : 'generate');
     });
+    var cn = $('#asg-cons-next'); if (cn) cn.addEventListener('click', function () { setStep('generate'); });
+    var cb0 = $('#asg-cons-back'); if (cb0) cb0.addEventListener('click', function () { setStep('feed'); });
+    var cr = $('#asg-cons-run'); if (cr) cr.addEventListener('click', function () { runConsolidation(groupsFor(selectedList())); });
+    var bc = $('#asg-back-cons'); if (bc) bc.addEventListener('click', function () { setStep(Object.keys(state.selectedStoryIds).length > 1 ? 'consolidate' : 'feed'); });
     $('#asg-generate-btn').addEventListener('click', function () { generateScripts(); });
+    var stopB = $('#asg-stop-btn'); if (stopB) stopB.addEventListener('click', function () { if (genRun) genRun.stop(); });
     $('#asg-back-feed').addEventListener('click', function () { setStep('feed'); });
     $('#asg-back-generate').addEventListener('click', function () { setStep('generate'); });
     $('#asg-continue-video').addEventListener('click', function () { setStep('video'); });
@@ -3854,7 +5074,10 @@
       if (gm) state.settings.geminiModel = gm.value.trim();
       var rq2 = $('#asg-set-require2'); if (rq2) state.settings.requireSecond = !!rq2.checked;
       var dp2 = $('#asg-set-depth'); if (dp2) state.settings.depth = !!dp2.checked;
+      var mw2 = $('#asg-set-madewith'); if (mw2) state.settings.madeWith = !!mw2.checked;
       var fb2 = $('#asg-set-fallback'); if (fb2) state.settings.fallbackProviders = !!fb2.checked;
+      var stg2 = $('#asg-set-strategy'); if (stg2) { state.settings.strategy = stg2.value || 'value'; discovered = {}; }
+      var wb2 = $('#asg-set-writebest'); if (wb2) state.settings.writeBest = !!wb2.checked;
       var wm2 = $('#asg-set-gemini-write-model'); if (wm2) state.settings.geminiWriteModel = wm2.value.trim();
       state.settings.openaiKey = $('#asg-set-openai').value.trim();
       state.settings.deepseekKey = $('#asg-set-deepseek').value.trim();
@@ -3873,7 +5096,7 @@
   }
   function init() {
     if (!$('.asg-root')) return;
-    loadState(); ensureModalStyle(); bind(); updateCounters(); updateApiStatus();
+    loadState(); ensureModalStyle(); bind(); renderProfileBar(); updateCounters(); updateApiStatus();
     if (state.profile) {
       renderProfile(); updateStepAvailability();
       if (state.scripts.length) renderScripts();
