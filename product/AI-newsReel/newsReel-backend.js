@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.21.1';
+  var VERSION = '1.28.1';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -47,7 +47,7 @@
     stories: [],
     selectedStoryIds: {},
     scripts: [],
-    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, madeWith: true, autoLen: true, autoLens: true, autoHook: true, strategy: 'value', writeBest: true, lens: 'between', hook: 'event', fallbackProviders: true, pixabayKey: '', pexelsKey: '', stockProvider: 'pixabay', groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
+    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, madeWith: true, autoLen: true, publishWebhook: '', publishSecret: '', publishPlatforms: ['youtube', 'instagram', 'facebook', 'tiktok', 'x', 'linkedin', 'telegram'], autoLens: true, autoHook: true, strategy: 'value', writeBest: true, lens: 'between', hook: 'event', fallbackProviders: true, pixabayKey: '', pexelsKey: '', stockProvider: 'pixabay', groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
     counters: { apiCalls: 0, llmCalls: 0 },
     feedReadable: true,
     feedHideUsed: true,
@@ -198,7 +198,7 @@
     setTimeout(function () { t.classList.remove('is-on'); setTimeout(function () { t.remove(); }, 320); }, ms || (kind === 'error' ? 9000 : 5000));
   }
   function setStep(step) {
-    var order = ['channel', 'feed', 'consolidate', 'generate', 'scripts', 'video', 'export'];
+    var order = ['channel', 'feed', 'consolidate', 'generate', 'scripts', 'video', 'publish', 'export'];
     state.step = step;
     $$('.asg-panel').forEach(function (p) { p.hidden = p.dataset.panel !== step; });
     $$('.asg-step').forEach(function (s) {
@@ -210,6 +210,7 @@
     if (step === 'consolidate') renderConsolidate();
     if (step === 'generate') renderGenerateStatus();
     if (step === 'video') renderVideoPanel();
+    if (step === 'publish') renderPublish();
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
   }
   function updateStepAvailability() {
@@ -224,6 +225,7 @@
       else if (st === 'generate') s.disabled = !hasStories;
       else if (st === 'scripts') s.disabled = !state.scripts.length;
       else if (st === 'video') s.disabled = !hasScripts;
+      else if (st === 'publish') s.disabled = !hasScripts;
       else if (st === 'export') s.disabled = !hasScripts;
     });
   }
@@ -496,7 +498,7 @@
   function renderProfileBar() {
     var box = document.getElementById('asg-set-profiles'); if (!box) return;
     box.innerHTML = '';
-    var btn = $('.asg-open-settings.asg-btn-pill'); if (btn) btn.textContent = '⚙ ' + (state.profile && state.profile.name ? state.profile.name : 'Profiles & keys');
+    var btn = $('.asg-open-settings.asg-btn-pill'); if (btn) { var nm = state.profile && state.profile.name; btn.innerHTML = ''; btn.appendChild(el('span', { class: 'asg-pill-k', text: 'Profile' })); btn.appendChild(el('span', { class: 'asg-pill-name', text: nm || 'Set up profile & keys' })); btn.appendChild(el('span', { 'aria-hidden': 'true', text: '▾' })); btn.title = 'Switch profile, add API keys, change settings'; }
     box.appendChild(el('span', { class: 'asg-label', text: 'Profile' }));
     if (!state.profiles.length) {
       box.appendChild(el('p', { class: 'asg-hint', text: 'No profile yet. Create one in the Channel step. Each profile keeps its own topics, API keys, scripts and videos.' }));
@@ -605,7 +607,7 @@
     if (d) return d;
     return 'Voice: ' + ((p.tone && p.tone.style) || 'analytical') + ', ' + ((p.tone && p.tone.energy) || 'urgent') + '. Positioning: ' + ((p.identity && (p.identity.positioning || p.identity.oneLiner)) || p.name) + '.';
   }
-  function suggestDna(p) {
+  function suggestDna(p, pages) {
     var smp = (p.identity && p.identity.samples) || {};
     var lines = [
       'Write the "voice DNA" of a faceless news-explainer channel, so its scripts sound like it and nobody else.',
@@ -615,6 +617,7 @@
     ];
     if (smp.titles && smp.titles.length) lines.push('RECENT TITLES: ' + smp.titles.join(' | '));
     if (smp.top && smp.top.length) lines.push('BEST PERFORMING TITLES: ' + smp.top.join(' | '));
+    if (pages && pages.length) { lines.push('', 'TEXT FROM THE BRAND\'S OWN PAGES (use it for voice, stance and what the brand stands for; ignore menus and boilerplate):'); pages.forEach(function (g) { lines.push('[' + g.k + '] ' + g.text); }); }
     lines.push('', 'Return 4 to 6 short lines, one per label: "Voice:" (how sentences sound: rhythm, register, humour or none), "Stance:" (the angle or worldview this channel brings to news: what it cares about, what it is sceptical of), "Signature:" (1-2 recurring moves, e.g. who pays, what is missing, the historical echo), "Never:" (what it avoids). Base it ONLY on the information above. Do not invent a biography, credentials or facts.',
       'Return STRICT JSON only: {"dna":"Voice: ...\nStance: ...\nSignature: ...\nNever: ..."}');
     return callLLM(lines.join('\n'), 'write').then(function (r) { var j = extractJson(r.text); return String(j.dna || '').trim(); });
@@ -896,7 +899,11 @@
     var t = String(s.title || '') + ' ' + String(s.summary || ''), l = t.toLowerCase();
     var big = /\b(US|U\.S\.|UK|EU|UN)\b/.test(t) || /\b(united states|america\w*|china|chinese|russia\w*|iran\w*|israel\w*|nato|european union|trump|putin|xi jinping|biden|federal reserve|ukrain\w*|taiwan|opec|north korea|kim jong|white house|pentagon|kremlin|beijing|moscow|washington)\b/.test(l);
     var glob = /\b(oil|gas|energy|trade|tariffs?|sanctions?|chips?|semiconductors?|shipping|hormuz|suez|nuclear|inflation|prices?|markets?|dollar|war|strikes?|missiles?|ceasefire|talks|summit|election\w*|midterms?|economy|currency|supply)\b/.test(l);
-    return { score: (big ? 1 : 0) + (glob ? 1 : 0), big: big, glob: glob };
+    // Shorts viewers swipe past procedure and stay for conflict, hidden layers and tangible stakes (from the channel's own Studio data).
+    var unseen = /\b(secret\w*|covert|hidden|deepfakes?|bots?|surveillance|spies|spy|leak\w*|shadow|undercover|drones?|cyber\w*|hack\w*|sabotage)\b/.test(l);
+    var proc = !big && /\b(prosecutors?|probe|investigat\w*|court|hearing|polls open|ballots?|commission|parliament\w*)\b/.test(l);
+    var conseq = /\b(blackouts?|outages?|shortages?|prices?|fuel|oil|flights?|evacuat\w*|shut ?downs?|blockade|layoffs?|jobs|recession|bans?|banned|killed|dead|collapse\w*|sanctions?|tariffs?)\b/.test(l);
+    return { score: (big ? 1 : 0) + (glob ? 1 : 0), big: big, glob: glob, unseen: unseen, proc: proc, conseq: conseq };
   }
   function viralOf(s) {
     var maxScore = Math.max.apply(null, state.stories.map(function (x) { return x.score; }).concat([1]));
@@ -907,7 +914,11 @@
     var score = d ? 0.45 * dem + 0.2 * cov + 0.15 * fresh + 0.2 * fit : 0.4 * cov + 0.3 * fresh + 0.3 * fit;
     var stk = stakesOf(s);
     score = stk.score === 0 ? score * 0.78 : stk.score === 2 ? Math.min(100, score * 1.05) : score;
-    return { score: Math.round(score), fit: fit, fresh: fresh, cn: cn, dem: dem, d: d, real: !!d, stakes: stk.score };
+    // Hook angle: what Shorts viewers stay for (a hidden layer, a tangible consequence) and what they swipe past (procedure).
+    var ang = (stk.unseen ? 6 : 0) + (stk.conseq ? 5 : 0) - (stk.proc ? 8 : 0);
+    score = clampN(score + ang, 0, 100);
+    var angLabel = [stk.unseen ? 'hidden layer' : '', stk.conseq ? 'tangible consequence' : '', stk.proc ? 'procedural story' : ''].filter(Boolean).join(' + ');
+    return { score: Math.round(score), fit: fit, fresh: fresh, cn: cn, dem: dem, d: d, real: !!d, stakes: stk.score, ang: ang, angLabel: angLabel };
   }
   function viralLevel(n) { return n >= 70 ? 'high' : n >= 45 ? 'mid' : 'low'; }
   function fmtViews(n) { return n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
@@ -1110,6 +1121,7 @@
       parts.push('Coverage ' + v.cn + (v.cn === 1 ? ' outlet' : ' outlets'));
       var h = ageHours(s); if (h != null && !isNaN(h)) parts.push(h < 1 ? 'under 1 h old' : h < 48 ? Math.round(h) + ' h old' : Math.round(h / 24) + ' days old');
       parts.push('Fit ' + v.fit);
+      if (v.angLabel) parts.push('Hook angle: ' + v.angLabel + ' (' + (v.ang > 0 ? '+' : '') + v.ang + ')');
       body.appendChild(el('div', { class: 'asg-viral-detail', text: parts.join(' · ') }));
       if (v.real && v.d.top && v.d.top.length) {
         var sim = el('div', { class: 'asg-viral-sim' }); sim.appendChild(document.createTextNode('Similar Shorts: '));
@@ -1190,6 +1202,9 @@
     if (p === 'deepseek') return state.settings.deepseekKey;
     if (p === 'groq') return state.settings.groqKey;
     if (p === 'openrouter') return state.settings.openrouterKey;
+    if (p === 'cerebras') return state.settings.cerebrasKey;
+    if (p === 'nvidia') return state.settings.nvidiaKey;
+    if (p === 'mistral') return state.settings.mistralKey;
     return '';
   }
 
@@ -1681,7 +1696,13 @@
     ]);
     if (HOOKS[hookKind].rule) lines.push(HOOKS[hookKind].rule);
     lines.push('');
+    lines.push('HOOK CRAFT (the first 2 seconds decide whether anyone stays)');
+    lines.push('- The hook is the first frame: no greeting, no setup, no outlet. Someone who has never heard of the story must understand who did what and why they should care, in under 13 words.');
+    lines.push('- Pick the strongest formula the facts allow: (a) the consequence first ("Tehran just closed the door on talks."), (b) a question the facts answer ("Why would Iran offer to reopen Hormuz now?"), (c) a hidden layer or contrast ("Everyone is watching the front line. The real move is somewhere else."). Leave an open loop that the body pays off.');
+    lines.push('- "alt_hooks": also give two OTHER opening lines in the two formulas you did not use for "hook", each under 14 words, built only from the facts, no outlet names, each one a real alternative a viewer might stop for.');
+    lines.push('');
     lines.push('VOICE AND PACING (this decides whether people keep watching)');
+    lines.push('- Pace: short spoken sentences, mostly 6 to 14 words, none above 20. One idea per sentence. A new beat (a turn, a name, a number, a contrast) at least every two sentences. No filler (basically, essentially, in fact).');
     lines.push('- Speak as the channel: plain, confident, human. A person explaining what they found, not a wire report. Short sentences, spoken rhythm.');
     lines.push('- State every fact ONCE. Do not repeat a number, name or claim in the body, the analysis or the CTA, and do not circle back with a recap.');
     lines.push('- The headline fact (or the question) comes in the first sentence of the hook. Nothing before it. Never start the hook with an outlet name or "according to": open with the event and why it matters to someone who has never heard of the story.');
@@ -1702,7 +1723,7 @@
     } else {
       lines.push('7. (no analysis section)');
     }
-    lines.push('8. CTA: one specific question that invites viewers to take a side.');
+    lines.push('8. CTA: one specific question that invites viewers to take a side AND echoes the key word or idea of your hook, so the ending flows straight back into the opening (viewers who replay it count as extra views). Never a goodbye: no "thanks for watching", "follow for more", "see you", "like and subscribe".');
     lines.push('');
     lines.push('HARD RULES');
     lines.push('- Every number, date, name and place must come from the facts above. Never add outside facts, quotes or statistics.');
@@ -1734,10 +1755,11 @@
     lines.push('CALLOUTS (field "callouts", 0 to 3 items): the key figure, date or name viewers should see on screen at the moment it is spoken. "text": at most 4 words copied from the facts (for example "50% tariffs" or "Oct 30"). "at": 3 to 6 consecutive words copied exactly, in order, from your hook or body at the point it is spoken. Only for figures or names that are in the facts. Use an empty list if nothing fits.');
     lines.push('');
     lines.push('HEADLINE BANNER (field "banner"): the story\'s core tension or question in 4 to 9 plain words, shown in large text over the first three seconds for viewers watching on mute. Built only from the facts, no outlet name.');
+    lines.push('TAG RULES: tags name this story\'s own subject: the people, places, institutions and topic (for example Trump, Economy, Inflation, Midterms). Never reuse the channel\'s usual tags unless the story is about that topic. No generic filler such as geopolitics or global strategy on a story that is not about it.');
     lines.push('TITLE RULES: the title must make sense to a stranger who sees nothing else: name the main actor and the event in plain words, with no unexplained product names, jargon or metaphors (avoid words like stalemate, chess, tightrope). If the story is regional, put the wider stake in the title only when the facts state it. Every number, name and place in a title must come from the facts. No all caps, no emoji, no "shocking", no promise the video does not keep. Prefer a specific named subject plus the open question or the tension. "alt_titles" are two different options, not rewordings of one another.');
     lines.push('');
     lines.push('Return STRICT JSON only:');
-    lines.push('{"hook":"...","body":"WHAT HAPPENED + BACKGROUND + WHO SAYS WHAT + WHY IT MATTERS + WHAT TO WATCH as one flowing narration","analysis":"","cta":"...","title":"the best title: specific and catchy, under 60 characters, built only from the facts. A question works when the outcome is open (for example Is [Entity] Ready For [Event]?)","banner":"...","pinned_comment":"...","callouts":[{"text":"...","at":"..."}],"alt_titles":[{"style":"match","text":"plain, factual, in the channel tone"},{"style":"engaging","text":"the most curiosity-driving framing that the facts still fully support: a question or a tension between two facts"}],"description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
+    lines.push('{"hook":"...","alt_hooks":[{"style":"consequence|question|hidden","text":"..."},{"style":"consequence|question|hidden","text":"..."}],"body":"WHAT HAPPENED + BACKGROUND + WHO SAYS WHAT + WHY IT MATTERS + WHAT TO WATCH as one flowing narration","analysis":"","cta":"...","title":"the best title: specific and catchy, under 60 characters, built only from the facts. A question works when the outcome is open (for example Is [Entity] Ready For [Event]?)","banner":"...","pinned_comment":"...","callouts":[{"text":"...","at":"..."}],"alt_titles":[{"style":"match","text":"plain, factual, in the channel tone"},{"style":"engaging","text":"the most curiosity-driving framing that the facts still fully support: a question or a tension between two facts"}],"description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
     return lines.join('\n');
   }
 
@@ -1934,8 +1956,12 @@
 
   var COMPAT = {
     groq: { endpoint: 'https://api.groq.com/openai/v1/chat/completions', keyField: 'groqKey', modelField: 'groqModel', writeField: 'groqWriteModel' },
-    openrouter: { endpoint: 'https://openrouter.ai/api/v1/chat/completions', keyField: 'openrouterKey', modelField: 'openrouterModel', writeField: 'openrouterWriteModel' }
+    openrouter: { endpoint: 'https://openrouter.ai/api/v1/chat/completions', keyField: 'openrouterKey', modelField: 'openrouterModel', writeField: 'openrouterWriteModel' },
+    cerebras: { endpoint: 'https://api.cerebras.ai/v1/chat/completions', keyField: 'cerebrasKey', modelField: 'cerebrasModel', writeField: 'cerebrasWriteModel' },
+    nvidia: { endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions', keyField: 'nvidiaKey', modelField: 'nvidiaModel', writeField: 'nvidiaWriteModel' },
+    mistral: { endpoint: 'https://api.mistral.ai/v1/chat/completions', keyField: 'mistralKey', modelField: 'mistralModel', writeField: 'mistralWriteModel' }
   };
+  var COMPAT_IDS = ['groq', 'openrouter', 'cerebras', 'nvidia', 'mistral'];
   var relayMode = {};
   var noReasonModel = {};
   var discovered = {};
@@ -1988,7 +2014,7 @@
       }, function (e) { if (e && e.fatal) throw e; LOG('gemini model list unavailable:', e && e.message); return []; })
       .catch(function (e) { if (e && e.fatal) throw e; LOG('gemini model list unavailable:', e && e.message); return []; });
   }
-  var LIST_URL = { groq: 'https://api.groq.com/openai/v1/models', openrouter: 'https://openrouter.ai/api/v1/models', openai: 'https://api.openai.com/v1/models', deepseek: 'https://api.deepseek.com/models' };
+  var LIST_URL = { groq: 'https://api.groq.com/openai/v1/models', openrouter: 'https://openrouter.ai/api/v1/models', openai: 'https://api.openai.com/v1/models', deepseek: 'https://api.deepseek.com/models', cerebras: 'https://api.cerebras.ai/v1/models', nvidia: 'https://integrate.api.nvidia.com/v1/models', mistral: 'https://api.mistral.ai/v1/models' };
   function discoverModels(provider, key) {
     if (discovered[provider]) return Promise.resolve(discovered[provider]);
     return fetchWithTimeout(LIST_URL[provider], { headers: { 'Authorization': 'Bearer ' + key } }, 15000)
@@ -2001,6 +2027,8 @@
             return String(pr.prompt) === '0' && String(pr.completion) === '0' && (m.context_length || 0) >= 16000 && m.id.indexOf('openrouter/') !== 0;
           }
           if (provider === 'openai') return /^(gpt|chatgpt|o\d)/i.test(m.id) && !/instruct|codex|pro$/i.test(m.id);
+          if (provider === 'nvidia') return !/embed|rerank|reward|guard|safety|vision|[-_]vl\b|vlm|parse|clip|retriev|translate|code|nemoguard|riva|asr|tts|diffusion|image|audio|speech/i.test(m.id);
+          if (provider === 'mistral') return !/embed|moderation|ocr|codestral|pixtral|voxtral|devstral/i.test(m.id);
           return m.context_window === undefined || (m.context_window || 0) >= 16000;
         }).map(function (m) {
           var l = m.id.toLowerCase();
@@ -2179,7 +2207,7 @@
   var providerDown = {};
   var lastGoodProvider = '';
   function keyFor(p) {
-    var f = { gemini: 'geminiKey', openai: 'openaiKey', deepseek: 'deepseekKey', groq: 'groqKey', openrouter: 'openrouterKey' }[p];
+    var f = { gemini: 'geminiKey', openai: 'openaiKey', deepseek: 'deepseekKey', groq: 'groqKey', openrouter: 'openrouterKey', cerebras: 'cerebrasKey', nvidia: 'nvidiaKey', mistral: 'mistralKey' }[p];
     return f ? String(state.settings[f] || '').trim() : '';
   }
   function callOne(provider, prompt, kind, o) {
@@ -2207,12 +2235,12 @@
     state.counters.llmCalls++; updateCounters();
     var order = [primary];
     if (state.settings.fallbackProviders !== false && !(opts && opts.noFallback)) {
-      ['gemini', 'groq', 'openrouter', 'openai', 'deepseek'].forEach(function (p) { if (p !== primary && keyFor(p)) order.push(p); });
+      ['gemini', 'groq', 'cerebras', 'openrouter', 'nvidia', 'mistral', 'openai', 'deepseek'].forEach(function (p) { if (p !== primary && keyFor(p)) order.push(p); });
     }
     var strat = state.settings.strategy || 'value';
     if (strat !== 'value') {
       // Cheapest first: providers with free tiers, then the cheaper paid one. Best quality first: the large-model providers.
-      var pref = strat === 'cheap' ? ['groq', 'openrouter', 'gemini', 'deepseek', 'openai'] : ['openai', 'gemini', 'deepseek', 'groq', 'openrouter'];
+      var pref = strat === 'cheap' ? ['groq', 'cerebras', 'openrouter', 'nvidia', 'mistral', 'gemini', 'deepseek', 'openai'] : ['openai', 'gemini', 'deepseek', 'mistral', 'nvidia', 'cerebras', 'groq', 'openrouter'];
       var allowAll = state.settings.fallbackProviders !== false && !(opts && opts.noFallback);
       var ord2 = pref.filter(function (p) { return keyFor(p) && (p === primary || allowAll); });
       if (ord2.length) order = ord2;
@@ -2401,7 +2429,7 @@
     }
     var ai = el('div', { style: 'margin-top:4px;' });
     if (llmReady) {
-      var others = ['gemini', 'groq', 'openrouter', 'openai', 'deepseek'].filter(function (p) { return p !== provider && keyFor(p); });
+      var others = ['gemini', 'groq', 'cerebras', 'openrouter', 'nvidia', 'mistral', 'openai', 'deepseek'].filter(function (p) { return p !== provider && keyFor(p); });
       ai.textContent = 'AI: ' + provider + (others.length && state.settings.fallbackProviders !== false ? ' (backup: ' + others.join(', ') + ')' : '') + '. Generating takes a minute or two per story on free plans.';
     } else {
       ai.style.color = '#8a5b00';
@@ -2429,6 +2457,47 @@
       btn.textContent = generating ? 'Generating…' : (state.scripts.length && sel.length ? 'Generate scripts (keep the rest)' : 'Generate scripts');
       var sb = $('#asg-stop-btn'); if (sb) sb.hidden = !generating;
     }
+  }
+  // Rubric for an opening line, from Shorts retention guidance: short, specific, real stakes, a curiosity gap, never the outlet first.
+  function hookScore(h) {
+    var t = String(h || '').trim(), w = wordCount(t), pts = 50, why = [];
+    if (w <= 9) { pts += 14; why.push('short'); } else if (w <= 13) { pts += 8; why.push('tight'); } else if (w > 16) { pts -= 12; why.push('long'); }
+    if (/\d/.test(t)) { pts += 6; why.push('a number'); }
+    if (/\s[A-Z][a-z]{2,}/.test(t)) { pts += 6; why.push('names who'); }
+    if (/\?\s*$/.test(t)) { pts += 8; why.push('open question'); }
+    if (/\b(secret\w*|hidden|covert|quietly|no one|nobody|without warning|first time|just|suddenly|but|despite|only|behind|really)\b/i.test(t)) { pts += 7; why.push('curiosity gap'); }
+    if (/\b(blackouts?|oil|prices?|war|strikes?|killed|dead|ban|cuts?|shut\w*|collapse\w*|threat\w*|blockade|sanctions?|attack\w*|risk|crisis|warns?|talks)\b/i.test(t)) { pts += 8; why.push('real stakes'); }
+    if (/^\W*(according to|per |in this|today|breaking|hey|welcome)/i.test(t) || /\b(reports?|reported|says)\b/i.test(t.slice(0, 25))) { pts -= 18; why.push('opens with the source'); }
+    if (/\b(basically|essentially|actually|very|really)\b/i.test(t)) pts -= 6;
+    return { score: Math.max(0, Math.min(100, pts)), why: why };
+  }
+  function cleanAltHooks(arr, mainHook, articleText, extraAllow, used) {
+    var out = [], seen = {}; seen[normText(mainHook)] = 1;
+    (Array.isArray(arr) ? arr : []).forEach(function (a) {
+      var t = String((a && (a.text || a.hook)) || (typeof a === 'string' ? a : '')).trim();
+      if (!t || out.length >= 2) return;
+      var w = wordCount(t), k = normText(t);
+      if (w < 4 || w > 16 || seen[k]) return;
+      if (unsupportedNumbers(t, articleText).length) return;
+      if (unsupportedTerms(t, articleText, allowWordsFor(used, state.profile).concat(extraAllow || [])).length) return;
+      if (/^\W*(according to|per )/i.test(t) || /\b(thanks for watching|follow for more|subscribe)\b/i.test(t)) return;
+      seen[k] = 1;
+      var hs = hookScore(t);
+      out.push({ style: String((a && a.style) || '').slice(0, 20), text: t, score: hs.score, why: hs.why });
+    });
+    return out;
+  }
+  function useHook(sc, alt) {
+    var story = { source: sc.sourceName || '', title: sc.storyTitle || sc.title || '' };
+    return auditScript({ hook: alt.text, body: '', analysis: '', cta: '' }, sc.facts || [], story, sc.corroboration || { status: 'none' }).then(function (a) {
+      var major = (a.flags || []).filter(function (f) { return f.severity !== 'minor'; });
+      if (a.ran && major.length) return { ok: false, problem: major[0].problem || 'The audit found a problem with this hook.' };
+      var old = { style: 'previous', text: sc.hook, score: hookScore(sc.hook).score, why: hookScore(sc.hook).why };
+      sc.hookAlts = (sc.hookAlts || []).filter(function (x) { return x !== alt; }).concat([old]);
+      sc.hook = alt.text; sc.hookScore = hookScore(sc.hook);
+      persistScripts();
+      return { ok: true, audited: !!a.ran };
+    });
   }
   function cleanAltTitles(arr, mainTitle, articleText) {
     var hay = ' ' + normText(articleText || '') + ' ', out = [], seen = {};
@@ -2489,6 +2558,23 @@
     if (unsupportedNumbers(t, articleText || '').length || !capsSupported(t, articleText)) return '';
     return t;
   }
+  // Tags must name this story. The model sometimes copies the channel's usual tags (for example #militaryanalysis on an
+  // economy story), so a tag is kept only when the script or title actually talks about it.
+  function storyTags(tags, text) {
+    var flat = String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+    var seen = {}, out = [];
+    function add(t) { t = cleanTag(t); var k = t.toLowerCase(); if (t.length > 1 && !seen[k]) { seen[k] = 1; out.push(t); } }
+    tags.forEach(function (t) {
+      var c = cleanTag(t).toLowerCase(); if (c.length < 2) return;
+      var stem = c.slice(0, Math.min(c.length, 5));
+      if (flat.replace(/ /g, '').indexOf(c) > -1 || (c.length <= 9 && (' ' + flat).indexOf(' ' + stem) > -1)) add(t);
+    });
+    if (out.length < 3) {
+      var skip = { the: 1, and: 1, for: 1, with: 1, that: 1, this: 1, from: 1, will: 1, what: 1, how: 1, why: 1, who: 1, does: 1, are: 1, new: 1, say: 1, says: 1, after: 1, over: 1, into: 1 };
+      (String(text || '').match(/(?:^|[^A-Za-z\u00C0-\u017F])([A-Z][A-Za-z\u00C0-\u017F]{3,})(?![A-Za-z\u00C0-\u017F])/g) || []).forEach(function (w) { w = w.replace(/^[^A-Z]+/, ''); if (out.length < 5 && !skip[w.toLowerCase()]) add(w); });
+    }
+    return out.slice(0, 8);
+  }
   function scriptFromParsed(parsed, story, meta) {
     meta = meta || {};
     return {
@@ -2497,7 +2583,7 @@
       hook: str(parsed.hook), body: str(parsed.body), analysis: str(parsed.analysis), cta: str(parsed.cta),
       title: str(parsed.title) || story.title.slice(0, 70),
       description: str(parsed.description),
-      tags: Array.isArray(parsed.tags) ? parsed.tags.map(function (t) { return String(t).replace(/^#+/, '').replace(/[^A-Za-z0-9_]/g, ''); }).filter(Boolean) : [],
+      tags: storyTags(Array.isArray(parsed.tags) ? parsed.tags : [], [story.title, parsed.title, parsed.hook, parsed.body, parsed.description, parsed.analysis].join(' ')),
       sources: Array.isArray(parsed.sources) && parsed.sources.length ? parsed.sources : [story.url],
       isTemplate: !!meta.template, reason: meta.reason || '',
       model: meta.model || '', provider: meta.provider || '', contextLevel: meta.level || 'headline',
@@ -2666,6 +2752,10 @@
       problems.push('The hook starts with the outlet. Open with the event and why it matters to someone who has never heard of the story. Name the source later, once, briefly.');
     }
     var robo = (main + '\n' + str(parsed.title)).match(/\b(from one outlet|single[- ]source|one outlet|this (script|video|short|report|story)|the (article|report) (states|says|notes|mentions)|both [^.,;]{2,50} (?:and [^.,;]{2,40} )?report|it is worth noting|it(?:'s| is) important to note|in conclusion|in summary|delve|tapestry|landscape of|moreover|furthermore)\b/i);
+    var bye = str(parsed.cta).match(/\b(thanks for watching|thank you for watching|follow for more|see you|like and subscribe|subscribe for|smash)\b/i);
+    if (bye) problems.push('The closing line is a goodbye ("' + bye[0] + '"). End on the question that echoes the hook instead, so the video loops.');
+    var longS = splitSentences([parsed.hook, parsed.body, parsed.analysis].map(str).join(' ')).filter(function (x) { return wordCount(x) > 28; });
+    if (longS.length) problems.push('A sentence is too long for a Short (' + wordCount(longS[0]) + ' words: "' + longS[0].slice(0, 60) + '…"). Split it into short spoken sentences.');
     if (robo) problems.push('Robotic phrasing: "' + robo[0] + '". Rewrite that sentence the way a person would say it out loud. Never talk about the script, the sources or how many outlets there are.');
     if (badNums.length) problems.push('These numbers do not appear in the source: ' + badNums.join(', '));
     if (badTerms.length) problems.push('These names or terms do not appear in the source: ' + badTerms.join(', '));
@@ -2805,6 +2895,8 @@
           var sc = scriptFromParsed(parsed, src.story, { model: res.model, provider: res.provider, level: 'article' });
           sc.storyId = story.id; sc.storyTitle = story.title;
           sc.altTitles = cleanAltTitles(parsed.alt_titles, sc.title, src.allText || src.art.text);
+          sc.hookAlts = cleanAltHooks(parsed.alt_hooks, parsed.hook, src.allText || src.art.text, outletAllow(corr), src.story);
+          sc.hookScore = hookScore(parsed.hook);
           sc.pinned = cleanPinned(parsed.pinned_comment, src.allText || src.art.text);
           sc.banner = cleanBanner(parsed.banner, src.allText || src.art.text);
           sc.callouts = cleanCallouts(parsed.callouts, [parsed.hook, parsed.body, parsed.analysis].map(str).join(' '), src.allText || src.art.text);
@@ -2890,9 +2982,9 @@
   // many outlets. A thin story gets a short short; a rich, multi-outlet story gets room. Never more than the
   // articles can honestly fill.
   function autoSecFor(facts, textWords, outlets, rec) {
-    var byFacts = 25 + 5 * facts.length + (outlets > 1 ? 5 : 0);
+    var byFacts = 20 + 4 * facts.length + (outlets > 1 ? 4 : 0);
     var byText = 0.55 * textWords / LEN.wps;
-    var sec = Math.min(byFacts, byText, rec && rec.breaking ? 60 : LEN.maxSec);
+    var sec = Math.min(byFacts, byText, rec && rec.breaking ? 60 : 90);   // Studio data: 35-60 s holds viewers best; 105 s only by manual choice
     var best = LEN_CHOICES[0];
     LEN_CHOICES.forEach(function (c) { if (Math.abs(c - sec) < Math.abs(best - sec)) best = c; });
     return best;
@@ -3036,13 +3128,22 @@
   }
   function consFor(g) { var r = (state.consRes || {})[g[0].id]; return r && r.sig === sigOf(g) ? r : null; }
   function selectedList() { return state.stories.filter(function (x) { return state.selectedStoryIds[x.id]; }); }
-  var consBusy = false;
+  var consBusy = false, consStop = false, consThen = false, consProg = { done: 0, total: 0, label: '' };
+  function paintConsProg() {
+    var on = consBusy, txt = on ? 'Consolidating ' + Math.min(consProg.done + 1, consProg.total) + ' of ' + consProg.total + (consProg.label ? ' · ' + consProg.label : '') : '';
+    var bar = $('#asg-cons-prog'); if (bar) { bar.hidden = !on; var f = $('.asg-cons-prog-fill', bar), l = $('.asg-cons-prog-label', bar); if (f) f.style.width = (consProg.total ? Math.round(100 * consProg.done / consProg.total) : 0) + '%'; if (l) l.textContent = txt + (consThen ? ' · will continue to Generate when done' : ''); }
+    var chip = $('#asg-bg-chip'); 
+    if (!chip) { var acts = $('.asg-topbar-actions'); if (acts) { chip = el('button', { type: 'button', class: 'asg-btn-pill', id: 'asg-bg-chip' }); chip.addEventListener('click', function () { setStep('consolidate'); }); acts.insertBefore(chip, acts.firstChild); } }
+    if (chip) { chip.hidden = !on; chip.textContent = '⟳ ' + txt; chip.title = 'Consolidation runs in the background. Click to open it.'; }
+  }
   function renderConsolidate() {
     var box = $('#asg-cons-list'); if (!box) return;
     box.innerHTML = '';
     var groups = groupsFor(selectedList());
     var multi = groups.filter(function (g) { return g.length > 1; }).length;
-    var runBtn = $('#asg-cons-run'); if (runBtn) { runBtn.hidden = !multi; runBtn.disabled = consBusy; }
+    var runBtn = $('#asg-cons-run'); if (runBtn) { runBtn.hidden = !multi || consBusy; runBtn.disabled = consBusy; }
+    var stopBtn = $('#asg-cons-stop'); if (stopBtn) stopBtn.hidden = !consBusy;
+    paintConsProg();
     box.appendChild(el('p', { class: 'asg-hint', text: multi
       ? multi + (multi === 1 ? ' group of stories covers' : ' groups of stories cover') + ' the same event. Consolidating reads each outlet, extracts quote-checked facts and merges them into one fact list tagged by outlet. It changes nothing in the stories. The script writer then decides how to use the facts.'
       : 'Every selected story stands alone, so there is nothing to merge. Continue to Generate.' }));
@@ -3051,6 +3152,10 @@
       var res = consFor(g);
       var head = el('div', { class: 'asg-cons-head' });
       head.appendChild(el('strong', { text: g.length > 1 ? 'One story · ' + g.length + ' outlets' : 'One outlet' }));
+      if (g.length === 1) {
+        var twin = groups.filter(function (g0) { return g0 !== g && g0.length > 1 && sameStory(g0[0], g[0]); })[0];
+        if (twin) head.appendChild(el('span', { class: 'asg-chip is-bad', text: 'Looks like the same story as "' + twin[0].title.slice(0, 40) + (twin[0].title.length > 40 ? '…' : '') + '"' + (twin.length >= 3 ? ', which already has 3 outlets' : '') + '. Remove it to avoid a second script.' }));
+      }
       if (res) head.appendChild(el('span', { class: 'asg-chip is-ok', text: 'Consolidated · ' + res.facts.length + ' facts' + (res.corr.confirmed ? ' · ' + res.corr.confirmed + ' confirmed by 2+' : '') + (res.corr.conflicts && res.corr.conflicts.length ? ' · ' + res.corr.conflicts.length + ' conflict' : '') }));
       card.appendChild(head);
       g.forEach(function (x, xi) {
@@ -3059,6 +3164,9 @@
         t.appendChild(el('span', { text: x.title }));
         t.appendChild(el('span', { class: 'asg-cons-src', text: ' · ' + x.source + (xi === 0 && g.length > 1 ? ' · main' : '') }));
         row.appendChild(t);
+        var rm = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost asg-cons-rm', text: 'Remove', title: 'Take this article out of this run. It is unticked in the Feed.' });
+        rm.addEventListener('click', function () { delete state.selectedStoryIds[x.id]; updateStepAvailability(); renderStories(); renderConsolidate(); toast('Removed. It is unticked in the Feed.', 'success'); });
+        rm.disabled = consBusy;
         if (groups.length > 1 || g.length > 1) {
           var sel = el('select', { class: 'asg-cons-move', 'aria-label': 'Move this story' });
           sel.appendChild(el('option', { value: '', text: 'Move…' }));
@@ -3072,8 +3180,9 @@
             state.consGroups = ids.filter(function (a) { return a.length; });
             renderConsolidate();
           });
-          if (sel.options.length > 1) row.appendChild(sel);
+          if (sel.options.length > 1) { sel.disabled = consBusy; row.appendChild(sel); }
         }
+        row.appendChild(rm);
         card.appendChild(row);
       });
       var st = el('p', { class: 'asg-hint asg-cons-status', style: 'margin:8px 0 0;' });
@@ -3101,25 +3210,31 @@
       }
       box.appendChild(card);
     });
-    var nb = $('#asg-cons-next'); if (nb) nb.disabled = consBusy;
+    var nb = $('#asg-cons-next'); if (nb) nb.textContent = consBusy ? 'Continue to Generate when finished →' : 'Continue to Generate →';
   }
   function runConsolidation(groups) {
     if (consBusy) return;
-    consBusy = true; state.consRes = state.consRes || {};
+    consBusy = true; consStop = false; state.consRes = state.consRes || {};
     var todo = groups.filter(function (g) { return g.length > 1; }), i = 0;
+    consProg = { done: 0, total: todo.length, label: '' };
     renderConsolidate();
+    function finish(msg) {
+      consBusy = false; var go = consThen && !consStop; consThen = false; consProg.label = ''; renderConsolidate(); paintConsProg();
+      toast(msg, consStop ? '' : 'success'); if (go) setStep('generate');
+    }
     function paint(g, t) { var els = $$('.asg-cons-status'); els.forEach(function (e) { if (e.dataset.sig === sigOf(g)) e.textContent = t; }); }
     function next() {
-      if (i >= todo.length) { consBusy = false; renderConsolidate(); toast('Consolidation finished.', 'success'); return Promise.resolve(); }
-      var g = todo[i++];
+      if (consStop) { finish('Stopped. Groups already done are kept.'); return Promise.resolve(); }
+      if (i >= todo.length) { finish('Consolidation finished.'); return Promise.resolve(); }
+      var g = todo[i++]; consProg.label = g[0].title.slice(0, 40); paintConsProg();
       var cards = $$('.asg-cons-card'), my = null;
       groupsFor(selectedList()).forEach(function (g2, k) { if (sigOf(g2) === sigOf(g) && cards[k]) my = cards[k].querySelector('.asg-cons-status'); });
-      function say(t) { if (my) my.textContent = t; }
+      function say(t) { if (my && my.isConnected) my.textContent = t; else { var c2 = $$('.asg-cons-card'); var k2 = groupsFor(selectedList()).map(sigOf).indexOf(sigOf(g)); if (k2 > -1 && c2[k2]) { my = c2[k2].querySelector('.asg-cons-status'); if (my) my.textContent = t; } } consProg.label = t; paintConsProg(); }
       return consolidateGroup(g, say).then(function (r) { state.consRes[g[0].id] = r; }).catch(function (e) {
         LOG('consolidation failed:', e && e.message);
         toast('Could not consolidate "' + g[0].title.slice(0, 50) + '": ' + (e && e.message || e), 'error');
         if (e && e.fatal) throw e;
-      }).then(next, function (e) { consBusy = false; renderConsolidate(); });
+      }).then(function () { consProg.done++; return next(); }, function (e) { consBusy = false; consThen = false; renderConsolidate(); paintConsProg(); });
     }
     return next();
   }
@@ -3277,7 +3392,11 @@
     ta.value = value || ''; ta.addEventListener('input', function () { onChange(ta.value); });
     wrap.appendChild(ta); return wrap;
   }
-  function cleanTag(t) { return String(t).replace(/^#+/, '').replace(/[^A-Za-z0-9_]/g, ''); }
+  function cleanTag(t) {
+    var x = String(t).replace(/^#+/, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/ł/g, 'l').replace(/Ł/g, 'L').replace(/ø/g, 'o').replace(/Ø/g, 'O').replace(/æ/g, 'ae').replace(/Æ/g, 'AE').replace(/ß/g, 'ss');
+    try { x = x.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) {}
+    return x.replace(/[^A-Za-z0-9_]/g, '');
+  }
   function factLabel(f, sc) {
     if (f.status === 'confirmed') return f.confirmedBy && f.confirmedBy.length > 1 ? 'confirmed by ' + (1 + f.confirmedBy.length) + ' outlets' : 'both outlets';
     if (f.status === 'conflict') return 'outlets differ';
@@ -3468,7 +3587,28 @@
         det.appendChild(ul);
         card.appendChild(det);
       }
-      card.appendChild(scriptSection('Hook', sc.hook, function (v) { sc.hook = v; persistScripts(); }));
+      card.appendChild(scriptSection('Hook', sc.hook, function (v) { sc.hook = v; sc.hookScore = hookScore(v); persistScripts(); }));
+      { var hsx = sc.hookScore || hookScore(sc.hook);
+        var hrow = el('div', { class: 'asg-hint', style: 'margin:-2px 0 8px;' });
+        hrow.appendChild(el('span', { class: 'asg-chip ' + (hsx.score >= 70 ? 'is-ok' : 'is-muted'), text: 'Hook strength ' + hsx.score, title: 'Rubric from Shorts retention guidance: short, specific, real stakes, curiosity gap, not opening with the outlet.' }));
+        hrow.appendChild(document.createTextNode(' ' + (hsx.why || []).join(' · ')));
+        card.appendChild(hrow);
+        if (sc.hookAlts && sc.hookAlts.length) {
+          var hal = el('div', { class: 'asg-alt-titles' });
+          hal.appendChild(el('span', { text: 'Other hooks:' }));
+          sc.hookAlts.forEach(function (alt) {
+            var hb = el('button', { type: 'button', class: 'asg-opt', text: alt.score + ' · ' + alt.text, title: 'Use this hook. It is fact-checked first.' });
+            hb.addEventListener('click', function () {
+              hb.disabled = true; var old = hb.textContent; hb.textContent = 'Checking…';
+              useHook(sc, alt).then(function (r) {
+                if (r.ok) { toast(r.audited ? 'Hook swapped. It passed the fact check.' : 'Hook swapped. The fact check could not run, so read it against the source.', r.audited ? 'ok' : 'warn'); renderScripts(); }
+                else { hb.disabled = false; hb.textContent = old; toast('Not swapped: ' + r.problem, 'warn', 7000); }
+              }).catch(function (e) { hb.disabled = false; hb.textContent = old; toast('Could not check the hook: ' + (e && e.message || e), 'error'); });
+            });
+            hal.appendChild(hb);
+          });
+          card.appendChild(hal);
+        } }
       card.appendChild(scriptSection('Body', sc.body, function (v) { sc.body = v; persistScripts(); }, true));
       if (sc.analysis || (sc.checks && sc.checks.analysisDropped)) {
         var aw = el('div', { class: 'asg-hint', style: 'margin:10px 0 4px;padding:8px 10px;border-radius:8px;background:#eef3ff;border:1px solid #cddafc;color:#243b7a;' });
@@ -3594,6 +3734,11 @@
       '.asg-cons-title{flex:1 1 280px;font-size:14px;line-height:1.4;}',
       '.asg-cons-src{color:var(--asg-text-dim,#8a94a3);font-size:12.5px;}',
       '.asg-cons-move{font-size:12.5px;padding:4px 8px;max-width:220px;}',
+      '.asg-cons-rm{padding:4px 10px;font-size:12.5px;}',
+      '.asg-cons-prog{margin:0 0 14px;padding:12px 14px;border:1px solid var(--asg-border,#dde1ea);border-radius:12px;background:var(--asg-accent-soft,#edf1ff);}',
+      '.asg-cons-prog-bar{height:5px;border-radius:999px;background:rgba(49,87,240,.15);overflow:hidden;margin-top:8px;}',
+      '.asg-cons-prog-fill{display:block;height:100%;width:0;background:var(--asg-accent,#3157f0);transition:width .4s;}',
+      '.asg-cons-prog-label{font-size:13.5px;font-weight:600;color:var(--asg-text,#141a2a);}',
       '.asg-opt-auto.is-on{border-style:solid;}',
       '.asg-dial.is-auto{opacity:.5;}',
       '.asg-rec{color:var(--asg-accent,#2a4fd6);font-size:12.5px;}',
@@ -3616,14 +3761,14 @@
       '.asg-topbar-sep{width:1px;align-self:stretch;background:var(--asg-border,#e1e4e9);margin:4px 2px;}',
       '#asg-script-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:stretch;}',
       '#asg-script-list>.asg-script-card{grid-column:1/-1;}',
-      '.asg-tile{position:relative;display:flex;flex-direction:column;gap:8px;text-align:left;padding:14px;border:1px solid #d9dee7;border-radius:12px;background:#fff;color:#1b2430;cursor:pointer;font:inherit;transition:box-shadow .15s,border-color .15s;}',
+      '.asg-tile{position:relative;display:flex;flex-direction:column;gap:8px;text-align:left;padding:14px;border:1px solid var(--asg-border,#dde1ea);border-radius:12px;background:#fff;color:var(--asg-text,#141a2a);cursor:pointer;font:inherit;transition:box-shadow .15s,border-color .15s;}',
       '.asg-tile:hover,.asg-tile:focus-visible{border-color:#5b7cfa;box-shadow:0 4px 16px rgba(30,50,120,.14);outline:none;}',
       '.asg-tile h4{margin:0;font-size:16px;line-height:1.3;}',
       '.asg-tile-hook{margin:0;font-size:13px;line-height:1.45;color:#4a5568;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}',
       '.asg-tile-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:#5b6676;}',
       '.asg-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;}',
       '.asg-pill-ok{background:#e8f7ee;color:#17633a;}.asg-pill-warn{background:#fff5e6;color:#8a5b00;}.asg-pill-tpl{background:#eef0f4;color:#4a5568;}.asg-pill-rev{background:#e6efff;color:#1d4ed8;}',
-      '.asg-tile-open{font-size:13px;font-weight:600;color:#3956d6;}',
+      '.asg-tile-open{font-size:13px;font-weight:600;color:var(--asg-accent,#3157f0);}',
       '.asg-tile-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px;border-top:1px solid #eef1f6;}',
       '.asg-tile-del{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid transparent;border-radius:8px;background:transparent;color:#7a8596;font:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}',
       '.asg-tile-del svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}',
@@ -3635,7 +3780,7 @@
       '.asg-toast-undo{display:flex;gap:14px;align-items:center;max-width:min(560px,90vw);}',
       '.asg-toast-undo button{padding:4px 12px;border:1px solid #fff;border-radius:8px;background:transparent;color:#fff;font:inherit;font-weight:600;cursor:pointer;}',
       '.asg-modal{position:fixed;inset:0;z-index:100000;background:rgba(15,20,35,.62);display:flex;align-items:flex-start;justify-content:center;padding:3vh 12px;overflow-y:auto;}',
-      '.asg-modal-panel{background:#fff;color:#1b2430;border-radius:14px;width:100%;max-width:980px;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;max-height:94vh;}',
+      '.asg-modal-panel{background:#fff;color:var(--asg-text,#141a2a);border-radius:14px;width:100%;max-width:980px;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;max-height:94vh;}',
       '.asg-modal-head{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e3e7ee;}',
       '.asg-modal-head h3{margin:0;font-size:17px;line-height:1.3;}',
       '.asg-modal-body{padding:14px 18px;overflow-y:auto;flex:1;}',
@@ -3645,6 +3790,8 @@
       '.asg-modal-body textarea{width:100%;box-sizing:border-box;min-height:110px;font:inherit;line-height:1.5;padding:8px 10px;border:1px solid #cbd3df;border-radius:8px;resize:vertical;}',
       '.asg-modal-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;align-items:center;padding:12px 18px;border-top:1px solid #e3e7ee;background:#f7f9fc;border-radius:0 0 14px 14px;}',
       '.asg-modal-foot .asg-hint{margin:0 auto 0 0;}',
+      '.asg-modal-foot{position:sticky;bottom:0;background:#fff;box-shadow:0 -6px 16px rgba(13,20,36,.06);}',
+      '.asg-modal-foot .asg-btn-primary{padding:12px 24px;font-size:15px;box-shadow:0 2px 8px rgba(49,87,240,.35);}',
       '.asg-review-sum{grid-column:1/-1;margin:0;font-size:13px;color:#4a5568;}'
     ].join('\n');
     document.head.appendChild(st);
@@ -3713,7 +3860,7 @@
     var foot = el('div', { class: 'asg-modal-foot' });
     foot.appendChild(el('span', { class: 'asg-hint', text: 'Edits are kept as you type. Save marks the script as reviewed.' }));
     var cancel = el('button', { class: 'asg-btn asg-btn-ghost', type: 'button', text: 'Close' });
-    var save = el('button', { class: 'asg-btn asg-btn-primary', type: 'button', text: 'Save and mark as reviewed' });
+    var save = el('button', { class: 'asg-btn asg-btn-primary', type: 'button', text: '✓ Save and mark as reviewed' });
     foot.appendChild(cancel); foot.appendChild(save);
     panel.appendChild(head); panel.appendChild(body); panel.appendChild(foot); overlay.appendChild(panel);
     var onKey = function (e) { if (e.key === 'Escape') { e.stopPropagation(); closeScriptModal(false); } };
@@ -3809,15 +3956,61 @@
     var sp = $('#asg-set-stock'); if (sp) sp.value = stockProvider();
     var pxk = $('#asg-set-pixabay'); if (pxk) pxk.value = state.settings.pixabayKey || '';
     var pek = $('#asg-set-pexels'); if (pek) pek.value = state.settings.pexelsKey || '';
-    ['groq', 'openrouter'].forEach(function (pv) {
+    COMPAT_IDS.forEach(function (pv) {
       var k = $('#asg-set-' + pv), m = $('#asg-set-' + pv + '-model'), w = $('#asg-set-' + pv + '-write-model');
       if (k) k.value = state.settings[pv + 'Key'] || '';
       if (m) m.value = state.settings[pv + 'Model'] || '';
       if (w) w.value = state.settings[pv + 'WriteModel'] || '';
     });
-    syncProviderFields();
+    syncProviderFields(); syncStock(); fillLinks();
   }
   function closeSettings() { $('#asg-settings-drawer').hidden = true; }
+  var LINK_KEYS = ['website', 'youtube', 'facebook', 'instagram', 'tiktok', 'x', 'linkedin', 'telegram'];
+  function fillLinks() {
+    var l = (state.profile && state.profile.links) || {};
+    LINK_KEYS.forEach(function (k) { var i = $('#asg-lnk-' + k); if (i) { i.value = l[k] || ''; i.disabled = !state.profile; } });
+    var lb = $('#asg-lnk-learn'); if (lb) lb.disabled = !state.profile;
+    var h = $('#asg-lnk-hint'); if (h) h.hidden = !!state.profile;
+  }
+  function readLinks() {
+    if (!state.profile) return;
+    var l = state.profile.links = state.profile.links || {};
+    LINK_KEYS.forEach(function (k) { var i = $('#asg-lnk-' + k); if (i) l[k] = i.value.trim(); });
+  }
+  function learnFromLinks() {
+    if (!state.profile) return;
+    readLinks(); persistProfile();
+    var st = $('#asg-lnk-status'), btn = $('#asg-lnk-learn'), l = state.profile.links || {};
+    var urls = LINK_KEYS.filter(function (k) { return /^https?:\/\//i.test(l[k] || ''); }).map(function (k) { return { k: k, url: l[k] }; });
+    if (!urls.length) { st.textContent = 'Add at least one full link that starts with https://.'; return; }
+    btn.disabled = true; btn.textContent = 'Reading…'; st.textContent = '';
+    var got = [], bad = [];
+    Promise.all(urls.map(function (u) {
+      return fetchArticle(u.url).then(function (j) { if (j && String(j.text || '').length > 200) got.push({ k: u.k, text: String(j.text).slice(0, 2500) }); else bad.push(u.k); });
+    })).then(function () {
+      if (!got.length) { st.textContent = 'None of these pages could be read: ' + bad.join(', ') + '. Facebook, Instagram, X and LinkedIn usually block automated readers; a website or a YouTube channel works best. The links are saved.'; return; }
+      return suggestDna(state.profile, got).then(function (t) {
+        if (t) { state.profile.identity.dna = t; persistProfile(); renderProfile && renderProfile(); st.textContent = 'Voice DNA updated from ' + got.map(function (g) { return g.k; }).join(', ') + (bad.length ? '. Could not read: ' + bad.join(', ') + '.' : '.') + ' Review it in step 1 under the profile.'; }
+        else st.textContent = 'The model returned nothing. Try again.';
+      });
+    }).catch(function (e) { st.textContent = 'Could not do that: ' + (e && e.message || 'AI error'); })
+      .then(function () { btn.disabled = false; btn.textContent = 'Read my pages to improve my voice'; });
+  }
+  function testNote(pv, text, kind) {
+    var n = document.getElementById('asg-testres-' + pv); if (!n) return;
+    n.textContent = text; n.className = 'asg-hint asg-test-res' + (kind ? ' is-' + kind : '');
+  }
+  function testWhy(e) {
+    var m = String((e && e.message) || e || 'unknown error');
+    if (/401|403|invalid.*key|incorrect.*key|unauthori|api key not valid|permission/i.test(m)) return 'The provider rejected this key. Check that you pasted the whole key and that it is for this provider. (' + m.slice(0, 160) + ')';
+    if (/429|quota|rate/i.test(m)) return 'The key may be fine, but the provider is rate-limiting it right now. Wait a minute and test again. (' + m.slice(0, 160) + ')';
+    if (/no usable model/i.test(m)) return 'The key was accepted but no usable chat model was found. Type a model name in the model field and test again. (' + m.slice(0, 160) + ')';
+    return m.slice(0, 260);
+  }
+  function syncStock() {
+    var v = ($('#asg-set-stock') || {}).value || 'pixabay';
+    $$('.asg-drawer [data-stock]').forEach(function (f) { f.hidden = f.dataset.stock !== v; });
+  }
   function syncProviderFields() {
     var p = $('#asg-set-provider').value;
     $$('.asg-drawer [data-provider]').forEach(function (f) { f.hidden = f.dataset.provider !== p; });
@@ -3891,7 +4084,7 @@
    * -> real-time canvas + audio recording to MP4/WebM, all in the browser.
    * Finished media is stored in this browser (IndexedDB) next to the scripts.
    * ===================================================================== */
-  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true, callouts: true, endcard: true, banner: true };
+  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true, callouts: true, endcard: true, banner: true, motion: true };
   var BUILTIN_VOICES = [['am_echo', 'Echo · en-us · Male'], ['am_liam', 'Liam · en-us · Male'], ['af_heart', 'Heart · en-us · Female']];
   var STOCK = { pixabay: { name: 'Pixabay', keyField: 'pixabayKey' }, pexels: { name: 'Pexels', keyField: 'pexelsKey' } };
   function vopt() {
@@ -4497,7 +4690,15 @@
         playClip(sc);
         var nx = tl.scenes[si + 1]; if (nx && now >= nx.start - 0.4) playClip(nx);
         var usedVideo = sc.video && sc.video.readyState >= 2;
+        ctx.save();
+        if (opts.motion !== false) {
+          // A visual change every ~2.4 s without a new clip: a quick punch-in that settles, alternating with a slow push.
+          var tt = Math.max(0, now - (sc.start || 0)), bi = Math.floor(tt / 2.4), bt = tt - bi * 2.4;
+          var z = 1 + (bi % 2 ? 0.05 : 0) + (bt < 0.35 ? 0.07 * (1 - bt / 0.35) : 0) + 0.025 * (bt / 2.4);
+          ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
+        }
         if (usedVideo) coverDraw(ctx, sc.video, W, H); else drawPlain(ctx, W, H, now, si);
+        ctx.restore();
         var g = ctx.createLinearGradient(0, H * 0.35, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.62)');
         ctx.fillStyle = g; ctx.fillRect(0, H * 0.35, W, H * 0.65);
         var g2 = ctx.createLinearGradient(0, 0, 0, H * 0.18); g2.addColorStop(0, 'rgba(0,0,0,.4)'); g2.addColorStop(1, 'rgba(0,0,0,0)');
@@ -4552,42 +4753,56 @@
     if (document.getElementById('asg-video-style')) return;
     var st = document.createElement('style'); st.id = 'asg-video-style';
     st.textContent = [
-      '.asg-vid-box{border:1px solid #d9dee7;border-radius:12px;background:#fff;color:#1b2430;padding:14px 16px;margin:0 0 14px;}',
+      '.asg-vid-box{border:1px solid var(--asg-border,#dde1ea);border-radius:12px;background:#fff;color:var(--asg-text,#141a2a);padding:14px 16px;margin:0 0 14px;}',
       '.asg-vid-box h3,.asg-vid-box h4{margin:0 0 6px;line-height:1.3;}',
       '.asg-vid-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:10px;}',
       '.asg-vid-box label{display:block;font-size:13px;font-weight:600;margin:0 0 4px;}',
-      '.asg-vid-box input[type=text],.asg-vid-box input[type=password],.asg-vid-box input[type=number],.asg-vid-box select,.asg-vid-box textarea{width:100%;box-sizing:border-box;font:inherit;padding:7px 9px;border:1px solid #cbd3df;border-radius:8px;background:#fff;color:#1b2430;}',
+      '.asg-vid-box input[type=text],.asg-vid-box input[type=password],.asg-vid-box input[type=number],.asg-vid-box select,.asg-vid-box textarea{width:100%;box-sizing:border-box;font:inherit;padding:7px 9px;border:1px solid #cbd3df;border-radius:8px;background:#fff;color:var(--asg-text,#141a2a);}',
       '.asg-vid-box textarea{min-height:120px;line-height:1.5;resize:vertical;}',
       '.asg-vid-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px;}',
       '.asg-vid-note{font-size:13px;color:#5b6676;margin:6px 0 0;}',
-      '.asg-vid-status{font-size:14px;color:#1b2430;margin:10px 0 0;min-height:18px;}',
+      '.asg-vid-status{font-size:14px;color:var(--asg-text,#141a2a);margin:10px 0 0;min-height:18px;}',
       '.asg-vid-status.is-err{color:#b3261e;}.asg-vid-status.is-ok{color:#17633a;}',
       '.asg-vid-stages{display:none;gap:8px;flex-wrap:wrap;margin-top:12px;}',
       '.asg-vid-stages.is-on{display:flex;}',
-      '.asg-vid-stage{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid #d9dee7;font-size:13px;font-weight:600;color:#7a8596;}',
-      '.asg-vid-stage.is-active{border-color:#3956d6;color:#3956d6;background:#eef2ff;}',
+      '.asg-vid-stage{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid var(--asg-border,#dde1ea);font-size:13px;font-weight:600;color:#7a8596;}',
+      '.asg-vid-stage.is-active{border-color:var(--asg-accent,#3157f0);color:var(--asg-accent,#3157f0);background:var(--asg-accent-soft,#edf1ff);}',
       '.asg-vid-stage.is-done{border-color:#b6e3c4;color:#17633a;background:#e8f7ee;}',
-      '.asg-vid-stage.is-active::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid #3956d6;border-top-color:transparent;animation:asgspin .8s linear infinite;}',
+      '.asg-vid-stage.is-active::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid var(--asg-accent,#3157f0);border-top-color:transparent;animation:asgspin .8s linear infinite;}',
       '.asg-vid-stage.is-done::before{content:"✓";}',
       '@keyframes asgspin{to{transform:rotate(360deg);}}',
       '.asg-vid-bar{height:8px;border-radius:4px;background:#e6e9f0;overflow:hidden;margin-top:10px;display:none;}',
-      '.asg-vid-bar i{display:block;height:100%;width:0;background:#3956d6;transition:width .25s;}',
+      '.asg-vid-bar i{display:block;height:100%;width:0;background:var(--asg-accent,#3157f0);transition:width .25s;}',
       '.asg-vid-meta{display:none;justify-content:space-between;gap:8px;font-size:12px;color:#5b6676;margin-top:6px;}',
       '.asg-vid-preview{margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;}',
       '.asg-vid-canvas,.asg-vid-player{width:225px;max-width:100%;aspect-ratio:9/16;border-radius:10px;background:#000;display:block;}',
       '.asg-vid-side{flex:1;min-width:260px;}',
       '.asg-vid-field{margin:0 0 10px;}',
       '.asg-vid-copy{margin-top:4px;padding:4px 10px;font-size:12px;}',
-      '.asg-vid-plan{margin-top:12px;border-top:1px solid #eef1f6;padding-top:10px;}',
-      '.asg-vid-plan summary{cursor:pointer;font-weight:600;font-size:14px;}',
-      '.asg-vid-scene{display:grid;grid-template-columns:44px 1fr;gap:4px 10px;margin:10px 0;font-size:13px;}',
-      '.asg-vid-scene p{margin:0;color:#4a5568;}',
-      '.asg-vid-scene .asg-vid-edit{display:grid;grid-template-columns:1fr 130px;gap:8px;grid-column:2;}',
+      '.asg-plan{margin-top:18px;padding:18px;border:1px solid var(--asg-border,#dde1ea);border-radius:14px;background:var(--asg-bg-soft,#f6f7fa);transition:box-shadow .3s,border-color .3s;}',
+      '.asg-plan.is-flash{border-color:var(--asg-accent,#3157f0);box-shadow:0 0 0 4px rgba(49,87,240,.15);}',
+      '.asg-plan-head{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}',
+      '.asg-plan-head h4{margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.01em;}',
+      '.asg-plan-head p{margin:0;max-width:60ch;font-size:13.5px;color:var(--asg-text-muted,#4f5a6e);}',
+      '.asg-plan-list{list-style:none;margin:0;padding:0;display:grid;gap:8px;}',
+      '.asg-plan-scene{display:grid;grid-template-columns:46px 1fr;gap:12px;padding:12px 14px;border:1px solid var(--asg-border,#dde1ea);border-left:3px solid transparent;border-radius:10px;background:var(--asg-bg,#fff);}',
+      '.asg-plan-scene.is-edited{border-left-color:var(--asg-signal,#f5a524);}',
+      '.asg-plan-time{font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700;color:var(--asg-text-muted,#4f5a6e);padding-top:2px;}',
+      '.asg-plan-text{margin:0 0 8px;font-size:14px;line-height:1.45;color:var(--asg-text,#141a2a);}',
+      '.asg-plan-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}',
+      '.asg-plan-tg{display:inline-flex;padding:2px;border-radius:9px;background:var(--asg-bg-muted,#eceff5);}',
+      '.asg-plan-tg button{border:0;background:transparent;color:var(--asg-text-muted,#4f5a6e);padding:5px 12px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;}',
+      '.asg-plan-tg button.is-on{background:var(--asg-bg,#fff);color:var(--asg-text,#141a2a);box-shadow:0 1px 2px rgba(13,20,36,.12);}',
+      '.asg-plan-ctl input{flex:1 1 220px;min-width:0;padding:7px 10px;border:1px solid var(--asg-border,#dde1ea);border-radius:8px;font:inherit;font-size:13.5px;background:var(--asg-bg,#fff);color:var(--asg-text,#141a2a);}',
+      '.asg-plan-ctl input:disabled{opacity:.5;background:var(--asg-bg-soft,#f6f7fa);}',
+      '.asg-plan-scene.is-card .asg-plan-text{font-weight:600;}',
+      '.asg-plan-foot{display:flex;justify-content:flex-end;margin-top:14px;}',
+      '.asg-plan-used{margin:6px 0 0;font-size:12px;color:var(--asg-text-dim,#7a869b);}',
       '.asg-exp-media{display:grid;gap:10px;margin:0 0 16px;}',
-      '.asg-exp-item{border:1px solid #d9dee7;border-radius:12px;background:#fff;color:#1b2430;padding:12px 14px;}',
+      '.asg-exp-item{border:1px solid var(--asg-border,#dde1ea);border-radius:12px;background:#fff;color:var(--asg-text,#141a2a);padding:12px 14px;}',
       '.asg-exp-item h4{margin:0 0 8px;font-size:15px;line-height:1.3;}',
       '.asg-exp-links{display:flex;flex-wrap:wrap;gap:8px;}',
-      '.asg-exp-links a,.asg-exp-links span{padding:5px 10px;border-radius:8px;border:1px solid #cbd3df;font-size:13px;font-weight:600;text-decoration:none;color:#3956d6;background:#fff;}',
+      '.asg-exp-links a,.asg-exp-links span{padding:5px 10px;border-radius:8px;border:1px solid #cbd3df;font-size:13px;font-weight:600;text-decoration:none;color:var(--asg-accent,#3157f0);background:#fff;}',
       '.asg-exp-links span{color:#9aa4b2;border-style:dashed;font-weight:500;}'
     ].join('\n');
     document.head.appendChild(st);
@@ -4633,6 +4848,8 @@
     fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [ec, 'Like · Comment · Subscribe at the end']));
     var bc = el('input', { type: 'checkbox', id: 'asg-vid-banner' }); bc.checked = o.banner !== false;
     fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [bc, 'Headline banner in the first seconds']));
+    var mc = el('input', { type: 'checkbox', id: 'asg-vid-motion' }); mc.checked = o.motion !== false;
+    fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [mc, 'Zoom beat every 2.4 s (keeps the picture moving)']));
     box.appendChild(fr2);
     var keyNote = el('p', { class: 'asg-vid-note' });
     var syncKey = function () {
@@ -4650,7 +4867,7 @@
     var save = function () {
       var v = vopt();
       v.voice = voiceSel.value || v.voice; v.speed = Math.min(1.3, Math.max(0.7, parseFloat($('#asg-vid-speed').value) || 1));
-      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked; v.callouts = cc.checked; v.endcard = ec.checked; v.banner = bc.checked;
+      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked; v.callouts = cc.checked; v.endcard = ec.checked; v.banner = bc.checked; v.motion = mc.checked;
       persistSettings();
     };
     box.addEventListener('change', save);
@@ -4674,28 +4891,58 @@
   function planEditor(sc, card, rec) {
     var scenes = rec.scenes || [];
     if (!scenes.length) return null;
-    var d = el('details', { class: 'asg-vid-plan' });
-    d.appendChild(el('summary', { text: 'Footage plan: change what shows in each scene' }));
-    d.appendChild(el('p', { class: 'asg-vid-note', text: 'Edit the search words or switch a scene to a plain caption card, then press "Re-record with this plan". The voice is reused, so this is quicker than starting over.' }));
+    var wrap = el('section', { class: 'asg-plan', id: 'asg-plan-' + (rec.id || '') });
+    var head = el('div', { class: 'asg-plan-head' });
+    var ht = el('div', {});
+    ht.appendChild(el('h4', { text: 'Edit scenes' }));
+    ht.appendChild(el('p', { text: 'Each line of the script is a scene. Change the footage search or turn a scene into a plain caption card, then re-record. The voice is reused, so this takes less time than starting over.' }));
+    head.appendChild(ht);
+    var go = el('button', { class: 'asg-btn asg-btn-primary asg-plan-go', type: 'button' });
+    var go2 = el('button', { class: 'asg-btn asg-btn-primary asg-plan-go', type: 'button' });
+    head.appendChild(go);
+    wrap.appendChild(head);
     var edits = scenes.map(function (s) { return { query: s.query || '', alt: s.alt || '', kind: s.kind || 'footage' }; });
+    var orig = edits.map(function (e) { return { query: e.query, kind: e.kind }; });
+    var changed = 0;
+    function count() {
+      changed = edits.filter(function (e, i) { return e.query !== orig[i].query || e.kind !== orig[i].kind; }).length;
+      go.textContent = go2.textContent = changed ? 'Re-record with ' + changed + ' change' + (changed === 1 ? '' : 's') : 'Re-record scenes';
+    }
+    var list = el('ol', { class: 'asg-plan-list' });
     scenes.forEach(function (s, i) {
-      var row = el('div', { class: 'asg-vid-scene' });
-      row.appendChild(el('strong', { text: fmtTime(s.start) }));
-      row.appendChild(el('p', { text: s.text + (s.usedQuery && s.kind !== 'card' ? ' (showing: ' + s.usedQuery + ')' : '') }));
-      var ed = el('div', { class: 'asg-vid-edit' });
-      var q = el('input', { type: 'text', value: edits[i].query, 'aria-label': 'Search words for scene ' + (i + 1) });
-      var k = el('select', { 'aria-label': 'Scene type ' + (i + 1) }); [['footage', 'Footage'], ['card', 'Caption card']].forEach(function (x) { k.appendChild(el('option', { value: x[0], text: x[1] })); });
-      k.value = edits[i].kind;
-      q.addEventListener('input', function () { edits[i].query = q.value; }); k.addEventListener('change', function () { edits[i].kind = k.value; });
-      ed.appendChild(q); ed.appendChild(k); row.appendChild(ed); d.appendChild(row);
+      var row = el('li', { class: 'asg-plan-scene' });
+      row.appendChild(el('span', { class: 'asg-plan-time', text: fmtTime(s.start) }));
+      var body = el('div', { class: 'asg-plan-body' });
+      body.appendChild(el('p', { class: 'asg-plan-text', text: s.text }));
+      var ctl = el('div', { class: 'asg-plan-ctl' });
+      var tg = el('div', { class: 'asg-plan-tg', role: 'group', 'aria-label': 'Scene ' + (i + 1) + ' shows' });
+      var bF = el('button', { type: 'button', text: 'Footage' }), bC = el('button', { type: 'button', text: 'Caption card' });
+      tg.appendChild(bF); tg.appendChild(bC);
+      var q = el('input', { type: 'text', value: edits[i].query, placeholder: 'Search words, for example crowd outside parliament', 'aria-label': 'Footage search words for scene ' + (i + 1) });
+      function paint() {
+        var isCard = edits[i].kind === 'card';
+        bF.className = isCard ? '' : 'is-on'; bC.className = isCard ? 'is-on' : '';
+        bF.setAttribute('aria-pressed', String(!isCard)); bC.setAttribute('aria-pressed', String(isCard));
+        q.disabled = isCard; row.classList.toggle('is-card', isCard);
+        row.classList.toggle('is-edited', edits[i].query !== orig[i].query || edits[i].kind !== orig[i].kind);
+        count();
+      }
+      bF.addEventListener('click', function () { edits[i].kind = 'footage'; paint(); });
+      bC.addEventListener('click', function () { edits[i].kind = 'card'; paint(); });
+      q.addEventListener('input', function () { edits[i].query = q.value; paint(); });
+      ctl.appendChild(tg); ctl.appendChild(q); body.appendChild(ctl);
+      if (s.usedQuery && s.kind !== 'card' && s.usedQuery !== edits[i].query) body.appendChild(el('p', { class: 'asg-plan-used', text: 'Showing footage for: ' + s.usedQuery }));
+      row.appendChild(body); list.appendChild(row); paint();
     });
-    var go = el('button', { class: 'asg-btn asg-btn-primary', type: 'button', text: 'Re-record with this plan' });
-    go.addEventListener('click', function () {
+    wrap.appendChild(list);
+    var foot = el('div', { class: 'asg-plan-foot' }); foot.appendChild(go2); wrap.appendChild(foot);
+    function rerec() {
       sc.vplan = { hash: rec.sceneHash, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind }; }) };
       persistScripts(); makeVideo(sc, card, { keepPlan: true });
-    });
-    d.appendChild(go);
-    return d;
+    }
+    go.addEventListener('click', rerec); go2.addEventListener('click', rerec);
+    count();
+    return wrap;
   }
   function showVideoResult(sc, card, rec) {
     var host = $('.asg-vid-out', card); host.innerHTML = '';
@@ -4715,6 +4962,10 @@
     side.appendChild(el('p', { class: 'asg-vid-note', style: 'margin:0 0 10px;', text: notes.join(' · ') }));
     var m = uploadMeta(sc, rec.credits, rec.provider);
     side.appendChild(vidField('Title', m.title)); side.appendChild(vidField('Description', m.description, 150)); side.appendChild(vidField('Tags', m.tags.join(', '))); if (m.pinned) side.appendChild(vidField('Pinned comment (post and pin it)', m.pinned));
+    var ed = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-editscenes', type: 'button', text: 'Edit scenes' });
+    ed.title = 'Change the footage or turn a scene into a caption card';
+    ed.addEventListener('click', function () { var pl = $('.asg-plan', card); if (pl) { pl.scrollIntoView({ behavior: 'smooth', block: 'start' }); pl.classList.add('is-flash'); setTimeout(function () { pl.classList.remove('is-flash'); }, 1400); } });
+    links.appendChild(ed);
     var del = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-del', type: 'button', text: '🗑 Delete this video' });
     del.addEventListener('click', function () {
       if (vidBusy) return;
@@ -4792,7 +5043,7 @@
     }).then(function () {
       if (run.cancelled) throw cancelError();
       setStage('record'); setBar(0.8); setStatus(card, 'Recording the video (' + Math.round(tl.total) + ' s). Keep this tab open and visible.');
-      return renderVideo(tl, { w: W, h: H, tag: !!o.tag && info.footage !== 'plain', callouts: o.callouts !== false ? calloutTimes(tl, sc.callouts, bannerText(sc, o) ? 3.4 : 0.5) : [], endcard: o.endcard !== false, banner: bannerText(sc, o) }, function (p) { setBar(0.8 + 0.2 * p); }, $('.asg-vid-live', card), run);
+      return renderVideo(tl, { w: W, h: H, tag: !!o.tag && info.footage !== 'plain', callouts: o.callouts !== false ? calloutTimes(tl, sc.callouts, bannerText(sc, o) ? 3.4 : 0.5) : [], endcard: o.endcard !== false, motion: o.motion !== false, banner: bannerText(sc, o) }, function (p) { setBar(0.8 + 0.2 * p); }, $('.asg-vid-live', card), run);
     }).then(function (res) {
       $('.asg-vid-live', card).innerHTML = '';
       var rec = {
@@ -4929,6 +5180,321 @@
     }).catch(function (e) { LOG('zip failed', e); toast('Could not build the ZIP: ' + (e && e.message ? e.message : e), 'error'); });
   }
 
+
+  /* ---------- Publish: a caption per platform, then hand-off to the owner's own automation ---------- */
+  var PLATFORMS = [
+    { id: 'youtube', label: 'YouTube Shorts', limit: 5000, tags: 3, style: '' },
+    { id: 'instagram', label: 'Instagram Reels', limit: 2000, tags: 6, style: 'A first line that stops the scroll, 2-3 short lines, then a question to the viewer, then the hashtags.' },
+    { id: 'facebook', label: 'Facebook Reels', limit: 600, tags: 3, style: '2-3 plain sentences and a question. Few hashtags.' },
+    { id: 'tiktok', label: 'TikTok', limit: 150, tags: 4, style: 'One curiosity-led line, under 150 characters including the hashtags.' },
+    { id: 'x', label: 'X', limit: 270, tags: 2, style: 'One sharp take under 270 characters. No link. At most two hashtags.' },
+    { id: 'linkedin', label: 'LinkedIn', limit: 1100, tags: 3, style: 'Professional, 3-5 short lines leading with the analytical point, ending on a question. Three hashtags.' },
+    { id: 'threads', label: 'Threads', limit: 480, tags: 1, style: 'Conversational, like a thought you had out loud.' },
+    { id: 'bluesky', label: 'Bluesky', limit: 290, tags: 1, style: 'One clear sentence or two, under 290 characters.' },
+    { id: 'telegram', label: 'Telegram', limit: 900, tags: 3, style: '3-4 sentences, plain text, a question at the end.' },
+    { id: 'rumble', label: 'Rumble', limit: 1000, tags: 3, style: 'A short description: what happened and the angle.' },
+    { id: 'mastodon', label: 'Mastodon', limit: 480, tags: 2, style: 'Plain, conversational, under 480 characters, hashtags at the end.' }
+  ];
+  function platOf(id) { return PLATFORMS.filter(function (x) { return x.id === id; })[0]; }
+  function pubPlatforms() {
+    var sel = Array.isArray(state.settings.publishPlatforms) ? state.settings.publishPlatforms : [];
+    return PLATFORMS.filter(function (x) { return sel.indexOf(x.id) !== -1; });
+  }
+  function hashtagLine(tags, n) {
+    return (tags || []).filter(function (t) { return String(t).toLowerCase() !== 'shorts'; }).slice(0, n).map(function (t) { return '#' + cleanTag(t); }).join(' ');
+  }
+  function fitPost(text, pl, tagsLine) {
+    var t = String(text || '').replace(/[ \t]+\n/g, '\n').trim();
+    var tagLen = tagsLine && t.indexOf(tagsLine) === -1 ? tagsLine.length + 2 : 0;
+    var room = pl.limit - tagLen;
+    if (t.length > room) {
+      var cut = t.slice(0, room), k = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '));
+      t = (k > room * 0.5 ? cut.slice(0, k + 1) : cut.replace(/\s+\S*$/, '') + '…').trim();
+    }
+    if (tagLen) t += '\n\n' + tagsLine;
+    return t;
+  }
+  function defaultPost(pl, sc, meta) {
+    var tagsLine = hashtagLine(meta.tags, pl.tags);
+    var parts = [sc.title || sc.storyTitle, sc.hook && sc.hook !== sc.title ? sc.hook : '', sc.cta].filter(Boolean);
+    function wset(t) { var o = {}; String(t).toLowerCase().replace(/https?:\/\/\S+|#\S+/g, '').split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2; }).forEach(function (w) { o[w] = 1; }); return o; }
+    function near(a, b) { var A = wset(a), B = wset(b), i = 0, u = 0, k; for (k in A) { u++; if (B[k]) i++; } for (k in B) if (!A[k]) u++; return u ? i / u >= 0.55 : false; }
+    parts = parts.filter(function (t, i) { for (var j = 0; j < i; j++) if (near(t, parts[j])) return false; return true; });
+    if (pl.id === 'x' || pl.id === 'tiktok' || pl.id === 'bluesky') parts = parts.slice(0, 1);
+    return fitPost(parts.join('\n\n'), pl, tagsLine);
+  }
+  function postsOf(sc) { return sc.posts && typeof sc.posts === 'object' ? sc.posts : (sc.posts = {}); }
+  function scriptSourceText(sc) {
+    return [sc.hook, sc.body, sc.analysis, sc.cta, sc.title, sc.description].concat((sc.facts || []).map(function (f) { return f.claim + ' ' + f.quote; })).join('\n');
+  }
+  function writePosts(sc, meta, pls) {
+    var want = pls.filter(function (p) { return p.id !== 'youtube'; });
+    var out = {};
+    if (!want.length) return Promise.resolve(out);
+    var lines = [
+      'You write the social captions that go with a finished news-explainer short. Same story, one caption per platform, each in the native style of that platform.',
+      '', 'CHANNEL VOICE:'
+    ].concat(dnaText(state.profile).split('\n'), ['', 'TITLE: ' + (sc.title || sc.storyTitle), 'HOOK: ' + sc.hook, 'BODY: ' + sc.body, 'ANALYSIS: ' + (sc.analysis || ''), 'CTA: ' + sc.cta, '', 'PLATFORMS:']);
+    want.forEach(function (p) { lines.push('- "' + p.id + '" (' + p.label + '): max ' + p.limit + ' characters including hashtags. ' + p.style + (p.tags ? ' Up to ' + p.tags + ' relevant hashtags.' : '')); });
+    lines.push('', 'RULES: use only facts that are in the script above; never add numbers, names, quotes or claims. Do not mention other platforms. No emojis unless they clearly fit the voice. Write like a person, not a brand. Do not put links in the caption.',
+      'Return STRICT JSON only: {"posts":{' + want.map(function (p) { return '"' + p.id + '":"..."'; }).join(',') + '}}');
+    var src = scriptSourceText(sc);
+    return callLLM(lines.join('\n'), 'write').then(function (r) {
+      var j = extractJson(r.text), po = (j && j.posts) || j || {};
+      want.forEach(function (p) {
+        var t = String(po[p.id] || '').trim();
+        if (!t || unsupportedNumbers(t, src).length) return;
+        out[p.id] = fitPost(t, p, '');
+      });
+      return out;
+    }).catch(function (e) { LOG('captions: AI unavailable, using plain captions:', e && e.message); return out; });
+  }
+  function pubStyle() {
+    if (document.getElementById('asg-pub-style')) return;
+    var st = document.createElement('style'); st.id = 'asg-pub-style';
+    st.textContent = '.asg-pub-plats{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}.asg-pub-plats label{display:flex;gap:6px;align-items:center;border:1px solid var(--asg-border,#e1e4e9);border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer}' +
+      '.asg-pub-plats input:checked+span{font-weight:600}.asg-pub-row{margin:8px 0;border:1px solid var(--asg-border,#dde1ea);border-radius:10px;background:var(--asg-bg,#fff)}.asg-pub-row>summary{list-style:none;cursor:pointer;padding:10px 14px;border-radius:10px}.asg-pub-row>summary::-webkit-details-marker{display:none}.asg-pub-row>summary strong::before{content:"▸";display:inline-block;width:16px;color:var(--asg-text-dim,#7a869b);transition:transform .15s}.asg-pub-row[open]>summary strong::before{transform:rotate(90deg)}.asg-pub-row[open]>summary{border-bottom:1px solid var(--asg-border,#dde1ea);border-radius:10px 10px 0 0}.asg-root .asg-pub-row>*:not(summary){margin-left:14px;margin-right:14px}.asg-root .asg-pub-row>*:last-child{margin-bottom:12px}.asg-root .asg-pub-row .asg-hint{margin-top:8px}.asg-pub-row textarea{width:100%;min-height:78px;box-sizing:border-box}.asg-pub-row .asg-pub-h{display:flex;justify-content:space-between;align-items:center;font-size:14px}.asg-pub-row textarea{margin-top:10px}' +
+      '.asg-pub-in{width:100%;box-sizing:border-box;margin:4px 0 10px;padding:9px 12px;border:1px solid var(--asg-border,#dde1ea);border-radius:9px;background:var(--asg-bg,#fff);color:var(--asg-text,#141a2a);font:inherit;font-size:14px}.asg-pub-in:focus{outline:none;border-color:var(--asg-accent,#3157f0);box-shadow:0 0 0 3px rgba(49,87,240,.16)}.asg-pub-status{margin:8px 0 0}' +
+      '.asg-pub-spread,.asg-pub-when{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:10px 0}.asg-pub-spread .asg-pub-in,.asg-pub-when .asg-pub-in{width:auto;margin:0}.asg-pub-when{padding:12px 14px;border:1px solid var(--asg-border,#dde1ea);border-left:3px solid var(--asg-signal,#f5a524);border-radius:10px;background:var(--asg-signal-soft,#fff4de)}.asg-pub-when .asg-label{margin:0}';
+    document.head.appendChild(st);
+  }
+  var PUB_SAMPLE = { event: 'newsreel.publish', sent_at: '2026-10-25T05:00:00+00:00', profile: { id: '...', name: 'Blomstra Insights' }, platforms: ['youtube', 'instagram', 'x'], scheduled_at: '2026-10-27T16:30:00.000Z', scheduled_local: '2026-10-27T18:30', timezone: 'Europe/Stockholm', title: '...', description: '...', tags: ['Iran', 'geopolitics'], posts: { instagram: '...', x: '...' }, pinned_comment: '...', sources: ['https://...'], duration_sec: 59, captions_srt: '...', video_url: 'https://your-site/wp-content/uploads/autonom-newsreel/abc123.mp4', video_mime: 'video/mp4' };
+  function toLocalInput(d) { function z(n) { return (n < 10 ? '0' : '') + n; } return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+  function pubSend(sc, rec, test, schedule, local) {
+    var cfg = window.AUTONOM_ASG || {}, st = state.settings;
+    var um = rec ? uploadMeta(sc, rec.credits, rec.provider) : { title: 'Test from Newsreel', description: 'Test event. Nothing was published.', tags: ['test'], pinned: '' };
+    var posts = {}; var mine = sc ? postsOf(sc) : {};
+    pubPlatforms().forEach(function (p) { if (p.id !== 'youtube') posts[p.id] = sc ? (mine[p.id] || defaultPost(p, sc, um)) : 'Test caption for ' + p.label; });
+    var meta = {
+      test: !!test, webhook: String(st.publishWebhook || '').trim(), secret: String(st.publishSecret || '').trim(),
+      profile: { id: state.profile && state.profile.id, name: state.profile && state.profile.name },
+      platforms: pubPlatforms().map(function (p) { return p.id; }), scheduled_at: schedule || '', scheduled_local: local || '', timezone: (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } })(),
+      title: um.title, description: um.description, tags: um.tags, posts: posts, pinned_comment: um.pinned,
+      sources: (sc && sc.sources) || [], duration_sec: rec ? Math.round(rec.duration || 0) : 0, captions_srt: rec && rec.srt ? rec.srt : ''
+    };
+    var fd = new FormData();
+    fd.append('meta', JSON.stringify(meta));
+    if (!test && rec && rec.video) fd.append('video', rec.video, slugOf(sc, 0) + '.' + (rec.ext || 'mp4'));
+    return fetchWithTimeout(cfg.publishEndpoint, { method: 'POST', body: fd, headers: { 'X-WP-Nonce': cfg.restNonce || '' }, credentials: 'same-origin' }, 240000).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { j = j || {}; j.httpStatus = r.status; return j; });
+    });
+  }
+  function pubExplain(j) {
+    if (j.httpStatus === 401 || j.httpStatus === 403 || j.code === 'rest_forbidden') return 'Not allowed: log in to WordPress as an editor or admin and reload this page. (If the page is cached, the login check can be stale.)';
+    if (j.message) return j.message;
+    if (j.ok === false && j.webhook_status) return 'Your automation answered ' + j.webhook_status + (j.webhook_reply ? ': ' + String(j.webhook_reply).slice(0, 120) : '') + '.';
+    return j.error ? 'Failed: ' + j.error : 'No answer from the site relay (status ' + (j.httpStatus || '?') + ').';
+  }
+  var PUB_OPEN = {
+    youtube: function () { return 'https://www.youtube.com/upload'; },
+    instagram: function () { return 'https://www.instagram.com/'; },
+    facebook: function () { return 'https://www.facebook.com/reels/create'; },
+    tiktok: function () { return 'https://www.tiktok.com/tiktokstudio/upload'; },
+    x: function (t) { return 'https://x.com/intent/post?text=' + encodeURIComponent(t); },
+    linkedin: function (t) { return 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(t); },
+    threads: function () { return 'https://www.threads.net/'; },
+    bluesky: function (t) { return 'https://bsky.app/intent/compose?text=' + encodeURIComponent(t); },
+    telegram: function () { return 'https://web.telegram.org/'; },
+    rumble: function () { return 'https://rumble.com/upload.php'; },
+    mastodon: null
+  };
+  function copyText(t) { try { navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
+  function tgPost(rec, text, name) {
+    var st = state.settings, fd = new FormData();
+    fd.append('chat_id', String(st.telegramChat || '').trim());
+    fd.append('caption', String(text).slice(0, 1024));
+    fd.append('supports_streaming', 'true');
+    fd.append('video', rec.video, name);
+    return fetchWithTimeout('https://api.telegram.org/bot' + String(st.telegramToken || '').trim() + '/sendVideo', { method: 'POST', body: fd }, 240000)
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (j) { if (!j.ok) throw new Error(j.description || 'Telegram refused the video'); return 'Posted to Telegram.'; });
+  }
+  function mastoBase() { var h = String(state.settings.mastodonInstance || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, ''); return h ? 'https://' + h : ''; }
+  function mastoPost(rec, text, name) {
+    var st = state.settings, base = mastoBase(), auth = { 'Authorization': 'Bearer ' + String(st.mastodonToken || '').trim() };
+    var fd = new FormData(); fd.append('file', rec.video, name);
+    return fetchWithTimeout(base + '/api/v2/media', { method: 'POST', body: fd, headers: auth }, 240000).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!(r.status === 200 || r.status === 202) || !j.id) throw new Error(j.error || 'Mastodon refused the video (' + r.status + ')');
+        function wait(n) {
+          if (r.status === 200 || n > 40) return Promise.resolve();
+          return sleep(1500).then(function () { return fetchWithTimeout(base + '/api/v1/media/' + j.id, { headers: auth }, 15000); }).then(function (g) { return g.status === 200 ? null : wait(n + 1); });
+        }
+        return wait(0).then(function () { return j.id; });
+      });
+    }).then(function (id) {
+      return fetchWithTimeout(base + '/api/v1/statuses', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: JSON.stringify({ status: text, media_ids: [id], visibility: 'public' }) }, 30000);
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!j.id) throw new Error(j.error || 'Mastodon did not accept the post'); return 'Posted to Mastodon.'; }); });
+  }
+  function renderPublish() {
+    pubStyle();
+    var cfg = window.AUTONOM_ASG || {}, st = state.settings, owner = !!cfg.canPublish;
+    var setup = $('#asg-pub-setup'), list = $('#asg-pub-list'); if (!setup || !list) return Promise.resolve();
+    var myTok = (renderPublish._tok = (renderPublish._tok || 0) + 1);
+    setup.innerHTML = ''; list.innerHTML = '';
+    var box = el('div', { class: 'asg-cons-card' });
+    box.appendChild(el('strong', { text: 'Where to publish' }));
+    var pl = el('div', { class: 'asg-pub-plats' });
+    PLATFORMS.forEach(function (p) {
+      var cb = el('input', { type: 'checkbox' }); cb.checked = (st.publishPlatforms || []).indexOf(p.id) !== -1;
+      cb.addEventListener('change', function () {
+        var cur = (st.publishPlatforms || []).filter(function (x) { return x !== p.id; });
+        if (cb.checked) cur.push(p.id);
+        st.publishPlatforms = cur; persistSettings(); renderPublish();
+      });
+      pl.appendChild(el('label', {}, [cb, el('span', { text: p.label })]));
+    });
+    box.appendChild(pl);
+    function field2(parent, label, key, ph) {
+      var inp = el('input', { type: 'text', class: 'asg-pub-in', placeholder: ph || '', autocomplete: 'off', spellcheck: 'false' });
+      inp.value = st[key] || '';
+      inp.addEventListener('change', function () { st[key] = inp.value.trim(); persistSettings(); renderPublish(); });
+      inp.id = 'asg-pub-' + key;
+      parent.appendChild(el('label', { class: 'asg-label', for: inp.id, text: label })); parent.appendChild(inp);
+    }
+    var direct = el('details', { style: 'margin-top:6px;' });
+    direct.appendChild(el('summary', { text: 'Post directly: Telegram and Mastodon (no extra service)' }));
+    direct.open = !!(st.telegramToken || st.mastodonToken);
+    direct.appendChild(el('p', { class: 'asg-hint', text: 'Telegram: create a bot with @BotFather, add it as an admin of your channel, paste its token and the channel name (like @mychannel). Mastodon: Preferences, Development, new application with write:media and write:statuses, paste the access token. Keys stay in this browser, like your AI keys.' }));
+    field2(direct, 'Telegram bot token', 'telegramToken', '123456:ABC…'); field2(direct, 'Telegram channel or chat', 'telegramChat', '@mychannel');
+    field2(direct, 'Mastodon server', 'mastodonInstance', 'mastodon.social'); field2(direct, 'Mastodon access token', 'mastodonToken', '');
+    box.appendChild(direct);
+    var hookOn = owner && /^https:\/\//.test(st.publishWebhook || '');
+    if (owner) {
+      var own = el('details', { style: 'margin-top:6px;' });
+      own.open = !!st.publishWebhook;
+      own.appendChild(el('summary', { text: 'Automation hand-off (site owner): Make, n8n, Zapier' }));
+      own.appendChild(el('p', { class: 'asg-hint', text: 'Sends the video and all captions to your own webhook through this site, which hosts the video at a temporary public link. Only you can use it because it needs your WordPress login.' }));
+      var wh = el('input', { type: 'url', class: 'asg-pub-in', placeholder: 'https://hook.eu1.make.com/…', autocomplete: 'off', spellcheck: 'false' });
+      wh.value = st.publishWebhook || '';
+      wh.addEventListener('change', function () { st.publishWebhook = wh.value.trim(); persistSettings(); renderPublish(); });
+      own.appendChild(el('label', { class: 'asg-label', text: 'Webhook address (https)' })); own.appendChild(wh);
+      field2(own, 'Shared secret (optional)', 'publishSecret', 'sent as the X-Newsreel-Secret header');
+      var sp = el('div', { class: 'asg-pub-spread' });
+      var spFirst = el('input', { type: 'datetime-local', class: 'asg-pub-in', id: 'asg-pub-first', style: 'max-width:230px;' });
+      spFirst.value = st.publishFirst || ''; spFirst.addEventListener('change', function () { st.publishFirst = spFirst.value; persistSettings(); });
+      var spGap = el('select', { class: 'asg-pub-in', id: 'asg-pub-gap', style: 'max-width:150px;' });
+      [[2, 'every 2 hours'], [4, 'every 4 hours'], [6, 'every 6 hours'], [12, 'every 12 hours'], [24, 'once a day']].forEach(function (g) { spGap.appendChild(el('option', { value: String(g[0]), text: g[1] })); });
+      spGap.value = String(st.publishGap || 6);
+      var spBtn = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Space my videos out' });
+      spBtn.addEventListener('click', function () {
+        if (!spFirst.value) { toast('Pick a time for the first video.', 'error'); return; }
+        st.publishFirst = spFirst.value; var t0 = new Date(spFirst.value).getTime(), gap = parseFloat(spGap.value) * 3600000; st.publishGap = parseFloat(spGap.value); persistSettings();
+        var n = 0; goodScripts().forEach(function (sc2) { sc2.schedule = toLocalInput(new Date(t0 + n * gap)); n++; });
+        persistScripts(); renderPublish();
+      });
+      sp.appendChild(el('label', { class: 'asg-label', for: 'asg-pub-first', text: 'Schedule all: first video at' })); sp.appendChild(spFirst); sp.appendChild(spGap); sp.appendChild(spBtn);
+      own.appendChild(sp);
+      own.appendChild(el('p', { class: 'asg-hint', text: 'Each video also has its own time on its card below. Times use this browser\'s time zone, and your automation receives the exact UTC time.' }));
+      var tb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Send a test event' }), tstat = el('p', { class: 'asg-hint asg-pub-status' });
+      tb.disabled = !hookOn;
+      tb.addEventListener('click', function () {
+        tb.disabled = true; tstat.textContent = 'Sending…';
+        pubSend(null, null, true, '').then(function (j) { tstat.textContent = j.ok ? 'Your automation accepted the test (' + j.webhook_status + '). Nothing was published.' : pubExplain(j); })
+          .catch(function (e) { tstat.textContent = 'Could not reach the site relay: ' + (e && e.message || e); }).then(function () { tb.disabled = false; });
+      });
+      own.appendChild(tb); own.appendChild(tstat);
+      var ex = el('details', { style: 'margin-top:8px;' });
+      ex.appendChild(el('summary', { text: 'What your automation receives' }));
+      ex.appendChild(el('pre', { style: 'white-space:pre-wrap;font-size:12px;overflow:auto;', text: JSON.stringify(PUB_SAMPLE, null, 2) + '\n\nPOST, JSON. Route by "platforms". "video_url" is public for 3 days, then deleted.' }));
+      own.appendChild(ex);
+      box.appendChild(own);
+    }
+    setup.appendChild(box);
+
+    return mediaIndex().then(function (idx) {
+      if (myTok !== renderPublish._tok) return;
+      var scripts = goodScripts(), pls = pubPlatforms(), have = 0;
+      scripts.forEach(function (sc, i) {
+        var rec = idx[sc.mediaId || ''];
+        var card = el('div', { class: 'asg-cons-card' });
+        card.appendChild(el('strong', { text: (i + 1) + '. ' + (sc.title || sc.storyTitle) }));
+        if (!rec || !rec.video) { card.appendChild(el('p', { class: 'asg-hint', text: 'No video yet. Make it in the Video step first.' })); list.appendChild(card); return; }
+        have++;
+        var fname = slugOf(sc, i) + '.' + (rec.ext || 'mp4');
+        var um = uploadMeta(sc, rec.credits, rec.provider), posts = postsOf(sc), areas = {};
+        var meta = el('p', { class: 'asg-hint' });
+        meta.appendChild(document.createTextNode((rec.ext || 'mp4').toUpperCase() + ' · ' + fmtMB(rec.video.size) + ' · ' + Math.round(rec.duration || 0) + ' s' + (sc.published ? ' · sent ' + new Date(sc.published.at).toLocaleString() + (sc.published.scheduled_for ? ' for ' + new Date(sc.published.scheduled_for).toLocaleString() : '') + ' to ' + sc.published.platforms.join(', ') : '') + ' · '));
+        meta.appendChild(el('a', { href: URL.createObjectURL(rec.video), download: fname, text: 'Download video' }));
+        card.appendChild(meta);
+        if ((rec.ext || '') !== 'mp4') card.appendChild(el('p', { class: 'asg-hint', style: 'color:#8a5b00;', text: 'This is a WebM file. Instagram, Facebook and TikTok often refuse WebM. Make the video in Chrome or Edge to get MP4.' }));
+        var file = null, canShare = false;
+        try { file = new File([rec.video], fname, { type: rec.video.type || (rec.ext === 'mp4' ? 'video/mp4' : 'video/webm') }); canShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) {}
+        var status = el('p', { class: 'asg-hint asg-pub-status' });
+        var wb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Write captions for ' + pls.filter(function (p) { return p.id !== 'youtube'; }).length + ' platforms' });
+        function fillAreas() { pls.forEach(function (p) { if (areas[p.id]) { areas[p.id].value = posts[p.id] || defaultPost(p, sc, um); areas[p.id].dispatchEvent(new Event('input')); } }); }
+        wb.addEventListener('click', function () {
+          wb.disabled = true; wb.textContent = 'Writing…';
+          writePosts(sc, um, pls).then(function (po) { pls.forEach(function (p) { if (po[p.id]) posts[p.id] = po[p.id]; }); persistScripts(); fillAreas(); status.textContent = 'Captions written. Edit them if you like.'; })
+            .then(function () { wb.disabled = false; wb.textContent = 'Write captions again'; });
+        });
+        var tgl = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Expand all', style: 'margin-left:8px;' });
+        tgl.addEventListener('click', function () { var rows = $$('.asg-pub-row', card), anyClosed = rows.some(function (r) { return !r.open; }); rows.forEach(function (r) { r.open = anyClosed; }); tgl.textContent = anyClosed ? 'Collapse all' : 'Expand all'; });
+        card.appendChild(wb); card.appendChild(tgl);
+        pls.forEach(function (p) {
+          var row = el('details', { class: 'asg-pub-row' }); if (p.id === 'youtube') row.open = true;
+          var h = el('summary', { class: 'asg-pub-h' }); h.appendChild(el('strong', { text: p.label }));
+          var cnt = el('span', { class: 'asg-hint' }); h.appendChild(cnt); row.appendChild(h);
+          var btns = el('div', { style: 'display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;' }), rs = el('span', { class: 'asg-hint' });
+          function btn(label, fn) { var b = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: label }); b.addEventListener('click', function () { fn(b); }); btns.appendChild(b); return b; }
+          if (p.id === 'youtube') {
+            row.appendChild(el('p', { class: 'asg-hint', text: um.title }));
+            btn('Copy title', function () { copyText(um.title); toast('Title copied.', 'ok', 1500); });
+            btn('Copy description + tags', function () { copyText(um.description + '\n\n' + um.tags.map(function (t) { return '#' + cleanTag(t); }).join(' ')); toast('Copied.', 'ok', 1500); });
+            btn('Open YouTube upload', function () { window.open(PUB_OPEN.youtube(), '_blank', 'noopener'); });
+          } else {
+            var ta = el('textarea', {}); ta.value = posts[p.id] || defaultPost(p, sc, um);
+            var count = function () { cnt.textContent = ta.value.length + ' / ' + p.limit; cnt.style.color = ta.value.length > p.limit ? '#b3261e' : ''; };
+            ta.addEventListener('input', function () { posts[p.id] = ta.value; persistScripts(); count(); });
+            count(); areas[p.id] = ta; row.appendChild(ta);
+            btn('Copy', function () { copyText(ta.value); toast('Copied.', 'ok', 1500); });
+            if (PUB_OPEN[p.id] && !(p.id === 'telegram' && st.telegramToken && st.telegramChat)) btn('Copy and open ' + p.label, function () { copyText(ta.value); window.open(PUB_OPEN[p.id](ta.value), '_blank', 'noopener'); });
+            if (canShare) btn('Share…', function () { navigator.share({ files: [file], text: ta.value, title: um.title }).catch(function () {}); });
+            if (p.id === 'telegram' && st.telegramToken && st.telegramChat) btn('Post to Telegram', function (b) {
+              if (!window.confirm('Post this video to ' + st.telegramChat + ' on Telegram now?')) return;
+              b.disabled = true; rs.textContent = 'Uploading…';
+              tgPost(rec, ta.value, fname).then(function (m) { rs.textContent = m; }).catch(function (e) { rs.textContent = 'Failed: ' + (e && e.message || e); }).then(function () { b.disabled = false; });
+            });
+            if (p.id === 'mastodon' && mastoBase() && st.mastodonToken) btn('Post to Mastodon', function (b) {
+              if (!window.confirm('Post this video publicly on ' + mastoBase().replace('https://', '') + ' now?')) return;
+              b.disabled = true; rs.textContent = 'Uploading…';
+              mastoPost(rec, ta.value, fname).then(function (m) { rs.textContent = m; }).catch(function (e) { rs.textContent = 'Failed: ' + (e && e.message || e); }).then(function () { b.disabled = false; });
+            });
+          }
+          row.appendChild(btns); row.appendChild(rs); card.appendChild(row);
+        });
+        if (owner) {
+          var wrap = el('div', { class: 'asg-pub-when' });
+          var when = el('input', { type: 'datetime-local', class: 'asg-pub-in', id: 'asg-when-' + i, style: 'max-width:230px;' });
+          when.value = sc.schedule || '';
+          when.addEventListener('change', function () { sc.schedule = when.value; persistScripts(); setLabel(); });
+          wrap.appendChild(el('label', { class: 'asg-label', for: 'asg-when-' + i, text: 'Publish at' })); wrap.appendChild(when);
+          wrap.appendChild(el('span', { class: 'asg-hint', text: 'Leave empty to publish as soon as your automation runs.' }));
+          card.appendChild(wrap);
+          var sb = el('button', { type: 'button', class: 'asg-btn asg-btn-primary', style: 'margin-top:10px;' });
+          function setLabel() { sb.textContent = when.value ? 'Send and schedule for ' + new Date(when.value).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Send to my automation now'; }
+          setLabel();
+          sb.disabled = !hookOn || !pls.length;
+          sb.addEventListener('click', function () {
+            var names = pls.map(function (p) { return p.label; }).join(', ');
+            if (!window.confirm('Send "' + (sc.title || sc.storyTitle) + '" to your automation for: ' + names + '?\n\nDepending on how you built it, your automation may publish this publicly.')) return;
+            sb.disabled = true; status.textContent = 'Uploading ' + fmtMB(rec.video.size) + ' and sending…';
+            var iso = when.value ? new Date(when.value).toISOString() : '';
+            if (when.value && new Date(when.value).getTime() < Date.now() - 60000) { sb.disabled = false; status.textContent = 'That time is in the past. Pick a later time or clear it.'; return; }
+            pubSend(sc, rec, false, iso, when.value).then(function (j) {
+              if (j.ok) { sc.published = { at: new Date().toISOString(), platforms: pls.map(function (p) { return p.id; }), scheduled_for: iso }; persistScripts(); status.textContent = 'Sent. Your automation accepted it (' + j.webhook_status + '). Check there that each platform published.'; }
+              else status.textContent = pubExplain(j);
+            }).catch(function (e) { status.textContent = 'Could not reach the site relay: ' + (e && e.message || e); }).then(function () { sb.disabled = !hookOn || !pls.length; });
+          });
+          card.appendChild(sb);
+        }
+        card.appendChild(status);
+        list.appendChild(card);
+      });
+      if (!have) list.appendChild(el('p', { class: 'asg-hint', text: 'No videos yet. Make them in the Video step; they stay saved in this browser.' }));
+    });
+  }
+
   function bind() {
     $$('.asg-step').forEach(function (s) { s.addEventListener('click', function () { if (!s.disabled) setStep(s.dataset.step); }); });
     $('.asg-privacy-toggle').addEventListener('click', function () { var d = $('.asg-privacy-drawer'); d.hidden = !d.hidden; });
@@ -4998,7 +5564,8 @@
       if (!n) { toast('Tick at least one story first.', 'error'); return; }
       setStep(n > 1 ? 'consolidate' : 'generate');
     });
-    var cn = $('#asg-cons-next'); if (cn) cn.addEventListener('click', function () { setStep('generate'); });
+    var cn = $('#asg-cons-next'); if (cn) cn.addEventListener('click', function () { if (consBusy) { consThen = true; paintConsProg(); toast('Still consolidating. Generate opens when it is done.', ''); return; } setStep('generate'); });
+    var cs = $('#asg-cons-stop'); if (cs) cs.addEventListener('click', function () { consStop = true; consThen = false; cs.disabled = true; setTimeout(function () { cs.disabled = false; }, 1500); toast('Stopping after the current group…', ''); });
     var cb0 = $('#asg-cons-back'); if (cb0) cb0.addEventListener('click', function () { setStep('feed'); });
     var cr = $('#asg-cons-run'); if (cr) cr.addEventListener('click', function () { runConsolidation(groupsFor(selectedList())); });
     var bc = $('#asg-back-cons'); if (bc) bc.addEventListener('click', function () { setStep(Object.keys(state.selectedStoryIds).length > 1 ? 'consolidate' : 'feed'); });
@@ -5008,7 +5575,8 @@
     $('#asg-back-generate').addEventListener('click', function () { setStep('generate'); });
     $('#asg-continue-video').addEventListener('click', function () { setStep('video'); });
     $('#asg-back-review').addEventListener('click', function () { setStep('scripts'); });
-    $('#asg-continue-export').addEventListener('click', function () { renderExport(); setStep('export'); });
+    $('#asg-continue-export').addEventListener('click', function () { setStep('publish'); });
+    $('#asg-pub-skip').addEventListener('click', function () { renderExport(); setStep('export'); });
     $('#asg-back-video').addEventListener('click', function () { setStep('video'); });
     $('#asg-export-json').addEventListener('click', function () {
       mediaIndex().then(function (idx) { download('autonom-ai-shorts.json', JSON.stringify(buildPayload(idx), null, 2), 'application/json'); toast('JSON downloaded', 'success'); });
@@ -5023,46 +5591,55 @@
       copyText(txt).then(function () { toast('Copied all', 'success'); });
     });
     $('#asg-restart').addEventListener('click', function () {
-      if (!confirm('Clear current scripts and start over?')) return;
-      state.scripts = []; state.stories = []; state.selectedStoryIds = {};
+      if (!confirm('Start over?\n\nThis clears the current stories and scripts so you can begin a new run. Your profile and API keys stay. Videos you already made stay saved in this browser.')) return;
+      state.scripts = []; state.stories = []; state.selectedStoryIds = {}; state.consGroups = []; state.consRes = {};
       persistScripts(); setStep('channel');
     });
     $$('.asg-open-settings').forEach(function (b) { b.addEventListener('click', openSettings); });
     $('#asg-settings-close').addEventListener('click', closeSettings);
+    $$('.asg-set-tab').forEach(function (tb) {
+      tb.addEventListener('click', function () {
+        $$('.asg-set-tab').forEach(function (x) { x.classList.toggle('is-active', x === tb); x.setAttribute('aria-selected', String(x === tb)); });
+        $$('.asg-set-sec').forEach(function (sec) { sec.hidden = sec.dataset.tab !== tb.dataset.tab; });
+        var bd = $('.asg-drawer-body'); if (bd) bd.scrollTop = 0;
+      });
+    });
     $('#asg-settings-drawer').addEventListener('click', function (e) { if (e.target === this) closeSettings(); });
     $('#asg-set-provider').addEventListener('change', syncProviderFields);
+    var stk = $('#asg-set-stock'); if (stk) stk.addEventListener('change', syncStock);
+    var lb0 = $('#asg-lnk-learn'); if (lb0) lb0.addEventListener('click', learnFromLinks);
     var testBtn = document.getElementById('asg-test-gemini');
     if (testBtn) {
       testBtn.addEventListener('click', function () {
         var key = $('#asg-set-gemini').value.trim();
-        if (!key) { toast('Paste a Gemini key first.', 'error'); return; }
+        if (!key) { toast('Paste a Gemini key first.', 'error'); testNote('gemini', 'Paste the key above first.', 'bad'); return; }
         var savedKey = state.settings.geminiKey, savedModel = state.settings.geminiModel, savedProv = state.settings.llmProvider;
         var gm = $('#asg-set-gemini-model');
         state.settings.geminiKey = key;
         if (gm && gm.value.trim()) state.settings.geminiModel = gm.value.trim();
         state.settings.llmProvider = 'gemini';
-        var btn = this; btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Testing…';
+        var btn = this; btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Testing…'; testNote('gemini', 'Testing. This can take up to a minute while models are tried.', '');
         callLLM('Return strict JSON: {"ok": true, "msg": "hello"}', 'extract', { noFallback: true, noSticky: true })
-          .then(function (r) { toast('✓ Gemini key works (model: ' + r.model + ')', 'success'); console.log('[ASG] test success:', r.model, r.text); })
-          .catch(function (e) { toast('✗ ' + e.message, 'error'); console.error('[ASG] test fail:', e.message); })
+          .then(function (r) { toast('✓ Gemini key works (model: ' + r.model + ')', 'success'); testNote('gemini', '✓ This key works. Answered by ' + r.model + '.', 'ok'); console.log('[ASG] test success:', r.model, r.text); })
+          .catch(function (e) { toast('✗ ' + e.message, 'error'); testNote('gemini', '✗ ' + testWhy(e), 'bad'); console.error('[ASG] test fail:', e.message); })
           .then(function () {
             state.settings.geminiKey = savedKey; state.settings.geminiModel = savedModel; state.settings.llmProvider = savedProv;
             btn.disabled = false; btn.textContent = orig;
           });
       });
     }
-    ['groq', 'openrouter'].forEach(function (pv) {
+    COMPAT_IDS.forEach(function (pv) {
       var tb = document.getElementById('asg-test-' + pv);
       if (!tb) return;
       tb.addEventListener('click', function () {
         var key = $('#asg-set-' + pv).value.trim();
-        if (!key) { toast('Paste a ' + pv + ' key first.', 'error'); return; }
+        if (!key) { toast('Paste a ' + pv + ' key first.', 'error'); testNote(pv, 'Paste the key above first.', 'bad'); return; }
         var saved = { k: state.settings[pv + 'Key'], m: state.settings[pv + 'Model'], p: state.settings.llmProvider };
         state.settings[pv + 'Key'] = key; state.settings[pv + 'Model'] = ($('#asg-set-' + pv + '-model').value || '').trim(); state.settings.llmProvider = pv;
-        var btn = this; btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Testing…';
+        var btn = this; btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Testing…'; testNote(pv, 'Testing. This can take up to a minute while models are tried.', '');
         callLLM('Return strict JSON: {"ok": true, "msg": "hello"}', 'extract', { noFallback: true, noSticky: true })
-          .then(function (r) { toast('✓ ' + pv + ' key works (model: ' + r.model + ')', 'success'); })
-          .catch(function (e) { toast('✗ ' + e.message, 'error'); })
+          .then(function (r) { toast('✓ ' + pv + ' key works (model: ' + r.model + ')', 'success'); testNote(pv, '✓ This key works. Answered by ' + r.model + '.', 'ok'); })
+          .catch(function (e) { toast('✗ ' + e.message, 'error'); testNote(pv, '✗ ' + testWhy(e), 'bad'); })
           .then(function () { state.settings[pv + 'Key'] = saved.k; state.settings[pv + 'Model'] = saved.m; state.settings.llmProvider = saved.p; btn.disabled = false; btn.textContent = orig; });
       });
     });
@@ -5084,12 +5661,13 @@
       var sp2 = $('#asg-set-stock'); if (sp2) state.settings.stockProvider = sp2.value;
       var pxk2 = $('#asg-set-pixabay'); if (pxk2) state.settings.pixabayKey = pxk2.value.trim();
       var pek2 = $('#asg-set-pexels'); if (pek2) state.settings.pexelsKey = pek2.value.trim();
-      ['groq', 'openrouter'].forEach(function (pv) {
+      COMPAT_IDS.forEach(function (pv) {
         var k = $('#asg-set-' + pv), m = $('#asg-set-' + pv + '-model'), w = $('#asg-set-' + pv + '-write-model');
         if (k) state.settings[pv + 'Key'] = k.value.trim();
         if (m) state.settings[pv + 'Model'] = m.value.trim();
         if (w) state.settings[pv + 'WriteModel'] = w.value.trim();
       });
+      readLinks(); if (state.profile) persistProfile();
       persistSettings(); updateApiStatus(); closeSettings(); toast('Settings saved', 'success');
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#asg-settings-drawer').hidden) closeSettings(); });
