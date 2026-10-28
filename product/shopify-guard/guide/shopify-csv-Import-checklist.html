@@ -1,0 +1,366 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Shopify CSV Import Checklist
+    </div>
+    <h1 class="autonom-hero-title">
+      Shopify CSV Import Checklist<br>
+      <em>15 checks before you upload.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      Every merchant who has broken a catalog with a bad import wishes they'd
+      spent five more minutes checking the file first. This is that five
+      minutes — distilled into 15 checks you can run before every Shopify CSV
+      import.
+    </p>
+    <p class="autonom-hero-sub">
+      The order matters. Handle the structural checks first, then the
+      data-quality checks, then the encoding checks. If a structural problem
+      exists, data-quality checks are meaningless — Shopify won't read the file
+      correctly anyway.
+    </p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-info">
+      <span class="autonom-callout-icon">📋</span>
+      <div class="autonom-callout-body">
+        <strong>How to use this checklist.</strong>
+        <p>Run through it once before any import. Or scan the file with a validator that runs all 15 checks automatically and shows you the results in one report.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">Part 1 — File structure (checks 1-4)</h2>
+    <p>
+      These are the "the import will fail entirely" checks. Fix any of these
+      before moving on.
+    </p>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>1. File extension is .csv</h3>
+        <p>
+          Not .xlsx. Not .xls. Not .numbers. Shopify only reads <code>.csv</code>
+          files. If you edited in Excel and didn't choose "CSV UTF-8" on save,
+          your file is probably in the wrong format.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>2. First row contains column headers</h3>
+        <p>
+          Shopify expects row 1 to be the column names: <code>Handle</code>,
+          <code>Title</code>, <code>Variant Price</code>, etc. If your file
+          has a title row or a blank row above the headers, delete it.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>3. File is comma-delimited, not semicolon</h3>
+        <p>
+          Open the file in a plain text editor. If the first line reads
+          <code>Handle;Title;Vendor</code> instead of <code>Handle,Title,Vendor</code>,
+          your file uses the wrong delimiter. Re-export as comma-separated.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>4. Required columns are present</h3>
+        <p>
+          For new products: <code>Handle</code> and <code>Title</code> are
+          required, plus <code>Variant Price</code> to make products sellable.
+          For updates: only <code>Handle</code> is required. Any missing
+          required column fails the entire import.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Part 2 — Product identity (checks 5-8)</h2>
+    <p>
+      These determine whether Shopify matches rows to the right products — and
+      whether the products end up with clean, indexable URLs.
+    </p>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>5. Every product has a Handle</h3>
+        <p>
+          No blank handles. Handle is the only column Shopify uses to match rows
+          to products. See our <a href="/guide/shopify-csv-import/handle-errors/">handle errors guide</a>
+          for the full explanation.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>6. Handles follow Shopify's format</h3>
+        <p>
+          Lowercase letters, numbers, and hyphens. No spaces, uppercase,
+          underscores, or accents. If you see <code>Blue T-Shirt</code> in the
+          Handle column, fix it to <code>blue-t-shirt</code> before importing.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>7. Each product appears once as a parent</h3>
+        <p>
+          The first row of each product has the Title. Subsequent rows of the
+          same product (variant rows, image rows) should have a blank Title.
+          If two rows with the same Handle both have Titles, Shopify merges them.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>8. Every product has a Title</h3>
+        <p>
+          Blank Title = Shopify creates a product with an auto-generated name.
+          It won't rank in search, it looks unprofessional on the storefront,
+          and it's usually a sign that something else is wrong with the row.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Part 3 — Variants &amp; SKUs (checks 9-10)</h2>
+    <p>
+      Variant problems are the most common reason merchants lose half their
+      catalog after an update. See our
+      <a href="/guide/shopify-csv-import/variant-errors/">variant errors guide</a>
+      for the deeper dive.
+    </p>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>9. Every variant row has a Handle</h3>
+        <p>
+          A variant row without a Handle is orphaned. Shopify can't attach it
+          to a product. It either gets dropped or creates a duplicate product.
+          Copy the parent's Handle into every variant row.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>10. No duplicate option combinations</h3>
+        <p>
+          Within one product, each variant needs a unique combination of Option
+          values. "Small/Red" and "Small/Red" is a duplicate — Shopify silently
+          drops one.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Part 4 — Prices &amp; inventory (checks 11-12)</h2>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>11. Prices are numeric, no symbols</h3>
+        <p>
+          <code>19.99</code> is correct. <code>$19.99</code>, <code>19,99</code>,
+          and <code>nineteen ninety nine</code> are all wrong. Shopify expects
+          a dot for the decimal separator and no currency symbol.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>12. Inventory quantities are whole numbers</h3>
+        <p>
+          <code>42</code> is correct. <code>3.5</code>, <code>-5</code>, and
+          blank cells in an included Variant Inventory Qty column are all
+          problematic. Shopify expects a non-negative integer.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Part 5 — The destructive blank check (check 13)</h2>
+    <p>
+      This is the most important check for anyone updating existing products.
+      See our <a href="/guide/shopify-csv-import/blank-overwrites/">blank overwrites guide</a>
+      for the full mechanism.
+    </p>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-critical);">
+        <h3>13. No blank cells in included columns</h3>
+        <p>
+          For every column you've included in the CSV, check for blank cells.
+          Shopify treats blanks as intentional clears on matching products.
+        </p>
+        <p><strong>Ask yourself for each column:</strong></p>
+        <ul>
+          <li>Are there blank cells in this column?</li>
+          <li>If yes — do I want those products to have this field cleared?</li>
+          <li>If no — should I fill them in, or remove the column entirely?</li>
+        </ul>
+        <p>
+          The safest path: include only the columns you're actively changing,
+          and make sure every cell in those columns has a value.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Part 6 — Encoding &amp; content (checks 14-15)</h2>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>14. File is UTF-8, no BOM</h3>
+        <p>
+          Open the file in Notepad++, VS Code, or Sublime Text. The encoding
+          indicator should read "UTF-8" — not "UTF-8 with BOM," not
+          "Windows-1252," not "ISO-8859-1." See our
+          <a href="/guide/shopify-csv-import/encoding-errors/">encoding errors guide</a>
+          for details.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>15. No smart quotes or typographic characters</h3>
+        <p>
+          Search the file for <code>"</code>, <code>"</code>, <code>'</code>,
+          <code>'</code>, <code>—</code>, and <code>…</code>. If any of these
+          appear, Shopify's CSV parser may misread the field boundaries. Replace
+          them with straight quotes and hyphens.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The fast version — one minute, one scan</h2>
+    <p>
+      Fifteen manual checks on a 500-row file take 30-60 minutes. On a 5,000-row
+      file, they take an afternoon. And even then, you'll miss things — the eye
+      can't spot a smart quote in a 200,000-character file.
+    </p>
+    <p>
+      A validator runs all 15 checks in a single pass. It shows you which rows
+      have which problems, sorted by severity, with the specific cell value that
+      needs attention.
+    </p>
+
+    <div class="autonom-cta-box">
+      <h3>Run all 15 checks in 30 seconds</h3>
+      <p>Autonom Shopify Guard scans your CSV for every issue on this list — plus 20 more — before you upload it. Free, browser-based, no account needed.</p>
+      <a href="https://autonom.app/ready/shopify-guard/" class="autonom-cta-btn">Open Shopify CSV Validator →</a>
+    </div>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">After the checks pass</h2>
+    <p>
+      Even with a clean file, the safest import path is:
+    </p>
+    <ol>
+      <li><strong>Export a backup</strong> of your current products from Shopify Admin → Products → Export → All products.</li>
+      <li><strong>Import a test batch</strong> of 2-5 products first. Verify they look right on the storefront.</li>
+      <li><strong>If the test looks good</strong>, run the full import.</li>
+      <li><strong>Verify a sample</strong> of the results. Check prices, variants, and images on a few products.</li>
+      <li><strong>Keep the backup</strong> until you're confident the import worked.</li>
+    </ol>
+    <p>
+      If something does go wrong, the backup lets you restore the previous state
+      by re-importing it. This is the single most important safety practice for
+      bulk imports — and almost nobody does it.
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guide/shopify-csv-import/handle-errors/">Shopify CSV handle errors</a></li>
+      <li><a href="/guide/shopify-csv-import/blank-overwrites/">Shopify CSV blank overwrites</a></li>
+      <li><a href="/guide/shopify-csv-import/variant-errors/">Shopify CSV variant errors</a></li>
+      <li><a href="/guide/shopify-csv-import/encoding-errors/">Shopify CSV encoding errors</a></li>
+      <li><a href="/guide/shopify-csv-import/csv-template/">Shopify CSV template download</a></li>
+      <li><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">Shopify's official CSV documentation</a> (external)</li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details>
+        <summary>How often should I run this checklist?</summary>
+        <p>Every time before you import a CSV that touches existing products. For new-product imports, checks 1-11 are the critical ones. For update imports, check 13 (destructive blanks) becomes the most important one.</p>
+      </details>
+      <details>
+        <summary>What's the most common cause of failed Shopify imports?</summary>
+        <p>In our testing, the top three are: missing Handle values, blank cells in included columns (destructive blanks), and duplicate option combinations. These three account for the majority of "silent" import failures.</p>
+      </details>
+      <details>
+        <summary>Can I import a CSV without a backup?</summary>
+        <p>You can, but it's risky. If the import modifies products in ways you didn't intend, you can't restore them without re-entering data manually. Always export a backup first — it takes 30 seconds.</p>
+      </details>
+      <details>
+        <summary>Do I need to run every check every time?</summary>
+        <p>For small imports (under 50 rows) you can usually eyeball checks 1-4 and be done. For anything larger, run all 15. The validator handles this automatically.</p>
+      </details>
+      <details>
+        <summary>What's the safest way to test an import?</summary>
+        <p>Create a small test CSV with 2-5 products — either new ones you'll delete afterward, or existing products you can manually verify. Import that first. If it works, run the full file.</p>
+      </details>
+      <details>
+        <summary>What if my import already failed?</summary>
+        <p>Re-export your products from Shopify Admin. The current state of your store is the new "truth." From there, run the CSV through the validator, fix the errors it finds, and try again.</p>
+      </details>
+      <details>
+        <summary>Are there checks specific to Shopify Plus?</summary>
+        <p>The checks are the same. Plus stores support more variants per product (up to 2,000 vs 100), so check 10 (duplicate option combinations) applies to a much larger space of combinations.</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
