@@ -1,0 +1,296 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Shopify CSV Variant Errors
+    </div>
+    <h1 class="autonom-hero-title">
+      Shopify CSV Variant Errors<br>
+      <em>How orphaned rows, duplicate combinations, and collapsed products destroy catalogs.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      Variants are the most fragile part of a Shopify CSV. A single misaligned
+      column, one missing Option value, or a duplicate row can cause Shopify to
+      silently drop every variant on a product — leaving only the parent row
+      behind. No error message. No warning. Just a product that used to have
+      sizes and colors, now alone.
+    </p>
+    <p class="autonom-hero-sub">
+      This guide covers the seven variant errors that break imports, what
+      Shopify does with each one, and how to catch them before they hit your
+      store.
+    </p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-warn">
+      <span class="autonom-callout-icon">⚠</span>
+      <div class="autonom-callout-body">
+        <strong>Shopify does not warn you about variant problems.</strong>
+        <p>It merges, drops, or replaces rows silently. If your CSV has a variant error, you find out days later when customers can't select a size.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">How Shopify reads variants in a CSV</h2>
+    <p>
+      Every variant of a product shares the same <code>Handle</code>. The first
+      row with a handle is the parent row (contains the product Title, Body HTML,
+      etc.). Every subsequent row with the same handle is a variant — differentiated
+      by <code>Option1 Value</code>, <code>Option2 Value</code>, and
+      <code>Option3 Value</code>.
+    </p>
+    <p>
+      Shopify identifies each variant by the <strong>combination</strong> of
+      Option values. Small/Red, Small/Blue, Medium/Red, etc. Each combination
+      must be unique within the product.
+    </p>
+    <p>
+      If Shopify can't read the row as a valid variant of the parent, it either
+      creates a standalone product, merges it with another row, or drops it
+      entirely. You don't get to choose which.
+    </p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The seven variant errors that break imports</h2>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card">
+        <h3>1. Orphaned variant rows</h3>
+        <p>
+          A row has variant data (SKU, price, Option1 Value) but no Handle.
+          Without the handle, Shopify can't attach the row to any product.
+        </p>
+        <p>
+          <strong>What happens:</strong> The row is either skipped silently or
+          treated as the start of a new product. Either way, you lose the
+          variant from the parent.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>2. Duplicate option combinations</h3>
+        <p>
+          Two rows of the same product have the same combination of Option values.
+          Example: two rows both saying "Small / Blue."
+        </p>
+        <p>
+          <strong>What happens:</strong> Shopify silently drops one of the rows.
+          You think you have two variants; you actually have one. Prices and SKUs
+          from the dropped row vanish.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>3. Incomplete option pairs</h3>
+        <p>
+          A row has <code>Option1 Name</code> but no <code>Option1 Value</code>
+          (or vice versa). Or Option2 has a name but Option1 is blank.
+        </p>
+        <p><strong>What happens:</strong> Shopify treats the incomplete pair as invalid. It may:</p>
+        <ul>
+          <li>Drop the entire variant row</li>
+          <li>Ignore the option but keep the row as a duplicate of the parent</li>
+          <li>Reject the import for the whole product</li>
+        </ul>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>4. Column inconsistency across variant rows</h3>
+        <p>
+          Some variant rows fill <code>Option1 Value</code> and <code>Option2 Value</code>.
+          Others fill only <code>Option1 Value</code>. Shopify sees an inconsistent
+          product structure.
+        </p>
+        <p>
+          <strong>What happens:</strong> Shopify picks one interpretation and
+          collapses the product. This is the error behind most "my variants
+          disappeared" reports.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>5. Inconsistent option names</h3>
+        <p>
+          Variant rows of the same product use different names for the same
+          option. One row says <code>Option1 Name: Size</code>, another says
+          <code>Option1 Name: Size Range</code>.
+        </p>
+        <p>
+          <strong>What happens:</strong> Shopify can't resolve the variant
+          relationships. All variants of the product get merged into one, or
+          the entire product row set is rejected.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>6. Missing Option1 declaration on multi-image single-variant products</h3>
+        <p>
+          A product has one variant but multiple images (image rows with just
+          Handle + Image Src). Without <code>Option1 Name: Title</code> and
+          <code>Option1 Value: Default Title</code> on the parent, Shopify
+          treats each image row as a duplicate variant.
+        </p>
+        <p>
+          <strong>What happens:</strong> Shopify creates three "products" that
+          are all the same product. Or drops the extra image rows.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>7. Image rows with stray variant data</h3>
+        <p>
+          An image row (meant to be just Handle + Image Src) has values in
+          Option1 Value, Variant Price, or Variant SKU.
+        </p>
+        <p>
+          <strong>What happens:</strong> Shopify interprets the row as a variant
+          with a new option combination, even though it's supposed to be an
+          additional image. You get phantom variants.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What a well-formed variant block looks like</h2>
+    <p>Here's what a valid Shopify CSV looks like for a product with three variants:</p>
+
+    <div class="autonom-example" style="grid-template-columns: 1fr;">
+      <div class="autonom-example-good" style="text-align:left; white-space: pre; font-size: 12px; line-height: 1.7; overflow-x: auto;">
+Handle,Title,Option1 Name,Option1 Value,Option2 Value,Variant SKU,Variant Price
+blue-tee,Blue T-Shirt,Size,Small,,BLU-S,19.99
+blue-tee,,Size,Medium,,BLU-M,19.99
+blue-tee,,Size,Large,,BLU-L,19.99
+      </div>
+    </div>
+
+    <p><strong>What makes it valid:</strong></p>
+    <ul>
+      <li>Every row uses the same <code>Handle</code> (<code>blue-tee</code>)</li>
+      <li>Every row has the same <code>Option1 Name</code> (<code>Size</code>)</li>
+      <li>Every row has a unique <code>Option1 Value</code> (Small, Medium, Large)</li>
+      <li>Only the first row has a Title (it's the parent)</li>
+      <li>Every row has its own SKU and price</li>
+    </ul>
+
+    <p>Now the same product, broken:</p>
+
+    <div class="autonom-example" style="grid-template-columns: 1fr;">
+      <div class="autonom-example-bad" style="text-align:left; white-space: pre; font-size: 12px; line-height: 1.7; overflow-x: auto;">
+Handle,Title,Option1 Name,Option1 Value,Option2 Value,Variant SKU,Variant Price
+blue-tee,Blue T-Shirt,Size,Small,,BLU-S,19.99
+blue-tee,,Size,Small,,BLU-S-2,21.99
+,Blue T-Shirt,Size,Large,,BLU-L,19.99
+      </div>
+    </div>
+
+    <p><strong>Three errors in three rows:</strong></p>
+    <ol>
+      <li><strong>Row 2 and Row 3 are duplicates</strong> — both are "Small." Shopify drops one silently.</li>
+      <li><strong>Row 4 has no Handle</strong> — it's an orphaned variant. Shopify ignores it or creates a duplicate product.</li>
+      <li><strong>The product now only has one valid variant</strong> (Small) instead of three.</li>
+    </ol>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How to check your variants before import</h2>
+    <p>Before any import, scan for these three signals:</p>
+
+    <h3>Signal 1 — Orphaned rows</h3>
+    <p>
+      Sort your CSV by Handle. Any row with a blank Handle but non-blank SKU,
+      price, or option value is orphaned.
+    </p>
+
+    <h3>Signal 2 — Duplicate option combinations</h3>
+    <p>
+      Group rows by Handle. Within each group, look at the combination of
+      Option1 Value + Option2 Value + Option3 Value. Any duplicate combination
+      means Shopify will silently drop one.
+    </p>
+
+    <h3>Signal 3 — Column inconsistency</h3>
+    <p>
+      Within each Handle group, check that every variant row fills the same
+      option columns. If row A has "Option1 Name: Size" and row B has no
+      Option1 Name at all, the product structure is inconsistent.
+    </p>
+
+    <p>
+      Manual checking works for 20-row files. It does not work for 2,000-row
+      files with multiple products. There's too much to hold in your head.
+    </p>
+
+    <div class="autonom-cta-box">
+      <h3>Scan every variant in 30 seconds</h3>
+      <p>Autonom Shopify Guard checks every variant row for all seven errors above — orphaned rows, duplicates, incomplete pairs, and column inconsistencies. Free, browser-based, no account needed.</p>
+      <a href="https://autonom.app/ready/shopify-guard/" class="autonom-cta-btn">Open Shopify CSV Validator →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guide/shopify-csv-import/handle-errors/">Shopify CSV handle errors</a></li>
+      <li><a href="/guide/shopify-csv-import/blank-overwrites/">Shopify CSV blank overwrites</a></li>
+      <li><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">Shopify's official CSV documentation</a> (external)</li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details>
+        <summary>Can I have multiple variants without an Option1 Name?</summary>
+        <p>No. Shopify requires Option1 Name and Option1 Value on every variant row. Without them, Shopify can't distinguish your variants and treats the extra rows as duplicates.</p>
+      </details>
+      <details>
+        <summary>What's the maximum number of variants per product in Shopify?</summary>
+        <p>Shopify supports up to 100 variants per product on standard plans. Shopify Plus supports up to 2,000. The 3-option structure (100 × 100 × 100) is a hard limit on the option matrix.</p>
+      </details>
+      <details>
+        <summary>Why did my variants disappear after import?</summary>
+        <p>The most common cause is duplicate option combinations or column inconsistency. Shopify picks one interpretation and drops the others. Check the CSV for rows with the same Handle and the same option values.</p>
+      </details>
+      <details>
+        <summary>Can I update a single variant without touching the others?</summary>
+        <p>Yes, but you need to include every variant row of that product in the CSV. Shopify replaces the entire variant set when you update a product. If you only include one variant row, Shopify may delete the others.</p>
+      </details>
+      <details>
+        <summary>Do variants need the same Handle or the same Title?</summary>
+        <p>Both must match. Every variant row must have the same Handle. Only the first (parent) row should have a Title. Non-parent rows should leave Title blank — filling it creates ambiguity.</p>
+      </details>
+      <details>
+        <summary>What does "Option1 Name: Title / Option1 Value: Default Title" mean?</summary>
+        <p>It's how Shopify represents a single-variant product. When a product has one variant but needs to be recognized as a variant (to allow multiple images), you set Option1 Name to "Title" and Option1 Value to "Default Title." This is standard on Shopify exports.</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
