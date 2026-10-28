@@ -1,0 +1,361 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Shopify CSV Template
+    </div>
+    <h1 class="autonom-hero-title">
+      Shopify CSV Template<br>
+      <em>Free download, with every column explained.</em>
+    </h1>
+    <p class="autonom-hero-sub">
+      The fastest way to break a Shopify import is to use the wrong template.
+      Wrong columns get ignored. Required columns missing cause the whole import
+      to fail. Columns you didn't mean to include overwrite live data.
+    </p>
+    <p class="autonom-hero-sub">
+      This is a working template, with every Shopify product CSV column
+      documented and an example row you can adapt. It's the same structure
+      Shopify uses in its own exports — so your file will be accepted on the
+      first try.
+    </p>
+    <p class="autonom-hero-sub">
+      <a href="https://autonom.app/wp-content/uploads/2026/10/autonom-sample-shopify-products.csv" class="autonom-cta-btn" download="" style="margin-top: 20px;">Download the template (CSV) →</a>
+    </p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What's in the template</h2>
+    <p>
+      The file includes all 50+ columns Shopify recognizes, with one example
+      row so you can see what valid data looks like. Delete the example row
+      before adding your own data.
+    </p>
+    <p>
+      The columns fall into six groups:
+    </p>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>1. Product identity</h3>
+        <p>
+          <code>Handle</code>, <code>Title</code>, <code>Body (HTML)</code>,
+          <code>Vendor</code>, <code>Type</code>, <code>Tags</code>,
+          <code>Published</code>, <code>Status</code>, <code>Product Category</code>,
+          <code>SEO Title</code>, <code>SEO Description</code>.
+        </p>
+        <p>
+          These describe the product itself. Only the first row of each product
+          needs values here — variant rows leave most of these blank.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>2. Variant options</h3>
+        <p>
+          <code>Option1 Name</code>, <code>Option1 Value</code>,
+          <code>Option2 Name</code>, <code>Option2 Value</code>,
+          <code>Option3 Name</code>, <code>Option3 Value</code>.
+        </p>
+        <p>
+          Shopify supports up to three option dimensions per product (Size,
+          Color, Material, etc.). Each variant row fills in the combination
+          that makes it unique.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>3. Variant pricing &amp; identity</h3>
+        <p>
+          <code>Variant SKU</code>, <code>Variant Price</code>,
+          <code>Variant Compare At Price</code>, <code>Variant Barcode</code>,
+          <code>Cost per item</code>.
+        </p>
+        <p>
+          Every variant row should have its own SKU and price, even if they're
+          the same as other variants.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>4. Inventory</h3>
+        <p>
+          <code>Variant Inventory Tracker</code>, <code>Variant Inventory Qty</code>,
+          <code>Variant Inventory Policy</code>, <code>Variant Fulfillment Service</code>,
+          <code>Variant Weight Unit</code>, <code>Variant Grams</code>.
+        </p>
+        <p>
+          Set <code>Variant Inventory Tracker</code> to <code>shopify</code> if
+          you want Shopify to track inventory. Leave it blank if you don't.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>5. Shipping &amp; tax</h3>
+        <p>
+          <code>Variant Requires Shipping</code>, <code>Variant Taxable</code>,
+          <code>Variant Tax Code</code>, <code>Gift Card</code>.
+        </p>
+        <p>
+          Usually set to <code>TRUE</code> for physical products. Digital products
+          typically set <code>Variant Requires Shipping</code> to <code>FALSE</code>.
+        </p>
+      </div>
+
+      <div class="autonom-error-card" style="border-left-color: var(--autonom-accent);">
+        <h3>6. Images</h3>
+        <p>
+          <code>Image Src</code>, <code>Image Position</code>,
+          <code>Image Alt Text</code>, <code>Variant Image</code>.
+        </p>
+        <p>
+          Multiple images require additional rows. Each image row has the same
+          Handle and Title left blank. Only <code>Image Src</code> and
+          <code>Image Position</code> are filled.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The columns you actually need</h2>
+    <p>
+      Shopify accepts over 50 columns, but most merchants only use a handful.
+      Here's what matters for different use cases:
+    </p>
+
+    <h3>Absolute minimum (new product import)</h3>
+    <ul>
+      <li><code>Handle</code> — the URL slug</li>
+      <li><code>Title</code> — the product name</li>
+      <li><code>Variant Price</code> — the price</li>
+    </ul>
+    <p>
+      With just these three columns, Shopify will create a product. It won't
+      have images, descriptions, or variant options, but it will exist.
+    </p>
+
+    <h3>Recommended minimum</h3>
+    <ul>
+      <li>Everything above</li>
+      <li><code>Body (HTML)</code> — the description</li>
+      <li><code>Vendor</code> — the brand</li>
+      <li><code>Type</code> — the product type</li>
+      <li><code>Tags</code> — comma-separated keywords</li>
+      <li><code>Published</code> — TRUE or FALSE</li>
+      <li><code>Variant SKU</code> — for inventory tracking</li>
+      <li><code>Image Src</code> — the product image URL</li>
+      <li><code>Status</code> — active, draft, or archived</li>
+    </ul>
+
+    <h3>Required if you're updating existing products</h3>
+    <ul>
+      <li><code>Handle</code> — this is the only way Shopify matches rows to existing products</li>
+      <li>Every other column becomes optional — include only the columns you want to update</li>
+    </ul>
+
+    <div class="autonom-callout autonom-callout-warn">
+      <span class="autonom-callout-icon">⚠</span>
+      <div class="autonom-callout-body">
+        <strong>The update trap.</strong>
+        <p>If you include a column in an update import, blank cells in that column are treated as intentional clears. See <a href="/guide/shopify-csv-import/blank-overwrites/">our blank overwrites guide</a> for the full explanation.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How to fill in the template</h2>
+
+    <h3>Step 1 — Prepare your product data</h3>
+    <p>
+      Gather everything in one place first: titles, prices, SKUs, image URLs,
+      descriptions, tags, and any variant options. Trying to enter data directly
+      into the CSV while looking at other sources is a recipe for blank cells
+      and typos.
+    </p>
+
+    <h3>Step 2 — Fill in the first row for each product</h3>
+    <p>
+      The first row of each product includes all the product-level fields:
+      Handle, Title, Body (HTML), Vendor, Type, Tags, Published, Status, and
+      any product-level attributes.
+    </p>
+    <p>
+      Every subsequent row of the same product should have the same Handle but
+      leave Title, Body, Vendor, Type, and Tags blank. Only the variant-specific
+      fields get values.
+    </p>
+
+    <h3>Step 3 — Add variant rows below each parent</h3>
+    <p>
+      Below each parent row, add one row per variant. Every variant row must
+      have:
+    </p>
+    <ul>
+      <li>The same <code>Handle</code> as the parent</li>
+      <li>The same <code>Option1 Name</code> (e.g., "Size")</li>
+      <li>A unique <code>Option1 Value</code> (e.g., "Small")</li>
+      <li>Its own <code>Variant SKU</code> and <code>Variant Price</code></li>
+    </ul>
+
+    <h3>Step 4 — Add image rows</h3>
+    <p>
+      For each additional image beyond the first, add a new row with:
+    </p>
+    <ul>
+      <li>The same <code>Handle</code></li>
+      <li>Only <code>Image Src</code> and <code>Image Position</code> filled</li>
+      <li>All other cells blank</li>
+    </ul>
+
+    <h3>Step 5 — Validate before importing</h3>
+    <p>
+      Before you upload, run the file through a validator. Manual review always
+      misses something — a stray space in a SKU, a duplicate handle, an image
+      URL that isn't HTTPS.
+    </p>
+
+    <div class="autonom-cta-box">
+      <h3>Validate your filled-in template</h3>
+      <p>Autonom Shopify Guard checks your CSV for 30+ import errors before you upload it. Free, browser-based, no account needed.</p>
+      <a href="https://autonom.app/ready/shopify-guard/" class="autonom-cta-btn">Open Shopify CSV Validator →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Common mistakes with the template</h2>
+
+    <div class="autonom-error-grid">
+
+      <div class="autonom-error-card">
+        <h3>Adding extra columns of your own</h3>
+        <p>
+          Shopify ignores columns it doesn't recognize. If you add a "Notes"
+          column, it will be silently dropped. If you need to store extra data,
+          use <code>Tags</code> or metafields.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>Renaming column headers</h3>
+        <p>
+          Shopify matches column headers exactly. "Product Title" is not the
+          same as "Title". "Price" is not the same as "Variant Price". Renaming
+          a column makes Shopify treat it as an unknown column and ignore it.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>Reordering columns</h3>
+        <p>
+          Shopify doesn't care about column order — but Excel formulas and
+          Google Sheets references do. If your template has specific column
+          positions, keep them. Otherwise you'll break your own calculations.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>Forgetting to remove the sample row</h3>
+        <p>
+          If you leave the example row from the template in your file, Shopify
+          will create a product called "Example Product." Delete it before
+          importing.
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>Saving as .xlsx instead of .csv</h3>
+        <p>
+          Shopify only accepts CSV. If you edit the file in Excel and save it
+          as <code>.xlsx</code>, Shopify won't read it. Always "Save As" →
+          "CSV UTF-8 (Comma delimited)".
+        </p>
+      </div>
+
+      <div class="autonom-error-card">
+        <h3>Editing in Google Sheets and downloading as Excel</h3>
+        <p>
+          Google Sheets exports CSV correctly. Excel sometimes re-encodes on
+          export. If you edit in Google Sheets, use File → Download → CSV.
+          Don't download as .xlsx and re-save as CSV.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guide/shopify-csv-import/handle-errors/">Shopify CSV handle errors</a></li>
+      <li><a href="/guide/shopify-csv-import/blank-overwrites/">Shopify CSV blank overwrites</a></li>
+      <li><a href="/guide/shopify-csv-import/variant-errors/">Shopify CSV variant errors</a></li>
+      <li><a href="/guide/shopify-csv-import/encoding-errors/">Shopify CSV encoding errors</a></li>
+      <li><a href="https://help.shopify.com/en/manual/products/import-export/using-csv" target="_blank" rel="noopener">Shopify's official CSV documentation</a> (external)</li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details>
+        <summary>Where can I download a Shopify CSV template?</summary>
+        <p>You can download ours above, or export a template from your own Shopify store (Products → Export → All products → Plain CSV). The Shopify export is the most accurate source because it includes every column your specific store uses.</p>
+      </details>
+      <details>
+        <summary>What columns are required in a Shopify product CSV?</summary>
+        <p>For a new product, only <code>Handle</code> and <code>Title</code> are strictly required, but you'll also want <code>Variant Price</code> for the product to be sellable. For updating existing products, only <code>Handle</code> is required.</p>
+      </details>
+      <details>
+        <summary>Can I delete columns I don't need?</summary>
+        <p>Yes. Shopify ignores columns that aren't in its schema, and it only processes columns you've included. The only caution: for update imports, don't leave a column in the file if most of its cells are blank — you'll trigger blank overwrites.</p>
+      </details>
+      <details>
+        <summary>Does column order matter?</summary>
+        <p>No. Shopify matches column names, not positions. You can reorder columns freely.</p>
+      </details>
+      <details>
+        <summary>Can I add custom columns?</summary>
+        <p>You can add them, but Shopify will ignore them unless they're metafield columns. To store custom data, use metafields (columns starting with <code>Metafield:</code>) or the <code>Tags</code> column.</p>
+      </details>
+      <details>
+        <summary>What file format does Shopify accept?</summary>
+        <p>Shopify only accepts CSV files (.csv extension) with UTF-8 encoding and comma delimiters. Files that are .xlsx, .xls, or .numbers will be rejected.</p>
+      </details>
+      <details>
+        <summary>Can I use this template for Shopify Plus?</summary>
+        <p>Yes. The template works for both standard Shopify and Shopify Plus. Plus stores support more variants per product (up to 2,000 vs 100), but the column structure is identical.</p>
+      </details>
+      <details>
+        <summary>What's the difference between this template and Shopify's default export?</summary>
+        <p>Our template includes the same columns but with one example row and clearer column descriptions. Shopify's export contains your actual store data with no examples — which is what you want for updates, but not helpful as a blank starting point.</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
