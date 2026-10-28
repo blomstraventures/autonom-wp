@@ -1,13 +1,12 @@
-<?php
 /**
  * Autonom Newsreel — Shortcode
  * Shortcode: [autonom_newsreel]  (the old [autonom_ai_shorts_generator] still works)
- * v1.28.1
+ * v1.28.2
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! defined( 'AUTONOM_ASG_VERSION' ) ) {
-    define( 'AUTONOM_ASG_VERSION', '1.28.1' );
+    define( 'AUTONOM_ASG_VERSION', '1.28.2' );
 }
 
 /**
@@ -260,14 +259,14 @@ function autonom_asg_rest_llm( WP_REST_Request $req ) {
     $endpoints = array(
         'groq'       => 'https://api.groq.com/openai/v1/chat/completions',
         'openrouter' => 'https://openrouter.ai/api/v1/chat/completions',
-        'cerebras'   => 'https://api.cerebras.ai/v1/chat/completions',
         'nvidia'     => 'https://integrate.api.nvidia.com/v1/chat/completions',
-        'mistral'    => 'https://api.mistral.ai/v1/chat/completions',
     );
     $d        = $req->get_json_params();
     $provider = isset( $d['provider'] ) ? sanitize_key( (string) $d['provider'] ) : '';
     $key      = isset( $d['key'] ) ? trim( (string) $d['key'] ) : '';
     $payload  = isset( $d['payload'] ) && is_array( $d['payload'] ) ? $d['payload'] : null;
+    $models   = isset( $d['action'] ) && $d['action'] === 'models';
+    if ( $models ) { $payload = array( 'models' => 1 ); }
     if ( ! isset( $endpoints[ $provider ] ) || $key === '' || ! $payload || strlen( $key ) > 300 || ! preg_match( '/^[A-Za-z0-9_\-\.]+$/', $key ) ) {
         return new WP_REST_Response( array( 'ok' => false, 'error' => 'bad_request' ), 400 );
     }
@@ -283,7 +282,12 @@ function autonom_asg_rest_llm( WP_REST_Request $req ) {
     $headers = array( 'Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $key );
     if ( $provider === 'openrouter' ) {
         $headers['HTTP-Referer'] = home_url( '/' );
-        $headers['X-Title']      = 'Autonom AI Shorts Generator';
+        $headers['X-Title']      = 'Autonom Newsreel';
+    }
+    if ( $models ) {
+        $res = wp_remote_get( str_replace( '/chat/completions', '/models', $endpoints[ $provider ] ), array( 'timeout' => 20, 'headers' => array( 'Authorization' => 'Bearer ' . $key ) ) );
+        if ( is_wp_error( $res ) ) { return new WP_REST_Response( array( 'ok' => false, 'error' => 'upstream_unreachable' ), 200 ); }
+        return new WP_REST_Response( array( 'ok' => true, 'status' => (int) wp_remote_retrieve_response_code( $res ), 'text' => (string) wp_remote_retrieve_body( $res ) ), 200 );
     }
     $res = wp_remote_post( $endpoints[ $provider ], array( 'timeout' => 90, 'headers' => $headers, 'body' => $body ) );
     if ( is_wp_error( $res ) ) {
@@ -1361,7 +1365,7 @@ function autonom_asg_shortcode( $atts ) {
           <li><span class="asg-check">✓</span> Your profile, scripts and API keys are stored in this browser only (keys are saved unencrypted in local storage)</li>
           <li><span class="asg-check">✓</span> No Autonom database and no accounts. The one thing this site can store is a video you hand to the site owner's own automation (Publish step), and it is deleted after 3 days</li>
           <li><span class="asg-check">✓</span> News searches and article pages (the story's own article and, for cross-checking, one or two other outlets' articles on the same event) are fetched by this website's own server and only cached briefly (10 min to 6 hours)</li>
-          <li><span class="asg-check">✓</span> AI, YouTube and footage calls use your own API keys. They are sent from your browser straight to the provider. If a provider refuses calls from a browser (Groq, OpenRouter, Cerebras, NVIDIA and Mistral sometimes do), the request is forwarded by this website's server for that call only. The server passes your key along and does not store or log it. Stock-footage downloads are relayed the same way.</li>
+          <li><span class="asg-check">✓</span> AI, YouTube and footage calls use your own API keys. They are sent from your browser straight to the provider. If a provider refuses calls from a browser (Groq, OpenRouter and NVIDIA sometimes do), the request is forwarded by this website's server for that call only. The server passes your key along and does not store or log it. Stock-footage downloads are relayed the same way.</li>
         </ul>
         <div class="asg-privacy-stats">
           <div><span>API calls</span><strong id="asg-stat-api">0</strong></div>
@@ -1669,9 +1673,7 @@ function autonom_asg_shortcode( $atts ) {
           <option value="gemini">Google Gemini</option>
           <option value="groq">Groq</option>
           <option value="openrouter">OpenRouter</option>
-          <option value="cerebras">Cerebras</option>
           <option value="nvidia">NVIDIA NIM</option>
-          <option value="mistral">Mistral</option>
           <option value="openai">OpenAI</option>
           <option value="deepseek">DeepSeek</option>
           <option value="none">None — heuristic only</option>
@@ -1731,21 +1733,6 @@ function autonom_asg_shortcode( $atts ) {
         <input type="text" id="asg-set-openrouter-write-model" placeholder="leave empty to auto-pick">
       </label>
 
-      <label class="asg-field" data-provider="cerebras" hidden>
-        <span class="asg-label">Cerebras API key</span>
-        <input type="password" id="asg-set-cerebras" placeholder="csk-..." autocomplete="off">
-        <span class="asg-hint">From cloud.cerebras.ai. Limits and free allowances change, so check your plan there. Models are found from your key.</span>
-        <button class="asg-btn asg-btn-ghost" id="asg-test-cerebras" type="button" style="margin-top:6px;">Test this key</button>
-        <span class="asg-hint asg-test-res" id="asg-testres-cerebras" role="status" aria-live="polite"></span>
-      </label>
-      <label class="asg-field" data-provider="cerebras" hidden>
-        <span class="asg-label">Cerebras model (optional)</span>
-        <input type="text" id="asg-set-cerebras-model" placeholder="leave empty to auto-pick">
-      </label>
-      <label class="asg-field" data-provider="cerebras" hidden>
-        <span class="asg-label">Cerebras model for comparison, writing and audit (optional)</span>
-        <input type="text" id="asg-set-cerebras-write-model" placeholder="leave empty to auto-pick">
-      </label>
       <label class="asg-field" data-provider="nvidia" hidden>
         <span class="asg-label">NVIDIA NIM API key</span>
         <input type="password" id="asg-set-nvidia" placeholder="nvapi-..." autocomplete="off">
@@ -1760,21 +1747,6 @@ function autonom_asg_shortcode( $atts ) {
       <label class="asg-field" data-provider="nvidia" hidden>
         <span class="asg-label">NVIDIA NIM model for comparison, writing and audit (optional)</span>
         <input type="text" id="asg-set-nvidia-write-model" placeholder="leave empty to auto-pick">
-      </label>
-      <label class="asg-field" data-provider="mistral" hidden>
-        <span class="asg-label">Mistral API key</span>
-        <input type="password" id="asg-set-mistral" placeholder="" autocomplete="off">
-        <span class="asg-hint">From console.mistral.ai (API keys). Check there whether your plan lets Mistral keep prompts for training.</span>
-        <button class="asg-btn asg-btn-ghost" id="asg-test-mistral" type="button" style="margin-top:6px;">Test this key</button>
-        <span class="asg-hint asg-test-res" id="asg-testres-mistral" role="status" aria-live="polite"></span>
-      </label>
-      <label class="asg-field" data-provider="mistral" hidden>
-        <span class="asg-label">Mistral model (optional)</span>
-        <input type="text" id="asg-set-mistral-model" placeholder="leave empty to auto-pick">
-      </label>
-      <label class="asg-field" data-provider="mistral" hidden>
-        <span class="asg-label">Mistral model for comparison, writing and audit (optional)</span>
-        <input type="text" id="asg-set-mistral-write-model" placeholder="leave empty to auto-pick">
       </label>
       <label class="asg-field" data-provider="openai" hidden>
         <span class="asg-label">OpenAI API key</span>
