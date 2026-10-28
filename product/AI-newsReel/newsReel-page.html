@@ -1,68 +1,89 @@
 <!--
-  Autonom · AI Shorts Generator — tool page
-  Paste into a Custom HTML block (or the classic editor's Text tab) of the page.
-  Page CSS: autonom-shorts-page.css (WPCode, "Autonom landing page" snippet; replaces the old one).
-  SEO title (60 chars):  AI Shorts Script & Video Generator From Real News | Autonom
-  Meta description:      Turn live news into fact-checked YouTube Shorts scripts, then into captioned videos with a free in-browser voice and stock footage. Source-checked, no account, your own API keys.
-  Suggested URL slug:    /ready/ai-shorts-generator/
+  Autonom Newsreel: tool page  (https://autonom.app/ai/newsreel/)
+  Paste into a Custom HTML block (or the classic editor's Text tab). Page CSS: autonom-shorts-page.css (WPCode snippet).
+  SEO title (53 chars):  Autonom Newsreel: Make Fact-Checked News to Shorts and Reels
+  Meta description (152): Free browser tool that turns live news into source-checked YouTube Shorts scripts and captioned videos. Every fact tied to a quote. No account.
+  Slug: /ai/newsreel/   Last reviewed: 27 October 2026
+  AIOSEO outputs Organization, WebSite, WebPage and breadcrumb schema, so the JSON-LD block below carries only SoftwareApplication, HowTo and FAQPage.
 -->
 <div class="autonom-page">
 
   <header class="autonom-hero">
-    <span class="autonom-eyebrow">Ready · AI Shorts Generator</span>
-    <h1>AI Shorts Generator from real news</h1>
-    <p class="autonom-hero-sub">Sourced scripts. Captioned videos. One sitting.</p>
-    <p class="autonom-hero-lead">Autonom learns your channel, scans live news, writes analytical Shorts scripts that are checked against the source article, and renders them into captioned videos with a free in-browser voice and stock footage. Every fact in a script is tied to a quote from the story it came from.</p>
-    <ul class="autonom-badges">
-      <li><span aria-hidden="true">✓</span> Fact-checked against the source</li>
-      <li><span aria-hidden="true">✓</span> No account required</li>
-      <li><span aria-hidden="true">✓</span> Your keys stay in your browser</li>
-    </ul>
+    <div class="autonom-hero-main">
+      <span class="autonom-eyebrow">Autonom · Newsreel</span>
+      <h1>Autonom Newsreel: the AI news shorts generator with fact-checked scripts</h1>
+      <p class="autonom-answer"><strong>Autonom Newsreel is a free browser tool that scans live news, writes analytical YouTube Shorts scripts from the full article, checks every fact against a quote from its source, and turns each script into a captioned video.</strong> No account, no watermark, and you approve everything before it goes anywhere.</p>
+      <div class="autonom-cta-row">
+      <div class="autonom-actions">
+        <a class="autonom-btn is-primary" href="#tool">Open the tool <span aria-hidden="true">↓</span></a>
+        <a class="autonom-btn is-ghost" href="#how">See how it works</a>
+      </div>
+      <ul class="autonom-badges">
+        <li><span aria-hidden="true">✓</span> Fact-checked against the source</li>
+        <li><span aria-hidden="true">✓</span> No account required</li>
+        <li><span aria-hidden="true">✓</span> Keys stay in your browser</li>
+        <li><span aria-hidden="true">✓</span> You review every post</li>
+      </ul>
+      </div>
+    </div>
   </header>
 
-  <section class="autonom-tool" id="tool" aria-label="AI Shorts Generator tool">
-    [autonom_ai_shorts_generator]
+  <nav class="autonom-jump" aria-label="On this page">
+    <a href="#how">How it works: </a><a href="#facts">Fact-checking | </a><a href="#video">Video | </a><a href="#publish">Publishing | </a><a href="#compare">Compare | </a><a href="#privacy">Privacy | </a><a href="#faq">FAQ </a>
+  </nav>
+
+  <section class="autonom-tool" id="tool" aria-label="Autonom Newsreel tool">
+    <div class="autonom-tool-head">
+      <h2>Try it now</h2>
+      <p>Add one AI key, set up your channel, and make your first Short in a single sitting.</p>
+    </div>
+    [autonom_newsreel]
     <p class="autonom-tool-end">End of tool · Scripts, profile and keys live in this browser, not on an Autonom server</p>
   </section>
 
   <section class="autonom-section" id="why">
-    <h2>Why most AI news Shorts fail</h2>
-    <p class="autonom-section-lead">Generic "topic to script" generators are everywhere. They write fluently and verify nothing, and that is what gets channels ignored, corrected in the comments, or demonetized.</p>
+    <span class="autonom-kicker">The problem</span>
+    <h2>Why do most AI news Shorts fail?</h2>
+    <p class="autonom-section-lead">They write fluently and verify nothing. That is what gets channels ignored, corrected in the comments or demonetized.</p>
     <div class="autonom-cards three">
       <article class="autonom-card is-warn">
-        <span class="autonom-card-icon" aria-hidden="true">⚠</span>
+        <span class="autonom-card-icon" aria-hidden="true">!</span>
         <h3>Invented facts</h3>
-        <p>A language model asked to "write a Short about this headline" fills the gaps from memory: a wrong number, a made-up cause, a quote nobody said. One viral mistake costs more trust than a hundred videos earn.</p>
+        <p>A model asked to "write a Short about this headline" fills the gaps from memory: a wrong number, a made-up cause, a quote nobody said. One viral mistake costs more trust than a hundred videos earn.</p>
       </article>
       <article class="autonom-card is-warn">
-        <span class="autonom-card-icon" aria-hidden="true">⚠</span>
+        <span class="autonom-card-icon" aria-hidden="true">!</span>
         <h3>Sameness at volume</h3>
         <p>YouTube's inauthentic content policy targets repetitive, mass-produced videos with no original input. Template clones with swapped nouns are exactly what it describes.</p>
       </article>
       <article class="autonom-card is-warn">
-        <span class="autonom-card-icon" aria-hidden="true">⚠</span>
+        <span class="autonom-card-icon" aria-hidden="true">!</span>
         <h3>Hours of assembly</h3>
-        <p>Finding the story, reading it, writing, recording a voice, hunting footage, syncing captions, exporting. The work that should take minutes eats the day.</p>
+        <p>Finding the story, reading it, writing, recording a voice, hunting footage, syncing captions, exporting. Work that should take minutes eats the day.</p>
       </article>
     </div>
   </section>
 
   <section class="autonom-section" id="how">
-    <h2>From headline to finished Short in six steps</h2>
-    <p class="autonom-section-lead">The tool follows the order a good editor works in. Each step is a checkpoint you control.</p>
+    <span class="autonom-kicker">Workflow</span>
+    <h2>How does Autonom Newsreel work?</h2>
+    <p class="autonom-section-lead">In eight steps that follow the order a good editor works in. Each step is a checkpoint you control.</p>
     <ol class="autonom-steps">
-      <li><span class="autonom-step-n">1</span><div><h3>Channel</h3><p>Read your last public videos from YouTube, or define your channel by hand. Autonom derives topics, scan signals, tone and format. Add, remove and re-weight topics yourself.</p></div></li>
-      <li><span class="autonom-step-n">2</span><div><h3>Feed</h3><p>Scans publisher feeds and news search against your signals. Each story is scored for relevance and freshness, and marked readable or paywalled before you spend anything on it.</p></div></li>
-      <li><span class="autonom-step-n">3</span><div><h3>Generate</h3><p>Pick stories and write. Autonom reads the full article, extracts facts with their quotes, checks them, then writes the script. Stories with no readable source are skipped, not guessed.</p></div></li>
-      <li><span class="autonom-step-n">4</span><div><h3>Review</h3><p>Every script is a card. Open it, edit the hook or analysis, see its sources and checks, delete what you do not want, and undo if you slip.</p></div></li>
-      <li><span class="autonom-step-n">5</span><div><h3>Video</h3><p>Choose a voice, and Autonom narrates each sentence, picks matching stock footage scene by scene, burns in synced captions and records the video, all in your browser.</p></div></li>
-      <li><span class="autonom-step-n">6</span><div><h3>Export</h3><p>One ZIP with the video, audio, SRT captions, script, and a ready-to-paste title, description and tags. Upload to YouTube yourself, with the disclosure settings you choose.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">1</span><div><h3>Channel</h3><p>Read your last public videos from YouTube, or define your channel by hand. Autonom derives topics, scan signals, tone and format. Add your brand links and edit topics and weights yourself.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">2</span><div><h3>Feed</h3><p>Scans publisher feeds and news search against your signals. Each story is scored for relevance and freshness, and marked readable or paywalled before you spend anything on it.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">3</span><div><h3>Consolidate</h3><p>Groups stories about the same event from different outlets, up to three, so you get one script instead of three near-duplicates. Move or remove stories, and let it run in the background.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">4</span><div><h3>Generate</h3><p>Autonom reads the full article, extracts facts with their quotes, checks them, then writes the script. Stories with no readable source are skipped, not guessed.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">5</span><div><h3>Review</h3><p>Every script is a card. Edit the hook or analysis, see its sources and checks, adjust hashtags, delete what you do not want, and undo if you slip. Mark it reviewed when you are happy.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">6</span><div><h3>Video</h3><p>Choose a voice. Autonom narrates each sentence, picks stock footage scene by scene, burns in word-timed captions and records the video in your browser. Edit any scene and re-record.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">7</span><div><h3>Publish</h3><p>A caption written for each platform, ready to copy. Post directly to Telegram or Mastodon with your own token, and plan a publish time per video.</p></div></li>
+      <li><span class="autonom-step-n" aria-hidden="true">8</span><div><h3>Export</h3><p>One ZIP with the video, audio, SRT captions, script, a ready-to-paste title, description and tags, sources and footage credits. Upload with the disclosure settings you choose.</p></div></li>
     </ol>
   </section>
 
   <section class="autonom-section" id="facts">
-    <h2>How Autonom keeps scripts factual</h2>
-    <p class="autonom-section-lead">Analysis is cheap. Verified facts are the product. These checks run before a script reaches you.</p>
+    <span class="autonom-kicker">Trust</span>
+    <h2>How does it keep scripts factual?</h2>
+    <p class="autonom-section-lead">By requiring a readable source and tying every fact to a quote from it. These checks run before a script reaches you.</p>
     <div class="autonom-split">
       <div class="autonom-card">
         <h3>What it checks</h3>
@@ -72,7 +93,7 @@
           <li><strong>Numbers and names must appear in the source.</strong> Unsupported figures are removed.</li>
           <li><strong>Second-outlet corroboration</strong> compares the same event across two publishers when one is available.</li>
           <li><strong>Analysis is held to a stricter rule:</strong> no new numbers, no forecasts stated as fact, no absolutes like "always" or "never".</li>
-          <li><strong>Paywalled story?</strong> Autonom searches open outlets for the same event and writes from that article instead, and says so on the card.</li>
+          <li><strong>Paywalled story?</strong> Autonom searches open outlets for the same event, writes from that article, and says so on the card.</li>
         </ul>
       </div>
       <div class="autonom-card">
@@ -81,12 +102,11 @@
           <li>Write from a headline alone.</li>
           <li>Present a paywalled article as read when it was not.</li>
           <li>Invent a quote, a statistic or a cause.</li>
-          <li>Publish anything for you. You review, you upload.</li>
+          <li>Publish anything without your approval.</li>
           <li>Guarantee that a source itself is right. Autonom checks that the script matches the article, not that the article is true. Corroboration helps, your judgment decides.</li>
         </ul>
       </div>
     </div>
-
     <figure class="autonom-anatomy" aria-label="Example layout of a checked script card">
       <figcaption>Anatomy of a script card <small>Layout example, not a real story</small></figcaption>
       <div class="autonom-anatomy-body">
@@ -100,8 +120,9 @@
   </section>
 
   <section class="autonom-section" id="video">
-    <h2>Video studio, built into the page</h2>
-    <p class="autonom-section-lead">No separate editor and no render queue. The video is built in your browser from the script you approved.</p>
+    <span class="autonom-kicker">Studio</span>
+    <h2>What does the built-in video studio do?</h2>
+    <p class="autonom-section-lead">It builds the finished video in your browser from the script you approved. No separate editor and no render queue.</p>
     <div class="autonom-cards three">
       <article class="autonom-card">
         <h3>Natural voice, no recording</h3>
@@ -109,19 +130,60 @@
       </article>
       <article class="autonom-card">
         <h3>Footage that matches the script</h3>
-        <p>The scene planner chooses what each moment needs, then searches Pixabay or Pexels with your key and picks the best clip. Where footage would mislead, it uses a clean text card instead. Credits go in the export.</p>
+        <p>The scene planner chooses what each moment needs, then searches Pixabay or Pexels with your key and picks the best clip. Edit any scene and re-record. Where footage would mislead, it uses a clean text card.</p>
       </article>
       <article class="autonom-card">
         <h3>Captions and a full package</h3>
-        <p>Large, word-timed captions are burned in. The export ZIP includes the video, WAV audio, SRT file, script and upload details. Videos are kept in your browser until you delete them.</p>
+        <p>Large, word-timed captions are burned in. The export ZIP includes the video, WAV audio, SRT file, script, upload details and footage credits. Videos stay in your browser until you delete them.</p>
       </article>
     </div>
     <p class="autonom-note">Good to know: video is recorded in real time, so a 60 second Short takes about a minute to render. Use a recent Chrome or Edge on a desktop for the best result.</p>
   </section>
 
+  <section class="autonom-section" id="publish">
+    <span class="autonom-kicker">Distribution</span>
+    <h2>Can it publish and schedule for me?</h2>
+    <p class="autonom-section-lead">Partly, and we say exactly which part. Captions are written for 11 platforms, and two of them can be posted to directly. The rest need approved apps or paid posting services, so there you use the export.</p>
+    <div class="autonom-split">
+      <div class="autonom-card">
+        <span class="autonom-pill">Direct from your browser</span>
+        <h3>Telegram and Mastodon</h3>
+        <p>Post a finished video to your Telegram channel with your own bot token, or to Mastodon with your own access token. Nothing posts until you press the button.</p>
+      </div>
+      <div class="autonom-card">
+        <span class="autonom-pill is-soft">Ready to paste</span>
+        <h3>YouTube, Instagram, TikTok and more</h3>
+        <p>Each platform gets its own caption and hashtag style: YouTube Shorts, Instagram Reels, Facebook Reels, TikTok, X, LinkedIn, Threads, Bluesky, Telegram, Rumble and Mastodon. Plan a publish time per video. A hand-off to automation tools such as n8n is in testing.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="autonom-section" id="compare">
+    <span class="autonom-kicker">Comparison</span>
+    <h2>How is it different from other AI Shorts generators?</h2>
+    <p class="autonom-section-lead">Most tools start from a topic. Autonom Newsreel starts from a source article and refuses to write without one.</p>
+    <div class="autonom-table-wrap">
+      <table class="autonom-table">
+        <thead><tr><th scope="col"></th><th scope="col" class="is-us">Autonom Newsreel</th><th scope="col">Typical topic-to-script generator</th><th scope="col">Doing it by hand</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Where facts come from</th><td class="is-us">The full article, each fact tied to a quote</td><td>The headline and the model's memory</td><td>Your own reading</td></tr>
+          <tr><th scope="row">Source unreadable or paywalled</th><td class="is-us">Replaced by an open outlet's report of the same event, or skipped</td><td>Written anyway</td><td>Your call</td></tr>
+          <tr><th scope="row">Same event, several outlets</th><td class="is-us">Grouped into one script</td><td>Usually not handled</td><td>Manual</td></tr>
+          <tr><th scope="row">Voice and captions</th><td class="is-us">Built in, word-timed</td><td>Varies, often an add-on</td><td>Record and sync yourself</td></tr>
+          <tr><th scope="row">Time per Short</th><td class="is-us">Minutes, plus a real-time render</td><td>Minutes</td><td>Hours</td></tr>
+          <tr><th scope="row">Where your data lives</th><td class="is-us">Your browser</td><td>Varies by vendor</td><td>Your computer</td></tr>
+          <tr><th scope="row">Cost</th><td class="is-us">No Autonom fee, your own API usage</td><td>Varies, often a subscription</td><td>Your time</td></tr>
+          <tr><th scope="row">Final say</th><td class="is-us">You review every script</td><td>Varies</td><td>You</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="autonom-fine">Generalised comparison. Individual tools differ, so check what any tool does before you rely on it.</p>
+  </section>
+
   <section class="autonom-section" id="channels">
-    <h2>Built for channels with a point of view</h2>
-    <p class="autonom-section-lead">YouTube does not ban AI-assisted content. It targets repetitive, mass-produced uploads with no original input. Autonom is designed as an editor's assistant, not a content farm.</p>
+    <span class="autonom-kicker">Fit</span>
+    <h2>Who is it for, and will YouTube accept the videos?</h2>
+    <p class="autonom-section-lead">It suits channels with a point of view. YouTube does not ban AI-assisted content. It targets repetitive, mass-produced uploads with no original input, and Autonom is designed as an editor's assistant, not a content farm.</p>
     <div class="autonom-split">
       <div class="autonom-card">
         <h3>Where it fits</h3>
@@ -145,33 +207,37 @@
   </section>
 
   <section class="autonom-section" id="privacy">
-    <h2>Your keys, your browser</h2>
-    <p class="autonom-section-lead">Autonom has no accounts and no database. Your profile, scripts, videos and API keys are stored in this browser only.</p>
+    <span class="autonom-kicker">Privacy</span>
+    <h2>Is my data and are my API keys private?</h2>
+    <p class="autonom-section-lead">Autonom has no accounts and no database. Your profile, scripts, videos and API keys are stored in your browser only.</p>
     <div class="autonom-privacy">
       <ul class="autonom-list is-check">
-        <li><strong>Stored locally:</strong> profile, scripts, finished videos, settings and keys (in your browser's storage, unencrypted, so use this on your own device).</li>
+        <li><strong>Stored locally:</strong> profile, scripts, finished videos, settings and keys, in your browser's storage and unencrypted, so use this on your own device.</li>
         <li><strong>Relayed, not stored:</strong> news search, article fetching, some AI provider calls and stock-footage downloads pass through this website's server, which forwards them and keeps only a short cache of public articles. Your scripts and keys are not saved on it.</li>
-        <li><strong>Direct from your browser:</strong> YouTube lookups and several AI providers use your own keys.</li>
+        <li><strong>Direct from your browser:</strong> YouTube lookups, Telegram and Mastodon posts, and several AI providers use your own keys.</li>
         <li><strong>You can verify it.</strong> Open DevTools, watch the Network tab, and see exactly where each request goes.</li>
       </ul>
-      <p class="autonom-note">Autonom is not affiliated with YouTube, Pixabay, Pexels or any model provider. Provider terms and usage costs depend on your own accounts and plans.</p>
+      <p class="autonom-note">Autonom is not affiliated with YouTube, Telegram, Mastodon, Pixabay, Pexels or any model provider. Provider terms and usage costs depend on your own accounts and plans.</p>
     </div>
   </section>
 
   <section class="autonom-section" id="start">
-    <h2>What you need to start</h2>
+    <span class="autonom-kicker">Setup</span>
+    <h2>What do I need to start?</h2>
+    <p class="autonom-section-lead">One AI key is enough to write scripts. Add a footage key for video.</p>
     <div class="autonom-cards three">
-      <article class="autonom-card"><span class="autonom-pill">Required</span><h3>One AI provider key</h3><p>Gemini, Groq, OpenRouter, OpenAI or DeepSeek. Models are discovered automatically, so nothing is hardcoded. Costs follow your own plan.</p></article>
+      <article class="autonom-card"><span class="autonom-pill">Required</span><h3>One AI provider key</h3><p>Gemini, Groq, OpenRouter, NVIDIA NIM, OpenAI or DeepSeek. Models are discovered automatically, so nothing is hardcoded. Costs follow your own plan.</p></article>
       <article class="autonom-card"><span class="autonom-pill is-soft">For video</span><h3>A footage library key</h3><p>A Pixabay key by default, or Pexels. Both libraries offer keys to developers at no charge, subject to their terms.</p></article>
-      <article class="autonom-card"><span class="autonom-pill is-soft">Optional</span><h3>A YouTube Data key</h3><p>Only needed to learn your profile from a channel. Skip it by setting up your channel manually.</p></article>
+      <article class="autonom-card"><span class="autonom-pill is-soft">Optional</span><h3>YouTube, Telegram or Mastodon keys</h3><p>A YouTube Data key only to learn your profile from a channel, which you can skip by setting it up by hand. Bot or access tokens only for direct posting.</p></article>
     </div>
   </section>
 
   <section class="autonom-section" id="suite">
+    <span class="autonom-kicker">More tools</span>
     <h2>The Autonom Suite</h2>
     <p class="autonom-section-lead">Every Autonom tool follows the same rule: destination-specific readiness, local processing, honest reports.</p>
     <div class="autonom-suite">
-      <a class="autonom-suite-item is-here" href="#tool"><span aria-hidden="true">🎬</span><h3>AI Shorts Generator</h3><p>Sourced scripts and captioned videos from live news.</p><em>You are here</em></a>
+      <a class="autonom-suite-item is-here" href="#tool"><span aria-hidden="true">🎬</span><h3>Autonom Newsreel</h3><p>Sourced scripts and captioned videos from live news.</p><em>You are here</em></a>
       <a class="autonom-suite-item" href="/ready/shopify-guard/"><span aria-hidden="true">🛒</span><h3>Shopify Guard</h3><p>Validate and repair product CSVs before they touch your store.</p><em>Available now</em></a>
       <div class="autonom-suite-item"><span aria-hidden="true">🖼️</span><h3>Image Fit</h3><p>Exact-KB compression for portals that reject large files.</p><em>Available now</em></div>
       <div class="autonom-suite-item"><span aria-hidden="true">🎨</span><h3>Brand Kit</h3><p>One logo to every social and web asset in a single ZIP.</p><em>Available now</em></div>
@@ -181,77 +247,313 @@
   </section>
 
   <section class="autonom-section autonom-faq" id="faq">
+    <span class="autonom-kicker">Questions</span>
     <h2>Frequently asked questions</h2>
-
+    <details open="">
+      <summary>What is Autonom Newsreel?</summary>
+      <p>Autonom Newsreel is a browser-based tool that turns live news into YouTube Shorts. It scans publisher feeds against your channel profile, reads the full article, writes an analytical script where every fact is tied to a quote from the source, and renders a captioned video with an in-browser voice and stock footage. You review everything before anything is posted.</p>
+    </details>
     <details>
-      <summary>Is the AI Shorts Generator free?</summary>
-      <p>The tool is free to use and needs no account. You bring your own API keys, and what those providers charge, if anything, depends on your plan with them. Autonom does not add a fee or a watermark.</p>
+      <summary>How does Autonom Newsreel turn news into a Short?</summary>
+      <p>It works in eight steps: Channel, Feed, Consolidate, Generate, Review, Video, Publish and Export. It learns your channel, scans news, groups stories about the same event, writes and fact-checks a script from the full article, lets you edit it, builds the captioned video in your browser, prepares captions for each platform and exports a ZIP.</p>
+    </details>
+    <details>
+      <summary>Is Autonom Newsreel free?</summary>
+      <p>The tool is free to use, needs no account and adds no watermark. You bring your own API keys, so any cost comes from your plans with AI and footage providers, not from Autonom. Check each provider's current terms and limits.</p>
     </details>
     <details>
       <summary>Does it make up facts?</summary>
-      <p>It is built not to. Each fact is extracted with a quote from the article, compared against that quote, and checked for numbers and names that are missing from the source. If there is no readable article, the story is skipped. It cannot tell you whether the article itself is correct, so review each script before publishing.</p>
+      <p>It is built not to. Each fact is extracted with a quote from the article, compared against that quote, and checked for numbers and names missing from the source. If there is no readable article, the story is skipped. It cannot tell you whether the article itself is correct, so read each script before you publish.</p>
     </details>
     <details>
-      <summary>Which AI models does it use?</summary>
-      <p>Your choice of provider: Google Gemini, Groq, OpenRouter, OpenAI or DeepSeek. Autonom discovers the models available to your key instead of hardcoding names, and falls back between them when one is rate limited.</p>
+      <summary>Which AI providers does it work with?</summary>
+      <p>Google Google Gemini, Groq, OpenRouter, NVIDIA NIM, OpenAI and DeepSeek. You use your own key. Autonom discovers the models available to that key instead of hardcoding names, and falls back to another model when one is rate limited.</p>
     </details>
     <details>
-      <summary>Why was my story skipped?</summary>
-      <p>Usually because the article is paywalled, blocked, or only an aggregator link. Autonom first searches open outlets for the same event and uses that article. If none is found, it skips the story rather than writing from the headline.</p>
+      <summary>Do I need an account or to install anything?</summary>
+      <p>No. Autonom Newsreel runs in a modern desktop browser with no sign-up and no install. Your profile, scripts, finished videos and keys are stored in your own browser. Use recent Chrome or Edge on a desktop for video.</p>
     </details>
     <details>
-      <summary>Is the voice good enough for YouTube?</summary>
-      <p>The built-in neural voices are clear and natural enough for short news explainers, and several voices and speeds are available. They are not a human recording. If you prefer your own voice, export the script and SRT and record it yourself.</p>
+      <summary>Is my data and are my API keys private?</summary>
+      <p>Your profile, scripts, videos and keys are stored in your browser only, unencrypted, so use it on your own device. Some requests, such as news search, article fetching and a few provider or footage calls, pass through this website's server, which forwards them and keeps only a short cache of public articles. Your scripts and keys are not saved on it.</p>
     </details>
     <details>
-      <summary>Where does the footage come from, and can I use it?</summary>
-      <p>From Pixabay or Pexels through your own key. Both licenses generally allow free use in videos, with their own conditions, so check each provider's terms. Credits are included in the export.</p>
-    </details>
-    <details>
-      <summary>Can it upload to YouTube for me?</summary>
-      <p>Not today. You download the ZIP, upload the video, and paste the prepared title, description and tags. That keeps you in control of what is published and how it is disclosed.</p>
+      <summary>Can it post or schedule videos for me?</summary>
+      <p>It can post to Telegram channels and Mastodon directly from your browser with your own tokens, and it writes a tailored caption for 11 platforms. Instagram, Facebook, TikTok, X and LinkedIn require approved apps or paid posting services, so for those you download the package or use an automation tool. Direct YouTube upload is not supported today.</p>
     </details>
     <details>
       <summary>Will YouTube demonetize AI-made Shorts?</summary>
       <p>YouTube's policy targets repetitive, mass-produced content with no original input, not AI assistance as such. Channels that add their own angle, edit every script and publish at a human pace are the opposite of that. Policies change, so read YouTube's current rules and use the AI disclosure setting where it applies.</p>
     </details>
     <details>
-      <summary>Does it work on my phone?</summary>
-      <p>You can review scripts on a phone, but the video studio downloads a voice model and renders in real time, so use a recent desktop Chrome or Edge for video.</p>
+      <summary>How is it different from other AI Shorts generators?</summary>
+      <p>Most topic-to-script generators write from a headline or the model's memory and verify nothing. Autonom Newsreel requires a readable source, ties each fact to a quote, skips stories it cannot read, groups the same event from several outlets into one script, and keeps your data in your browser. It checks that a script matches its article, not that the article is true.</p>
     </details>
     <details>
-      <summary>Is my data private?</summary>
-      <p>Your profile, scripts, videos and keys are stored in your own browser. Some requests are relayed by this website's server to fetch news and articles, and to reach some AI and footage providers. Your scripts and keys are not stored on it.</p>
+      <summary>Why was my story skipped?</summary>
+      <p>Usually because the article is paywalled, blocked or only an aggregator link. Autonom first searches open outlets for the same event and writes from that article, and says so on the card. If none is found, it skips the story rather than writing from the headline.</p>
     </details>
     <details>
-      <summary>Can I use it for languages other than English?</summary>
-      <p>Scripts and voices are tuned for English today. Other languages are not supported yet.</p>
+      <summary>Is the voice good enough for YouTube?</summary>
+      <p>The built-in neural voices are clear and natural enough for short news explainers, with several voices and speeds. They are not a human recording. If you prefer your own voice, export the script and SRT captions and record it yourself.</p>
+    </details>
+    <details>
+      <summary>Where does the footage come from, and can I use it?</summary>
+      <p>From Pixabay or Pexels, through your own key. Both licenses generally allow free use in videos, with their own conditions, so check each provider's terms. Credits are included in the export. Where footage would mislead, the tool uses a clean text card instead.</p>
+    </details>
+    <details>
+      <summary>How long does a video take, and what format is it?</summary>
+      <p>Video is recorded in real time, so a 60 second Short takes about a minute to render. In recent Chrome the file is MP4. Other browsers may produce WebM, which several platforms refuse, so use Chrome or Edge on a desktop.</p>
+    </details>
+    <details>
+      <summary>Does it work on my phone, or in languages other than English?</summary>
+      <p>You can review scripts on a phone, but the video studio downloads a voice model and renders in real time, so use desktop Chrome or Edge for video. Scripts and voices are tuned for English today. Other languages are not supported yet.</p>
     </details>
   </section>
 
+  <section class="autonom-cta" aria-label="Get started">
+    <h2>Make your first fact-checked Short today</h2>
+    <p>Add a key, set up your channel, and see what the news gives you. Nothing is posted until you say so.</p>
+    <a class="autonom-btn is-light" href="#tool">Open the tool <span aria-hidden="true">↑</span></a>
+  </section>
+
+  <p class="autonom-meta">Last updated <time datetime="2026-10-27">27 October 2026</time>.</p>
+
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "SoftwareApplication",
-        "name": "Autonom AI Shorts Generator",
-        "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Any (modern web browser)",
-        "description": "Turns live news into source-checked YouTube Shorts scripts, then into captioned videos with an in-browser voice and stock footage.",
-        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://autonom.app/ai/newsreel/#app",
+      "name": "Autonom Newsreel",
+      "url": "https://autonom.app/ai/newsreel/",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Any (modern desktop web browser)",
+      "browserRequirements": "Requires JavaScript. Recent Chrome or Edge on desktop recommended for video.",
+      "description": "Turns live news into source-checked YouTube Shorts scripts, then into captioned videos with an in-browser voice and stock footage.",
+      "isAccessibleForFree": true,
+      "inLanguage": "en",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
       },
-      {
-        "@type": "FAQPage",
-        "mainEntity": [
-          { "@type": "Question", "name": "Is the AI Shorts Generator free?", "acceptedAnswer": { "@type": "Answer", "text": "The tool is free to use and needs no account. You bring your own API keys, and what those providers charge, if anything, depends on your plan with them. Autonom does not add a fee or a watermark." } },
-          { "@type": "Question", "name": "Does it make up facts?", "acceptedAnswer": { "@type": "Answer", "text": "It is built not to. Each fact is extracted with a quote from the article, compared against that quote, and checked for numbers and names missing from the source. If there is no readable article, the story is skipped. Review each script before publishing." } },
-          { "@type": "Question", "name": "Can it upload to YouTube for me?", "acceptedAnswer": { "@type": "Answer", "text": "Not today. You download the ZIP, upload the video, and paste the prepared title, description and tags." } },
-          { "@type": "Question", "name": "Will YouTube demonetize AI-made Shorts?", "acceptedAnswer": { "@type": "Answer", "text": "YouTube's policy targets repetitive, mass-produced content with no original input, not AI assistance as such. Add your own angle, edit every script, publish at a human pace, and use the AI disclosure setting where it applies." } }
-        ]
-      }
-    ]
-  }
+      "featureList": [
+        "Learns your channel profile and topics",
+        "Scans live publisher feeds and news search",
+        "Groups the same story from several outlets into one script",
+        "Ties every fact to a quote from the source article",
+        "Skips stories without a readable source",
+        "In-browser neural voice and word-timed captions",
+        "Stock footage matched scene by scene",
+        "Platform-specific captions for 11 platforms",
+        "Direct posting to Telegram and Mastodon",
+        "Export ZIP with video, SRT, script and sources"
+      ]
+    },
+    {
+      "@type": "HowTo",
+      "@id": "https://autonom.app/ai/newsreel/#howto",
+      "name": "How to make a fact-checked YouTube Short from the news with Autonom Newsreel",
+      "totalTime": "PT30M",
+      "tool": [
+        {
+          "@type": "HowToTool",
+          "name": "An AI provider API key"
+        },
+        {
+          "@type": "HowToTool",
+          "name": "A Pixabay or Pexels API key"
+        }
+      ],
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "Channel",
+          "text": "Read your last public videos from YouTube, or define your channel by hand. Autonom derives topics, scan signals, tone and format. Add your brand links and edit topics and weights yourself.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "Feed",
+          "text": "Scans publisher feeds and news search against your signals. Each story is scored for relevance and freshness, and marked readable or paywalled before you spend anything on it.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "Consolidate",
+          "text": "Groups stories about the same event from different outlets, up to three, so you get one script instead of three near-duplicates. Move or remove stories, and let it run in the background.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 4,
+          "name": "Generate",
+          "text": "Autonom reads the full article, extracts facts with their quotes, checks them, then writes the script. Stories with no readable source are skipped, not guessed.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 5,
+          "name": "Review",
+          "text": "Every script is a card. Edit the hook or analysis, see its sources and checks, adjust hashtags, delete what you do not want, and undo if you slip. Mark it reviewed when you are happy.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 6,
+          "name": "Video",
+          "text": "Choose a voice. Autonom narrates each sentence, picks stock footage scene by scene, burns in word-timed captions and records the video in your browser. Edit any scene and re-record.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 7,
+          "name": "Publish",
+          "text": "A caption written for each platform, ready to copy. Post directly to Telegram or Mastodon with your own token, and plan a publish time per video.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 8,
+          "name": "Export",
+          "text": "One ZIP with the video, audio, SRT captions, script, a ready-to-paste title, description and tags, sources and footage credits. Upload with the disclosure settings you choose.",
+          "url": "https://autonom.app/ai/newsreel/#how"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://autonom.app/ai/newsreel/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is Autonom Newsreel?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Autonom Newsreel is a browser-based tool that turns live news into YouTube Shorts. It scans publisher feeds against your channel profile, reads the full article, writes an analytical script where every fact is tied to a quote from the source, and renders a captioned video with an in-browser voice and stock footage. You review everything before anything is posted."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does Autonom Newsreel turn news into a Short?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It works in eight steps: Channel, Feed, Consolidate, Generate, Review, Video, Publish and Export. It learns your channel, scans news, groups stories about the same event, writes and fact-checks a script from the full article, lets you edit it, builds the captioned video in your browser, prepares captions for each platform and exports a ZIP."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Autonom Newsreel free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The tool is free to use, needs no account and adds no watermark. You bring your own API keys, so any cost comes from your plans with AI and footage providers, not from Autonom. Check each provider's current terms and limits."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it make up facts?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It is built not to. Each fact is extracted with a quote from the article, compared against that quote, and checked for numbers and names missing from the source. If there is no readable article, the story is skipped. It cannot tell you whether the article itself is correct, so read each script before you publish."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which AI providers does it work with?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Google Google Gemini, Groq, OpenRouter, NVIDIA NIM, OpenAI and DeepSeek. You use your own key. Autonom discovers the models available to that key instead of hardcoding names, and falls back to another model when one is rate limited."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need an account or to install anything?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Autonom Newsreel runs in a modern desktop browser with no sign-up and no install. Your profile, scripts, finished videos and keys are stored in your own browser. Use recent Chrome or Edge on a desktop for video."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is my data and are my API keys private?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Your profile, scripts, videos and keys are stored in your browser only, unencrypted, so use it on your own device. Some requests, such as news search, article fetching and a few provider or footage calls, pass through this website's server, which forwards them and keeps only a short cache of public articles. Your scripts and keys are not saved on it."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can it post or schedule videos for me?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It can post to Telegram channels and Mastodon directly from your browser with your own tokens, and it writes a tailored caption for 11 platforms. Instagram, Facebook, TikTok, X and LinkedIn require approved apps or paid posting services, so for those you download the package or use an automation tool. Direct YouTube upload is not supported today."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Will YouTube demonetize AI-made Shorts?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "YouTube's policy targets repetitive, mass-produced content with no original input, not AI assistance as such. Channels that add their own angle, edit every script and publish at a human pace are the opposite of that. Policies change, so read YouTube's current rules and use the AI disclosure setting where it applies."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is it different from other AI Shorts generators?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Most topic-to-script generators write from a headline or the model's memory and verify nothing. Autonom Newsreel requires a readable source, ties each fact to a quote, skips stories it cannot read, groups the same event from several outlets into one script, and keeps your data in your browser. It checks that a script matches its article, not that the article is true."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why was my story skipped?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Usually because the article is paywalled, blocked or only an aggregator link. Autonom first searches open outlets for the same event and writes from that article, and says so on the card. If none is found, it skips the story rather than writing from the headline."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is the voice good enough for YouTube?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The built-in neural voices are clear and natural enough for short news explainers, with several voices and speeds. They are not a human recording. If you prefer your own voice, export the script and SRT captions and record it yourself."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where does the footage come from, and can I use it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "From Pixabay or Pexels, through your own key. Both licenses generally allow free use in videos, with their own conditions, so check each provider's terms. Credits are included in the export. Where footage would mislead, the tool uses a clean text card instead."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How long does a video take, and what format is it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Video is recorded in real time, so a 60 second Short takes about a minute to render. In recent Chrome the file is MP4. Other browsers may produce WebM, which several platforms refuse, so use Chrome or Edge on a desktop."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it work on my phone, or in languages other than English?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can review scripts on a phone, but the video studio downloads a voice model and renders in real time, so use desktop Chrome or Edge for video. Scripts and voices are tuned for English today. Other languages are not supported yet."
+          }
+        }
+      ]
+    }
+  ]
+}
   </script>
 
 </div>
