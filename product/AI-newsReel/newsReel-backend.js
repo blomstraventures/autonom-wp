@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.28.1';
+  var VERSION = '1.28.2';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -1202,9 +1202,7 @@
     if (p === 'deepseek') return state.settings.deepseekKey;
     if (p === 'groq') return state.settings.groqKey;
     if (p === 'openrouter') return state.settings.openrouterKey;
-    if (p === 'cerebras') return state.settings.cerebrasKey;
     if (p === 'nvidia') return state.settings.nvidiaKey;
-    if (p === 'mistral') return state.settings.mistralKey;
     return '';
   }
 
@@ -1957,11 +1955,9 @@
   var COMPAT = {
     groq: { endpoint: 'https://api.groq.com/openai/v1/chat/completions', keyField: 'groqKey', modelField: 'groqModel', writeField: 'groqWriteModel' },
     openrouter: { endpoint: 'https://openrouter.ai/api/v1/chat/completions', keyField: 'openrouterKey', modelField: 'openrouterModel', writeField: 'openrouterWriteModel' },
-    cerebras: { endpoint: 'https://api.cerebras.ai/v1/chat/completions', keyField: 'cerebrasKey', modelField: 'cerebrasModel', writeField: 'cerebrasWriteModel' },
-    nvidia: { endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions', keyField: 'nvidiaKey', modelField: 'nvidiaModel', writeField: 'nvidiaWriteModel' },
-    mistral: { endpoint: 'https://api.mistral.ai/v1/chat/completions', keyField: 'mistralKey', modelField: 'mistralModel', writeField: 'mistralWriteModel' }
+    nvidia: { endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions', keyField: 'nvidiaKey', modelField: 'nvidiaModel', writeField: 'nvidiaWriteModel' }
   };
-  var COMPAT_IDS = ['groq', 'openrouter', 'cerebras', 'nvidia', 'mistral'];
+  var COMPAT_IDS = ['groq', 'openrouter', 'nvidia'];
   var relayMode = {};
   var noReasonModel = {};
   var discovered = {};
@@ -2014,10 +2010,25 @@
       }, function (e) { if (e && e.fatal) throw e; LOG('gemini model list unavailable:', e && e.message); return []; })
       .catch(function (e) { if (e && e.fatal) throw e; LOG('gemini model list unavailable:', e && e.message); return []; });
   }
-  var LIST_URL = { groq: 'https://api.groq.com/openai/v1/models', openrouter: 'https://openrouter.ai/api/v1/models', openai: 'https://api.openai.com/v1/models', deepseek: 'https://api.deepseek.com/models', cerebras: 'https://api.cerebras.ai/v1/models', nvidia: 'https://integrate.api.nvidia.com/v1/models', mistral: 'https://api.mistral.ai/v1/models' };
+  var LIST_URL = { groq: 'https://api.groq.com/openai/v1/models', openrouter: 'https://openrouter.ai/api/v1/models', openai: 'https://api.openai.com/v1/models', deepseek: 'https://api.deepseek.com/models', nvidia: 'https://integrate.api.nvidia.com/v1/models' };
   function discoverModels(provider, key) {
     if (discovered[provider]) return Promise.resolve(discovered[provider]);
-    return fetchWithTimeout(LIST_URL[provider], { headers: { 'Authorization': 'Bearer ' + key } }, 15000)
+    var ep = (window.AUTONOM_ASG || {}).llmEndpoint;
+    function listViaRelay() {
+      return fetchWithTimeout(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: provider, key: key, action: 'models' }) }, 20000)
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j || !j.ok) throw new Error('relay: ' + ((j && j.error) || 'failed'));
+          return { status: j.status, json: function () { try { return Promise.resolve(JSON.parse(j.text)); } catch (e) { return Promise.reject(e); } } };
+        });
+    }
+    var first = relayMode[provider] && ep ? listViaRelay()
+      : fetchWithTimeout(LIST_URL[provider], { headers: { 'Authorization': 'Bearer ' + key } }, 15000).catch(function (e) {
+          if (!ep || COMPAT_IDS.indexOf(provider) === -1) throw e;
+          LOG(provider + ': model list blocked from the browser (' + (e && e.message) + '), asking through the site relay');
+          return listViaRelay();
+        });
+    return first
       .then(listOk)
       .then(function (j) {
         var list = (j && j.data || []).filter(function (m) {
@@ -2028,7 +2039,6 @@
           }
           if (provider === 'openai') return /^(gpt|chatgpt|o\d)/i.test(m.id) && !/instruct|codex|pro$/i.test(m.id);
           if (provider === 'nvidia') return !/embed|rerank|reward|guard|safety|vision|[-_]vl\b|vlm|parse|clip|retriev|translate|code|nemoguard|riva|asr|tts|diffusion|image|audio|speech/i.test(m.id);
-          if (provider === 'mistral') return !/embed|moderation|ocr|codestral|pixtral|voxtral|devstral/i.test(m.id);
           return m.context_window === undefined || (m.context_window || 0) >= 16000;
         }).map(function (m) {
           var l = m.id.toLowerCase();
@@ -2053,7 +2063,7 @@
     }
     if (relayMode[provider] && ep) return viaRelay();
     var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
-    if (provider === 'openrouter') headers['X-Title'] = 'Autonom AI Shorts Generator';
+    if (provider === 'openrouter') headers['X-Title'] = 'Autonom Newsreel';
     return fetchWithTimeout(cfg.endpoint, { method: 'POST', headers: headers, body: JSON.stringify(body) }, provider === 'openrouter' ? 60000 : 90000).then(function (r) {
       return r.text().then(function (t) { return { status: r.status, text: t }; });
     }, function (e) {
@@ -2207,7 +2217,7 @@
   var providerDown = {};
   var lastGoodProvider = '';
   function keyFor(p) {
-    var f = { gemini: 'geminiKey', openai: 'openaiKey', deepseek: 'deepseekKey', groq: 'groqKey', openrouter: 'openrouterKey', cerebras: 'cerebrasKey', nvidia: 'nvidiaKey', mistral: 'mistralKey' }[p];
+    var f = { gemini: 'geminiKey', openai: 'openaiKey', deepseek: 'deepseekKey', groq: 'groqKey', openrouter: 'openrouterKey', nvidia: 'nvidiaKey' }[p];
     return f ? String(state.settings[f] || '').trim() : '';
   }
   function callOne(provider, prompt, kind, o) {
@@ -2235,12 +2245,12 @@
     state.counters.llmCalls++; updateCounters();
     var order = [primary];
     if (state.settings.fallbackProviders !== false && !(opts && opts.noFallback)) {
-      ['gemini', 'groq', 'cerebras', 'openrouter', 'nvidia', 'mistral', 'openai', 'deepseek'].forEach(function (p) { if (p !== primary && keyFor(p)) order.push(p); });
+      ['gemini', 'groq', 'openrouter', 'nvidia', 'openai', 'deepseek'].forEach(function (p) { if (p !== primary && keyFor(p)) order.push(p); });
     }
     var strat = state.settings.strategy || 'value';
     if (strat !== 'value') {
       // Cheapest first: providers with free tiers, then the cheaper paid one. Best quality first: the large-model providers.
-      var pref = strat === 'cheap' ? ['groq', 'cerebras', 'openrouter', 'nvidia', 'mistral', 'gemini', 'deepseek', 'openai'] : ['openai', 'gemini', 'deepseek', 'mistral', 'nvidia', 'cerebras', 'groq', 'openrouter'];
+      var pref = strat === 'cheap' ? ['groq', 'openrouter', 'nvidia', 'gemini', 'deepseek', 'openai'] : ['openai', 'gemini', 'deepseek', 'nvidia', 'groq', 'openrouter'];
       var allowAll = state.settings.fallbackProviders !== false && !(opts && opts.noFallback);
       var ord2 = pref.filter(function (p) { return keyFor(p) && (p === primary || allowAll); });
       if (ord2.length) order = ord2;
@@ -2429,7 +2439,7 @@
     }
     var ai = el('div', { style: 'margin-top:4px;' });
     if (llmReady) {
-      var others = ['gemini', 'groq', 'cerebras', 'openrouter', 'nvidia', 'mistral', 'openai', 'deepseek'].filter(function (p) { return p !== provider && keyFor(p); });
+      var others = ['gemini', 'groq', 'openrouter', 'nvidia', 'openai', 'deepseek'].filter(function (p) { return p !== provider && keyFor(p); });
       ai.textContent = 'AI: ' + provider + (others.length && state.settings.fallbackProviders !== false ? ' (backup: ' + others.join(', ') + ')' : '') + '. Generating takes a minute or two per story on free plans.';
     } else {
       ai.style.color = '#8a5b00';
