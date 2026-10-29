@@ -1,0 +1,149 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Source quote verification
+    </div>
+    <h1 class="autonom-hero-title">
+      Source Quote Verification:<br>
+      <em>How to Check Every AI Fact Against Its Article</em>
+    </h1>
+    <p class="autonom-hero-sub">Most AI script tools will tell you they fact-check. What they mean is that the model was asked to be careful, and then it wrote something. That is not a check. A check is a quote — the actual sentence from the actual article — compared against the claim, in code, before the script moves forward. Without the quote, there is nothing to check against.</p>
+    <p class="autonom-hero-sub">This guide is about what that comparison looks like. How a fact gets extracted with its proof, what the five checks catch that a model reading its own draft cannot, and where the whole approach stops working. It is the pair to <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">the fact-checked scripts guide</a> — that one is the workflow, this one is the mechanics underneath it.</p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-info">
+      <span class="autonom-callout-icon">i</span>
+      <div class="autonom-callout-body">
+        <strong>A quote is not a citation. A quote is proof.</strong>
+        <p>A citation says "the article says this." A quote puts the article's own words on the page, character for character, so a machine can check whether they are really there. If you cannot compare the quote to the article, you have a citation, not a check.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">Why "AI is usually right" is not enough</h2>
+    <p>There is a version of this problem that shows up in every AI writing tool, and it is not the model being bad. It is that the model is very good at sounding right.</p>
+    <p>Ask a language model to summarise an article into eight facts and it will do it fluently. Ask it again and it will do it slightly differently, because it is not retrieving sentences — it is generating paraphrases. The paraphrase will usually be accurate. Sometimes it will round a number. Sometimes it will turn "up to 45%" into "45%". Sometimes it will drop "reportedly" from a sentence that needed it, or attribute a quote to the wrong official because both names appeared in the same paragraph.</p>
+    <p>None of those is a hallucination in the dramatic sense. They are compression errors — the same thing that happens when a human summarises from memory. The difference is that a human can be asked "which paragraph does that come from?", and a model cannot be trusted to answer its own question about its own output. It will invent a paragraph reference if it helps the sentence sound right.</p>
+    <p>So the check cannot live inside the model. It has to be external, mechanical, and mandatory. That is what quote verification is: the model produces the claim, but the article produces the proof, and a piece of code decides whether the proof is really there. You can read the whole workflow that sits around this check in <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">the fact-checked scripts guide</a>. What follows is what the check itself does.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The five checks every fact passes</h2>
+    <p>A fact is not one object. It is a claim and a quote, and the two have to be tested against each other before the script is allowed to use the fact. Autonom Newsreel runs five checks in this order. Each one can drop a fact; none can rescue a bad one by being lenient.</p>
+
+    <div class="autonom-error-grid">
+      <div class="autonom-error-card">
+        <h3>1. Extracted with a quote</h3>
+        <p>The model does not get to return "the EU imposed 45% tariffs." It returns a claim and a quote, and if the quote field is empty or too short (under about eight words), the fact is thrown out before any other check runs. This is the gate: no quote, no fact.</p>
+        <p><strong>What actually happens:</strong> A model that has nothing to quote cannot contribute. The prompt can be prompt-injected into inventing a fact, but it cannot inject a quote into an article that is not there, because the next check is looking for the quote in the article text.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>2. Quote in the article</h3>
+        <p>The article text is normalised — whitespace collapsed, curly quotes straightened, dashes converted — and then the quote is searched for inside it. This is plain string comparison, not a model judgement. If the quote does not appear in the article, the fact is dropped. The model's belief about what the article says is irrelevant at this step; the article is the referee.</p>
+        <p><strong>What actually happens:</strong> A paraphrase, a hallucinated sentence, a quote stitched together from two paragraphs — all fail here. The check does not need to understand the fact to reject it. It needs to find the words.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>3. Numbers match</h3>
+        <p>The claim's numbers have to appear in its quote. "Up to 45%" in the quote can be "45%" in the claim only if the claim keeps the hedge, which the next check catches. But "40" in the claim with "45" in the quote is a straight mismatch, and code can see it without asking a model. Dates, percentages, currencies, and spelled-out numbers are all compared.</p>
+        <p><strong>What actually happens:</strong> A model that quietly rounds, drops a decimal, or swaps a day for a week is caught. The check is blunt — it flags a number it does not recognise, not a number it judges to be wrong — which is what you want. Blunt checks are hard to fool.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>4. Wording not stronger</h3>
+        <p>There is a small dictionary of words that turn a report into a verdict: <em>justified</em>, <em>unlawful</em>, <em>criminal</em>, <em>proven</em>, <em>responsible</em>, <em>deliberate</em>, <em>crippled</em>, <em>collapse</em>, <em>effectively</em>, <em>solely</em>. If the claim uses one of these and the quote does not, the claim has said more than its source, and the fact is rewritten to the quote's wording or dropped.</p>
+        <p><strong>What actually happens:</strong> "Not unlawful" does not become "justified". "Severely restricted" does not become "effectively barred". A court's "charged" does not become the model's "guilty". The <code>45%</code> case is the same problem in numbers: the script cannot strip <code>up to</code> from the claim. The list is deliberately narrow so that ordinary paraphrase survives; it is deliberately explicit so that the exceptions are auditable.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>5. Speaker named</h3>
+        <p>If the claim begins with a named person ("Polish Prime Minister Donald Tusk said…"), the name has to appear in the quote. This is the check that catches the most common attribution error in news summarisation: a paragraph contains three officials, the model credits the statement to the wrong one because it sounded right. Code compares the capitalised name tokens at the start of the claim against the quote's text, and drops the fact if there is no match.</p>
+        <p><strong>What actually happens:</strong> Attribution errors are the hardest to spot on a read-through and the easiest to verify mechanically. If the name is not in the sentence being quoted, it is not the sentence's speaker.</p>
+      </div>
+    </div>
+
+    <p>The five checks do not make a script correct. They make it <em>checkable</em>, which is a different and more useful property. They are the reason you can open any fact in the review step and see the sentence that proves it, in the outlet that published it, without having to trust the tool's assurance that it was careful.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The second-outlet check</h2>
+    <p>The five checks prove that a fact is faithful to its article. They cannot prove that the article is right. That is what the second outlet is for, and it is a different kind of check.</p>
+    <p>When Autonom finds another open publisher reporting the same event, it reads the second article, asks a model to compare it fact by fact against the first, and then — before it trusts the model's comparison — runs the same mechanical checks against the second outlet's quotes. The output is not a badge. It is a tag on each fact: <em>confirmed by both outlets</em>, <em>only the first outlet reports this</em>, <em>they differ</em>, or <em>possible difference</em> when the model is not sure the two are saying incompatible things. A conflict is not an error to resolve; it is information the script has to respect, either by naming both versions or by leaving the point out.</p>
+    <p>The tag matters because it changes what the script can say. A fact both outlets confirm can be stated plainly. A fact only the first outlet reports has to be attributed to that outlet in the sentence. A fact the outlets differ on cannot be stated as settled at all. This is what makes a one-source story honest — it is not disqualifying that only one outlet has it, but it is disqualifying to write it as if two outlets had agreed.</p>
+    <p>You can see how the full workflow uses those tags in <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">the fact-checked scripts guide</a>, and how they interact with the hook and the angle in <a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/">the hooks guide</a>. The short version: attribution is not a caveat added at the end. It is a property of the fact, and the script is built to respect it.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What quote verification cannot do</h2>
+    <p>It is worth being honest about the limits, because a tool that promises everything is a tool that has not thought about what it is doing.</p>
+
+    <ul>
+      <li><strong>It cannot verify the article.</strong> If the publisher reports a figure that later turns out to be wrong, the script repeats it, with a quote that proves where it came from. This is why showing the source matters: you can go to the article and see that it says what the tool says it says. You cannot see, from the tool, whether the article is right.</li>
+      <li><strong>It cannot resolve a conflict between outlets.</strong> When two outlets disagree, the tool marks the fact and leaves the disagreement in front of you. It does not pick a side, and it does not invent a third version. That is an editorial decision, and the tool is right not to make it.</li>
+      <li><strong>It cannot catch framing.</strong> A script can pass all five checks and the audit and still be misleading because of which facts were selected and which were left out. The checks measure fidelity to a source, not fairness to a story. That is why the human read stays on you.</li>
+      <li><strong>It cannot rescue a thin source.</strong> If the article only supports two facts, the tool will not write a script from it; it will tell you the article is too thin. That is a feature, but it is also a limit: some stories genuinely are only two facts long, and they do not make good Shorts.</li>
+      <li><strong>It cannot hear the story in the room.</strong> If the source is wrong, or the source is right but the framing is contested by people close to the event, no pipeline reading the article can know that. Read what you publish.</li>
+    </ul>
+
+    <p style="margin-top: 1.4em;">Here is the same story with weak verification and with strict verification. The claim in both is the same sentence. What changes is whether you can tell, from the page, that it is true.</p>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">"The EU imposed 45% tariffs on Chinese electric vehicles after concluding that Beijing's subsidies were unfair and will force Chinese makers to retreat from Europe. Analysts say this is the beginning of a wider trade war." <em style="display:block;margin-top:10px;font-size:13px;opacity:.7;">— No quote shown, no outlet shown, no way to tell which of the four claims in one sentence came from the source and which came from the model.</em></div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">"The European Commission has set tariffs of up to 45% on Chinese electric vehicles, it said, following an investigation into state subsidies. <em>[quote: 'The Commission has decided to impose definitive countervailing duties of up to 45.3% on imports of battery electric vehicles from China.']</em> <em>[both outlets confirm the tariff; only the Commission reports the investigation's conclusion; no outlet reports a forecast of retreat.]</em>"</div>
+    </div>
+
+    <p>The second version is less punchy. It also survives the question "how do you know?", which is the only question that matters when someone quotes the video back at you six months later.</p>
+
+    <div class="autonom-cta-box">
+      <h3>Check every fact against its source, automatically.</h3>
+      <p>Autonom Newsreel extracts every fact with an exact quote, checks the quote against the article in code, cross-checks the numbers and the wording, and cross-references a second outlet when one exists. Free to run on your own API keys.</p>
+      <a href="https://autonom.app/ai/newsreel/" class="autonom-cta-btn">Open Autonom Newsreel →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+<ul class="autonom-related-list">
+  <li><a href="/guide/ai-news-to-shorts/">AI News to Shorts — the full guide</a></li>
+  <li><a href="/guide/ai-news-to-shorts/fact-checked-scripts/">Fact-Checked AI Scripts: How to Write News Shorts Without Inventing Facts</a></li>
+  <li><a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/">YouTube Shorts Hooks: The First Two Seconds Decide Everything</a></li>
+  <li><a href="https://developers.google.com/search/docs/fundamentals/creating-helpful-content" target="_blank" rel="noopener">Google's guidance on helpful content (external)</a></li>
+  <li><a href="https://support.google.com/youtube/answer/1311392" target="_blank" rel="noopener">YouTube's inauthentic content policy (external)</a></li>
+</ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details><summary>What is source quote verification in an AI news tool?</summary><p>It is the step where every claim in the script is compared against an exact sentence from the article it came from. The tool extracts a claim and a quote together, checks in code that the quote really appears in the article, checks that the claim's numbers and wording do not exceed the quote, and checks that any named speaker is actually named in the quote. A fact that fails any of those checks is dropped or rewritten.</p></details>
+      <details><summary>Why not just trust the AI model to verify itself?</summary><p>Because a model's judgement about its own output is still a judgement. If a model writes a claim and is then asked "is this claim supported by the article?", it will usually say yes — including when the claim is wrong, because the same fluency that produced the claim produces the confirmation. Mechanical checks are different: string comparison against the article either finds the quote or does not, and no amount of fluency can change that.</p></details>
+      <details><summary>What does "quote in article" actually check?</summary><p>The tool normalises both the quote and the article text — collapsing whitespace, straightening curly quotes, converting dashes — and then searches for the quote inside the article as a plain substring. If the quote appears, the fact passes that check. If it does not, the fact is dropped. This is not a semantic check; it is a literal one. That is the point.</p></details>
+      <details><summary>Can a quote be real and still be misused?</summary><p>Yes, and that is what the second and third checks are for. "Up to 45%" is real; "45%" is not what it says. "The minister said he was considering" is real; "the minister announced" is not what it says. "Polish Prime Minister Donald Tusk said" is real; attributing it to a different Polish official is not. The number check, the wording check, and the speaker check catch those specific misuses. The final audit catches the ones the dictionary of words does not name.</p></details>
+      <details><summary>What happens when the second outlet disagrees?</summary><p>The tool does not pick a winner. It tags the fact as <em>they differ</em>, shows both versions to the script writer, and instructs it to either name both versions in the sentence or leave the point out. In the review step, the conflict is surfaced with the two quotes side by side, so you can decide. A fact that both outlets confirm is marked as such and can be stated plainly; a fact only one outlet reports has to be attributed by name. You can see how that changes the shape of a script in <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">the fact-checked scripts guide</a>.</p></details>
+      <details><summary>Does quote verification replace a human review?</summary><p>No. It removes a specific, mechanical class of error — invented quotes, rounded numbers, dropped hedges, misattributed speakers — that a human is bad at catching on a read-through and a machine is good at catching. What remains is the editorial judgement: is the source right, is the framing fair, is the angle worth publishing. That stays with you, and the tool is designed to make that read shorter, not to remove it.</p></details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
