@@ -1,0 +1,143 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · Fact-checked scripts
+    </div>
+    <h1 class="autonom-hero-title">
+      Fact-Checked AI Scripts:<br>
+      <em>How to Write News Shorts Without Inventing Facts</em>
+    </h1>
+    <p class="autonom-hero-sub">An AI model asked to write a news script will produce one. It will be fluent, it will have a hook, and it will sound like a wire reporter. What it will not do is check a single number against the article it came from. That is not a flaw you can prompt away. Fluency is what the model was trained for; verification is a separate process that has to be built around it, with code that refuses to move on when the quote is not in the source.</p>
+    <p class="autonom-hero-sub">This guide is about that process. What most tools skip, what a script that ties every claim to a quote actually looks like, and the five checks you can run on any AI news tool before you publish from it.</p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-danger">
+      <span class="autonom-callout-icon">⚠</span>
+      <div class="autonom-callout-body">
+        <strong>AI that never invents facts is a process, not a model.</strong>
+        <p>No model is reliable enough to trust on its own. What makes a script trustworthy is the chain around it: every fact carries an exact quote, the quote is checked against the article, and a script that fails the check is sent back rather than published.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">What most AI script tools actually do</h2>
+    <p>There are three shapes most AI news tools fall into. None of them is dishonest on purpose. They are all the same compromise: it is easier to produce a script than to prove one.</p>
+
+    <div class="autonom-error-grid">
+      <div class="autonom-error-card">
+        <h3>1. The fluent summarizer</h3>
+        <p>Give it the article, ask for a 60-second script. It reads, compresses, and writes. The output is readable and mostly right. What it does with the parts it is less sure of is invisible: a figure of "up to 40%" becomes "40", a date gets rounded, a quote gets paraphrased into something the speaker did not say.</p>
+        <p><strong>What actually happens:</strong> The script ships. It is wrong in one place, which is enough. The audience has no way to know which sentence is the wrong one, so the credibility of every sentence goes with it.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>2. The headline paraphraser</h3>
+        <p>Many tools only reliably get the headline, the first paragraph, or a search snippet — the rest of the page is behind a paywall, or rendered in JavaScript the tool cannot read. So the script is built from what was visible, and the body that contradicts the headline never gets read.</p>
+        <p><strong>What actually happens:</strong> The script repeats the framing the editor already decided, without the detail that qualifies it. It sounds confident and it is thinner than the reader thinks.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>3. The template filler</h3>
+        <p>A hook, a body, a call to action. Three slots, each filled with something plausible. "This development could have significant implications." "Analysts say the move signals a shift." Nothing in those sentences is checkable, which is exactly the problem: there is nothing to be wrong about, and nothing to be right about either.</p>
+        <p><strong>What actually happens:</strong> The channel publishes volume, the audience learns nothing, and after a few weeks the format stops being watched.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How fact-checked scripts work</h2>
+    <p>A fact-checked script is not written; it is assembled, then audited. The model still writes, but every sentence has to survive a chain of checks that sits between the draft and the publish button. This is the chain <a href="/ai/newsreel/">Autonom Newsreel</a> runs, step by step, at a high level. Nothing here requires code to understand.</p>
+
+    <ol>
+      <li><strong>Read the article.</strong> Not the headline, not the RSS description — the full text of the article page. If the page cannot be read (paywall, live blog, video page), the story is skipped. A script without a readable source is a guess with better grammar.</li>
+      <li><strong>Extract facts, each with a quote.</strong> The model reads the article and returns 8–12 facts. Each one is two things: a one-sentence claim in plain words, and an exact quote copied from the article that proves it. No quote, no fact.</li>
+      <li><strong>Check every quote against the article.</strong> This is done by code, not by the model. Normalize the whitespace and punctuation of both, then ask: does this quote appear in this article, word for word? If it does not, the fact is dropped. A model that hallucinated a quote cannot survive this step, because the article is the referee.</li>
+      <li><strong>Check every claim against its quote.</strong> A quote can be real and still be misused. "Up to 45%" can become "45%". "The minister said he was considering" can become "the minister announced". A second pass — code for numbers and qualifiers, then a model check for meaning — drops or rewrites any fact whose claim says more than the quote supports.</li>
+      <li><strong>Look for a second outlet.</strong> The tool searches open publisher feeds for another outlet reporting the same event. If it finds one, it reads that article and compares it against the first, fact by fact. Each fact comes out tagged: <em>confirmed by both</em>, <em>only the first outlet reports this</em>, or <em>the two outlets differ</em>. On a story where the second outlet cannot be found, every fact is tagged <em>single source</em>, and the script has to say so.</li>
+      <li><strong>Write the script from the tagged facts.</strong> Now the model writes. But it writes only from the facts that survived, and it sees the tags. It is told which facts it can state as fact, which it has to attribute to a named outlet, and which to leave out because the two outlets disagree.</li>
+      <li><strong>Check the script against the article.</strong> Numbers in the script must appear in the article. Capitalized names must appear in the article. Qualifiers have to be preserved — "up to", "around", "reportedly" cannot be dropped. Words that make a claim stronger than the source ("effectively", "crippled", "collapse", "solely") are flagged. Forecasts the source did not make ("will", "is likely to") are flagged. Attribution to "analysts" or "experts" the source never mentioned is flagged.</li>
+      <li><strong>Audit every sentence.</strong> Finally, a model reads the script sentence by sentence against the quotes and flags what it finds: a sentence that says more than the quote, a cause the source did not state, an inference presented as a fact, a hedge that went missing. Each flagged sentence comes back with a suggested fix. If more than one needs fixing, the script is rewritten once, re-checked, and re-audited. If it still fails, it is shown to the human with the flags attached, not published.</li>
+    </ol>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What to check in any AI script tool</h2>
+    <p>You do not need to build this pipeline yourself. But before you trust any AI news tool — including this one — run five checks. They take twenty minutes and they separate tools that verify from tools that produce.</p>
+
+    <ol>
+      <li><strong>Does it show you the quote?</strong> For every fact in the script, ask the tool to show the sentence from the article that proves it. If it cannot, it has no proof — it has a summary. A tool that shows you the quote is not being generous with its work; it is showing you the check. The absence of that check is the whole story.</li>
+      <li><strong>Does it tell you what the second outlet says, not just "verified"?</strong> "Verified by two sources" is a badge; it is not a fact. Ask which outlet, and ask what each outlet actually said. Real corroboration produces tags — <em>both</em>, <em>first only</em>, <em>they differ</em> — not a label. If the tool cannot tell you which outlet disagrees with which, it is not doing corroboration; it is doing a search. <a href="/guide/ai-news-to-shorts/source-quote-verification/">The source quote verification guide</a> goes deeper on this check.</li>
+      <li><strong>Does it keep the qualifiers?</strong> "Up to 45%" and "45%" are different claims. "Around 80%" and "80%" are different claims. "Reportedly" and nothing are different claims. Open the script and search for <code>up to</code>. If the hedges have all been sanded off in favor of a cleaner sentence, the tool has already made an editorial choice you did not authorize.</li>
+      <li><strong>Does it name who said what?</strong> A source that rests on a government claim, a military statement, or a party to a conflict has to attribute it — in the sentence, not in a footnote. If a script says "the strikes hit a hospital" without saying who reported it, it has taken a side. If it says "analysts say" without naming one, it has invented a source.</li>
+      <li><strong>Does it show you what it dropped?</strong> Good tools keep a record: facts it could not verify, claims it had to rewrite, sentences the audit removed. The dropped material is where the interesting edits happen. A tool that shows you only the finished script and none of its working is asking you to trust a process you cannot see.</li>
+    </ol>
+
+    <div class="autonom-callout autonom-callout-tip">
+      <span class="autonom-callout-icon">✓</span>
+      <div class="autonom-callout-body">
+        <strong>The five-minute test.</strong>
+        <p>Open the script, search for <code>%</code>, and check every percentage against the source. Then search for <code>will</code> and <code>could</code>, and check that each forecast is a forecast the source made. That is the whole audit in five minutes; the pipeline above does it in five seconds.</p>
+      </div>
+    </div>
+
+    <p>None of these checks requires you to read the article twice. They require the tool to be designed around showing its work, which is a product decision, not a model decision. A tool built this way will not be faster than one that isn't. It will be the one you can put your name on. <a href="/guide/ai-news-to-shorts/">The full AI News to Shorts guide</a> covers the rest of the workflow — feed, consolidation, video, and publishing.</p>
+
+    <p style="margin-top: 1.4em;">Here is the same story written two ways. Both versions are short enough to fit in a Short. Only one of them says what the source actually says. The example is drawn from a real tariff story with the numbers and names simplified.</p>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">The EU just hit China with a 45% tariff on electric cars. The move is a direct response to Beijing's unfair subsidies and will force Chinese automakers to retreat from Europe. This is the trade war everyone saw coming.</div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">The EU has set tariffs of up to 45% on Chinese electric vehicles, according to the European Commission. Brussels says the duties respond to state support that gave Chinese makers an unfair advantage. China has said it will challenge the decision at the World Trade Organization. Whether the tariffs hold depends on whether Brussels can keep member states united if Beijing retaliates against European exports.</div>
+    </div>
+
+    <p>The first version is more fun. It is also wrong in four places: the rate was "up to 45%", not a flat 45%; "unfair subsidies" is Brussels's characterization, not a finding; "will force" is a forecast no one made; and "the trade war everyone saw coming" is a caption for a different story. The second version is slower to read and says what the source says. That is the whole trade.</p>
+
+    <div class="autonom-cta-box">
+      <h3>Write a script you can defend.</h3>
+      <p>Autonom Newsreel extracts every fact with its quote, checks each one against the article, cross-checks a second outlet when one exists, and audits every sentence before you see it. Free to run on your own API keys.</p>
+      <a href="https://autonom.app/ai/newsreel/" class="autonom-cta-btn">Open Autonom Newsreel →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+  <li><a href="/guide/ai-news-to-shorts/">AI News to Shorts — the full guide</a></li>
+  <li><a href="/guide/ai-news-to-shorts/source-quote-verification/">Source Quote Verification: How to Check Every AI Fact Against Its Article</a></li>
+  <li><a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/">YouTube Shorts Hooks: The First Two Seconds Decide Everything</a></li>
+  <li><a href="https://support.google.com/youtube/answer/1311392" target="_blank" rel="noopener">YouTube's inauthentic content policy (external)</a></li>
+  <li><a href="https://developers.google.com/search/docs/fundamentals/creating-helpful-content" target="_blank" rel="noopener">Google's guidance on helpful content (external)</a></li>
+</ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details><summary>Can AI write a news script without inventing facts?</summary><p>Not on its own. A model asked to write a news script will sometimes add a plausible-sounding detail that was not in the source. What makes a script safe is the process around the model: extract with quotes, verify the quotes against the article, verify the claims against the quotes, and rewrite anything that fails. The model is a writer; the checks are what make the writing trustworthy.</p></details>
+      <details><summary>What does "fact-checked" actually mean in an AI script tool?</summary><p>It should mean at least three things: every claim in the script is tied to an exact quote in a source, the quote was checked against the article (not just taken on the model's word), and the claim says no more than the quote. If a tool uses the phrase and cannot show you the quote, the phrase is marketing. Ask the tool to show its work — the quotes, the tags, and the sentences the audit removed.</p></details>
+      <details><summary>Do I still need to review an AI script before publishing?</summary><p>Yes. The pipeline catches what a machine can catch: an invented quote, a number that is not in the source, a hedge that went missing, a forecast the source did not make. It cannot catch a source that is wrong, an angle you disagree with, or a framing that is technically supported and still misleading. Read every script once before you publish. The tool shortens that read; it does not remove it.</p></details>
+      <details><summary>What happens when the source article is wrong?</summary><p>The script will repeat the error, accurately attributed. This is a limit worth stating plainly: no fact-checking pipeline can verify the article itself. If a publisher reports a number that later turns out to be wrong, the script is wrong in the same place, with a quote that proves where it came from. That is why the tool shows you the source, why a second outlet matters, and why the human read is still on you.</p></details>
+      <details><summary>How long does fact-checking a script take?</summary><p>Longer than writing one without checks, which is the point. On a free API tier, plan on one to two minutes per story. Most of that is the model writing the script and the audit reading it back. The code checks (quotes, numbers, names, qualifiers) are instant. If you are publishing a handful of videos a day, the time is well spent: a script you have to rewrite costs more than a script you waited for.</p></details>
+      <details><summary>Does fact-checking work for non-English sources?</summary><p>Today, Autonom Newsreel is English-only. The pipeline is language-agnostic in principle — the quote check is string comparison, the claim check is a model reading in whatever language it was given — but the prompts, the feeds, and the voice are all English. If you are working in another language, check whether the tool you are using supports it; do not assume the same checks apply.</p></details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
