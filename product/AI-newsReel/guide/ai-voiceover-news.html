@@ -1,0 +1,162 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide · AI voiceover for news
+    </div>
+    <h1 class="autonom-hero-title">
+      AI Voiceover for News Videos:<br>
+      <em>What Works and What Sounds Robotic</em>
+    </h1>
+    <p class="autonom-hero-sub">AI voices crossed the line from "obviously a robot" to "good enough" sometime in the last two years. On a phone speaker, in a noisy room, most listeners cannot tell an AI news voice from a human one. But "good enough to fool a stranger" is not the same as "good enough to hold a viewer on a news video", and the gap between those two is the difference between a Short that gets watched and one that gets scrolled past in the first two seconds.</p>
+    <p class="autonom-hero-sub">This guide is about that gap. What makes a news voice sound like a news voice, what makes an AI voice sound like a call-centre recording, and how the built-in voice in Autonom Newsreel works — a small open model that runs on your computer, one sentence at a time, with no upload and no server. It is the pair to <a href="/guide/ai-news-to-shorts/stock-footage-scenes/">the footage guide</a> — that one is about the picture, this one is about the sound.</p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-info">
+      <span class="autonom-callout-icon">i</span>
+      <div class="autonom-callout-body">
+        <strong>A voice is a pace, not just a tone.</strong>
+        <p>The same voice read at <code>0.95</code> speed sounds trustworthy. At <code>1.2</code> it sounds like a commercial. Pace is the first thing to fix, and most AI news tools never expose it.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">What makes a news voice work</h2>
+    <p>Four properties do most of the work. They are not properties of the voice model; they are properties of the sentence being read, and of how the model was set up to read it. A weak voice model that is used well will sound more like a news anchor than a strong model that is used badly. These four are the reason why.</p>
+
+    <h3 style="margin: 24px 0 8px; font-size: 19px;">Pace</h3>
+    <p>News narration has a rhythm: fast enough to hold attention, slow enough that a viewer who is half-listening can follow. Broadcast news lands at roughly 150–160 words per minute — about 2.5 words per second — which is why Autonom's default target is <code>2.5</code> words per second. A 45-second Short is about 110 words of narration; a 60-second Short is about 150. Faster than that and the listener misses the number and stops; slower than that and the video drags, which the retention graph records as "boring" even when the video is well-made.</p>
+
+    <h3 style="margin: 24px 0 8px; font-size: 19px;">Sentence length</h3>
+    <p>Short spoken sentences. Under twenty words, ideally under fifteen, one idea per sentence. This is not because viewers are stupid; it is because a viewer is listening once, not re-reading. A twenty-five-word sentence with three clauses is a sentence the viewer has to hold in working memory to parse, and by the time the main clause arrives they have lost the subject. Good news writing for the ear is almost always shorter than good news writing for the page. The comparison at the end of this guide is a sentence going from one to the other, in the same fact.</p>
+
+    <h3 style="margin: 24px 0 8px; font-size: 19px;">Emphasis</h3>
+    <p>Emphasis belongs on the specific, consequential word — the number, the name, the verb. Not on <code>very</code>, not on <code>actually</code>, not on <code>this is huge</code>. A news voice that stresses the noun and the number sounds authoritative; a news voice that stresses the adjectives sounds like an advertisement. A text-to-speech model does not choose emphasis; the sentence does, by word order. The word you want stressed should be the last noun in the clause, because that is where a reader's natural fall lands.</p>
+
+    <h3 style="margin: 24px 0 8px; font-size: 19px;">No sing-song</h3>
+    <p>The two ways a news voice fails on this front are opposite. The first is the flat, affect-less pitch of a GPS voice — <code>"In 200 feet, turn left. The European. Commission. Has decided."</code> — which reads as robotic because it has no melody at all. The second is the melodic lilt of an audiobook narrator reading a war report, where every sentence rises and falls like a bedtime story. A news voice sits between them: moderate pitch movement inside a sentence, a larger drop at the end of a declarative, and no rise at all on a sentence that is not a question. The melody serves the meaning, not the other way around.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What makes AI voice sound robotic</h2>
+    <p>There are four failure modes, and they have different causes. None of them is "the model is bad". A good model put in a bad configuration fails all four, and a smaller model put in a good configuration passes them.</p>
+
+    <div class="autonom-error-grid">
+      <div class="autonom-error-card">
+        <h3>1. Wrong speed</h3>
+        <p>Every TTS engine has a default speed, and the default is almost always wrong for news. Too fast and the voice is urgent without being clear — the listener catches the first clause and misses the number. Too slow and the voice is explaining something to a child. The right speed is not one number: a lower-pitched voice at <code>1.05</code> can sound fine where a higher-pitched voice at <code>1.0</code> sounds rushed, and a serious story benefits from a slightly slower pace than a light one.</p>
+        <p><strong>What actually happens:</strong> The voice sounds competent and slightly off, and the viewer cannot say why. If you listen to the same video at <code>0.9</code> speed, the version you published sounds like it is chasing the script.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>2. No pause between sentences</h3>
+        <p>This is the single biggest tell. A real speaker pauses between sentences — 200 to 400 milliseconds — and more at paragraph breaks or before a turn. A TTS engine handed a block of text often runs sentence after sentence with only a comma-length beat, because the engine is being given one block and asked to read it. The result is the sound of a person who is not breathing.</p>
+        <p><strong>What actually happens:</strong> The voice is intelligible and still sounds robotic. The listener's brain registers "this is not a person" without being able to name the reason. The fix is to synthesize one sentence at a time and concatenate with an explicit pause; the result sounds like a person, because the pauses are what a person's breathing sounds like.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>3. Unnatural consonants</h3>
+        <p>TTS engines sometimes over-enunciate consonant clusters a human would blur. <code>months</code> comes out as "mun-ths". <code>strengths</code> as three distinct sounds. <code>sixths</code> as four. <code>asked</code> as "as-ked". This is not a problem with the model on its own; it is a problem the model reveals on words it has not heard in this exact context, and it is worse on proper nouns and technical terms.</p>
+        <p><strong>What actually happens:</strong> One word in a sentence lands wrong, and the listener hears the whole sentence as automated even if every other word was perfect. The fix is either to spell the word phonetically in the narration (<code>monce</code> for <code>months</code>) or to write a different word that means the same thing. The second is usually better, because phonetic spellings look wrong in the exported captions.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>4. Wrong register</h3>
+        <p>Every AI voice has a personality, and most of them are the wrong personality for news. A voice that belongs in a commercial — <code>"Looking for a great deal?"</code> — reading a story about an earthquake. A voice that belongs in an audiobook reading a market update. A voice that belongs in a phone tree reading a sanctions announcement. Register is not just pitch or accent; it is the whole stylistic posture of the voice, and it is what makes a listener feel "this is not a person who would say this sentence".</p>
+        <p><strong>What actually happens:</strong> The voice is technically excellent and completely wrong for the story. The fix is to pick a voice whose register is close to a news anchor and then write the script so the voice has nothing to do except read it plainly. When a voice has to act, it stops sounding like a person.</p>
+      </div>
+    </div>
+
+    <p>The browser's own "built-in" voices — the ones you get for free without loading any library — are almost all <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API" target="_blank" rel="noopener">Web Speech API</a> voices, and they are the reason "AI voiceover" got a bad reputation in the first place. They were designed for accessibility (reading a webpage aloud), not for narration, and it shows in every one of the four failures above. A neural model like the one shipped in Autonom is a different class of tool: it was trained on speech, not on text, and it produces prosody that is close enough to a person that the four failures become problems of configuration, not problems of the model.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How the built-in voice in Autonom works</h2>
+    <p>Autonom Newsreel ships with a voice that runs entirely in the browser. It is the <a href="https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX" target="_blank" rel="noopener">Kokoro-82M</a> model — an 82-million-parameter open text-to-speech model distributed through the Kokoro-JS library — and it runs inside a Web Worker so the page stays responsive while it is generating audio. Three things about this architecture matter for how a video actually sounds.</p>
+
+    <p><strong>It runs on your computer, not on a server.</strong> The model downloads once — about 80 MB on first use — and then it is cached in the browser. Your narration text never leaves your machine. There is no cloud TTS API in the loop, no per-character billing, and no TTS provider that sees the script before it is published. This is the only honest answer to "no recording needed news video": the voice is genuinely yours to run, on your hardware, with your API keys, and with no third party in the audio path.</p>
+
+    <p><strong>It synthesizes one sentence at a time.</strong> Each sentence in the script is a separate synthesis call. The result is trimmed for silence (the lead-in and lead-out the model appends to each clip), then concatenated with an explicit <code>150</code>-millisecond gap between sentences. That gap is what makes the voice sound like it is reading instead of reciting, and it is what makes the captions line up with the voice: the tool knows exactly when each sentence begins because it placed it on the timeline itself.</p>
+
+    <p><strong>It gives exact caption sync.</strong> Because every sentence has a known start time, and every word inside the sentence is timed proportionally to its length (with a small bump for punctuation), the on-screen captions change on the exact syllable the voice is speaking. This is the difference between a video that feels professionally edited and one that feels AI-generated: a caption that lags the voice by 300 milliseconds reads as amateur, even when the voice itself is perfect.</p>
+
+    <p>The voice is selectable. Three voices are built in — <code>am_echo</code> (lower-pitched, neutral), <code>am_liam</code> (higher-pitched, warmer), and <code>af_heart</code> (slightly slower, more space between words) — and the full list of around fifty voices across accents, genders, and speaking styles can be loaded with one click. Speed is adjustable from <code>0.7</code> to <code>1.3</code>. GPU acceleration (<code>webgpu</code>) is used when the browser supports it and falls back to <code>wasm</code> when it does not, so the same voice runs on a laptop, a phone, and a desktop. The output is a standard <code>WAV</code> file that goes straight into the video renderer, which is the same one described in the <a href="/guide/ai-news-to-shorts/stock-footage-scenes/">footage guide</a>.</p>
+
+    <p>One caveat worth stating plainly: the voice model is English-only today. It handles US, UK, and a handful of other English accents; it does not speak French, Spanish, or Mandarin at a publishable quality. If your channel is not in English, the built-in voice is not the right tool yet — and no fact-checking pipeline compensates for a narration that sounds wrong in the target language.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What to listen for in any AI news voice</h2>
+    <p>Before you publish a video with an AI voice — any AI voice, not just this one — listen for five things. Each one is a test you can run in thirty seconds on the first ten seconds of the video. If the voice fails any of them, the fix is not "buy a better voice". The fix is to change the sentence, the speed, or the voice, in that order.</p>
+
+    <ol>
+      <li><strong>The first three words.</strong> Does the voice reach the first stressed word without an audible startup? A good voice starts cleanly on the first syllable. A bad one has a small breath, a click, or a half-second of silence that reads as a stutter. If you have to trim the start of the audio file in a separate editor, the voice is wrong, not the file. Autonom trims this automatically; if your tool does not, listen to the first half-second specifically.</li>
+      <li><strong>The pause between sentences.</strong> Listen for the beat between sentence one and sentence two. If there is no beat, the voice is running sentences together, and it will sound robotic for the whole video. If the beat is too long, the voice is dragging. The right beat is about the length of a normal human breath — a bit more at a paragraph break, a bit more before a turn. If the tool does not let you set it, the tool is choosing for you, and it is probably choosing zero.</li>
+      <li><strong>The stress on the number.</strong> Find the number in the first fifteen seconds. Is it stressed, or is it buried mid-sentence with the same weight as "the" and "of"? A news voice stresses the number; a TTS default does not. If your number is not landing, the sentence needs a rewrite so the number is the last word in the clause. This is a script fix, not a voice fix.</li>
+      <li><strong>The consonant on a hard word.</strong> Find a word with a consonant cluster — <code>months</code>, <code>strengths</code>, <code>asked</code>, <code>texts</code>. Does the voice blur it like a human, or over-enunciate every letter? If it over-enunciates, the word should be spelled phonetically in the narration or replaced with a different word. The replacement is usually better: phonetic spellings look wrong in the captions and confuse search.</li>
+      <li><strong>The register.</strong> Does the voice sound like a person who would say these sentences? Or does it sound like a commercial narrator, an audiobook, a phone tree, or a customer-service bot? Register is the hardest failure to fix by editing and the easiest to fix by picking a different voice. If the register is wrong in the first three seconds, no amount of post-processing rescues it. Change the voice.</li>
+    </ol>
+
+    <p>If the voice passes all five, it is good enough to publish. If it fails one, the fix is rarely to buy a more expensive voice. It is almost always to change the sentence, then the speed, and only then the voice — because the sentence is what the viewer is actually listening to, and a great voice reading a badly-written line still sounds wrong.</p>
+
+    <p style="margin-top: 1.4em;">Here is the same fact, written the way it would appear on a page, and then rewritten the way it should be spoken. The rewrite is the difference between a voice that has to work and a voice that only has to read.</p>
+
+    <div class="autonom-example">
+      <div class="autonom-example-bad">"Following an investigation into whether state subsidies conferred an unfair advantage, the European Commission has decided to impose definitive countervailing duties of up to 45.3% on imports of battery electric vehicles from China."<br><em style="display:block;margin-top:10px;font-size:13px;opacity:.7;">Fifteen words of backstory before the sentence reaches its subject. <code>Countervailing duties</code> is a five-syllable technical term most TTS voices pronounce with three distinct stresses. <code>45.3%</code> is a decimal the viewer has to decode while the voice is already three words past it. Every word is correct and the sentence is unreadable.</em></div>
+      <div class="autonom-example-arrow">→</div>
+      <div class="autonom-example-good">"The EU just put tariffs on Chinese electric cars. Up to 45 percent. Brussels says Beijing's subsidies gave its carmakers an unfair edge. China says it will fight the decision."<br><em style="display:block;margin-top:10px;font-size:13px;opacity:.7;">One idea per sentence, subject-verb-object order, the number is its own sentence so it lands, <code>countervailing duties</code> is gone, and no clause asks the listener to hold the subject in memory while three subordinates resolve. This is what a news anchor would actually say.</em></div>
+    </div>
+
+    <p>The rewrite is not "dumbing down" the source. It is translating a written sentence into a spoken one, which is what a news anchor does with every script before going on air. The voice is only as good as the line it is given. Read <a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/">the hooks guide</a> for how the first sentence of the script sets the pace for everything that follows, and the <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">fact-checked scripts guide</a> for how the rest of the script is written around the same principle — the model writes to be heard, not to be read.</p>
+
+    <div class="autonom-cta-box">
+      <h3>A voice that reads the way a person speaks.</h3>
+      <p>Autonom Newsreel synthesizes your script one sentence at a time with the built-in Kokoro voice — running on your computer, no upload, exact caption timing. Pick a voice, set the speed, and the pauses are handled for you. Free to run on your own API keys.</p>
+      <a href="https://autonom.app/ai/newsreel/" class="autonom-cta-btn">Open Autonom Newsreel →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guide/ai-news-to-shorts/">AI News to Shorts — the full guide</a></li>
+      <li><a href="/guide/ai-news-to-shorts/stock-footage-scenes/">Stock Footage for News Shorts: Matching Every Scene Without Misleading</a></li>
+      <li><a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/">YouTube Shorts Hooks: The First Two Seconds Decide Everything</a></li>
+      <li><a href="https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX" target="_blank" rel="noopener">Kokoro-82M on Hugging Face (external)</a></li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API" target="_blank" rel="noopener">Web Speech API on MDN (external)</a></li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details><summary>What is the best AI voice for news videos?</summary><p>There is no single best voice, because register and pace matter more than the model. The right voice is the one whose default register is closest to a news anchor — calm, neutral, not enthusiastic, not commercial — and then it is tuned by speed and by the script. Autonom ships three built-in voices (<code>am_echo</code>, <code>am_liam</code>, <code>af_heart</code>) and lets you load around fifty more, but the biggest factor in how a video sounds is the sentence the voice is reading, not which voice was picked.</p></details>
+      <details><summary>Why does AI voiceover sound robotic?</summary><p>Four reasons, in order of impact: no pause between sentences (the biggest tell), the wrong speed, over-enunciated consonants on hard words, and the wrong register for the story. The first two are configuration problems that a good tool solves with per-sentence synthesis and adjustable speed; the last two are script problems that a good writer solves by rewriting the sentence. If a video sounds robotic on all four counts at once, the problem is not the voice model; it is the pipeline around it.</p></details>
+      <details><summary>What speed should I set an AI news voice to?</summary><p>Start at <code>1.0</code> and adjust by ear. A lower-pitched voice usually reads better slightly faster (<code>1.05</code>); a higher-pitched voice often reads better slightly slower (<code>0.95</code>). A serious story (a death toll, a war report) benefits from a slower pace than a light one. The single best test is the comparison example in this guide: read your own script aloud at the speed you have chosen, and if you cannot read it comfortably, no viewer can listen to it comfortably either. Speed is a check on the script, not just on the voice.</p></details>
+      <details><summary>Is AI voiceover allowed on YouTube?</summary><p>Yes, with caveats. YouTube's <a href="https://support.google.com/youtube/answer/1311392" target="_blank" rel="noopener">inauthentic content policy</a> targets mass-produced, repetitive videos that mislead viewers about what they are, not the use of AI voices. A fact-checked news Short with an AI voice is not what that policy is about. What it is about is: uploaded at scale, unedited, no original angle, no human check. As long as you are editing every script, publishing fewer better videos, and adding your own angle to the story, an AI voice is allowed. The voice is not the problem; the volume without editing is.</p></details>
+      <details><summary>Can AI voiceover for news be free?</summary><p>Yes, if the model runs on your own hardware. Autonom Newsreel uses an open-source voice model (Kokoro-82M) that runs entirely in your browser, so there is no per-character cost to speak a script. You pay nothing for the voice; you pay for the API keys that write and fact-check the script, which is a fraction of what a cloud TTS service charges per minute. The trade is that the model downloads once (about 80 MB), runs on your machine rather than a server, and uses your CPU or GPU while it is synthesizing. That is the whole cost of a free AI voice for news.</p></details>
+      <details><summary>Do I need a voice actor for a news channel?</summary><p>Not for a faceless news channel, and not if your scripts are written to be spoken rather than read. A voice actor adds things an AI voice cannot yet: judgement about which word to stress, the small imperfections that make a line land, the ability to sound like a person who has an opinion about the news. If your channel is built on your commentary and your voice is part of the product, hire one (or record your own). If your channel is about the story and the voice is the delivery vehicle, an AI voice with a well-written script is not a compromise — it is the right choice, because it lets you publish five videos where a human recording would have cost you three.</p></details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
