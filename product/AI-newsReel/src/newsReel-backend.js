@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.28.2';
+  var VERSION = '1.28.3';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -777,6 +777,8 @@
       })
       .catch(function (e) { LOG('publisher feeds failed:', e.message); return []; });
   }
+  function googleNewsUrl(q) { return 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=en-US&gl=US&ceid=US:en'; }
+  function bingNewsUrl(q) { return 'https://www.bing.com/news/search?q=' + encodeURIComponent(q) + '&format=rss'; }
   function scanOneQuery(q) {
     LOG('scanOneQuery:', q);
     return fetchServerNews(q)
