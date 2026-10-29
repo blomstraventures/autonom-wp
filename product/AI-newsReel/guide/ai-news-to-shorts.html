@@ -1,0 +1,216 @@
+<div class="autonom-page">
+<article class="autonom-guide">
+
+<header class="autonom-hero">
+  <div class="autonom-hero-inner">
+    <div class="autonom-hero-eyebrow">
+      <span class="autonom-hero-eyebrow-dot"></span>
+      Guide Pillar · AI News to Shorts
+    </div>
+    <h1 class="autonom-hero-title">
+      AI News to Shorts:<br>
+      <em>The Complete Guide to Fact-Checked News Videos</em>
+    </h1>
+    <p class="autonom-hero-sub">Turning the day's news into short videos is not a new idea. What is new is the number of tools claiming to do it, and the number of them that quietly skip the only part that matters: proving that the script says what the source says. A Short that sounds authoritative and gets a number wrong is worse than no Short at all — it damages the channel faster than a slow week ever could, and it does it invisibly.</p>
+    <p class="autonom-hero-sub">This is the complete guide to doing it properly. What the workflow looks like end to end, why most tools fail at the first step and call it success, how fact-checking actually works when it is built into the pipeline, and how to publish the result everywhere without rewriting the caption eleven times. Each section links to a deeper guide on that step. This page is the map; the spokes are the territory.</p>
+  </div>
+</header>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <div class="autonom-callout autonom-callout-info">
+      <span class="autonom-callout-icon">i</span>
+      <div class="autonom-callout-body">
+        <strong>The order is the whole game.</strong>
+        <p>Most tools write the script and then look for facts to support it. The workflow that works does the opposite: find the facts, verify them, and only then let the model write. Every failure downstream — invented numbers, dropped hedges, misattributed quotes — starts with a pipeline that let the model write first.</p>
+      </div>
+    </div>
+
+    <h2 class="autonom-section-title">What "AI news to shorts" actually means</h2>
+    <p>The phrase covers a range of products, and they do not do the same thing. At one end, an AI news tool is a script generator: give it a headline, get a 60-second script, read it to camera. At the other end, it is an end-to-end pipeline: scan the news, group related stories, verify the facts, write a script, generate a voice, plan footage, render the video, and prepare the caption for every platform. Both are called "AI news to shorts". Only one of them produces a video you can publish without a human re-checking every sentence.</p>
+    <p>The workflow that matters — the one this guide is about — is the second one. It has eight steps, and each step has a specific job. Skipping any of them produces a version of the output that looks like a video and is not one. The three most common shortcuts are: skip the source reading (write from the headline), skip the fact extraction (write from the article summary), and skip the audit (write the script and publish it). Each of those shortcuts saves a step and loses the whole reason to publish.</p>
+    <p>Turn news into YouTube Shorts successfully, and what you are really building is a small editorial pipeline that runs every day. It has sources it trusts, a filter for what is worth covering, a voice that is recognisably yours, and a set of platforms it publishes to. The AI is one part of that pipeline — the part that reads the article and writes the script — but the pipeline is the product. Tools that get sold as "AI news video generators" usually sell the model. The ones that work sell the pipeline around it.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Why most AI news tools fail</h2>
+    <p>Almost every AI news tool fails in the same place: it treats the model's fluency as evidence of accuracy. The model writes a script that sounds right, the tool ships it, and the accuracy problem does not show up until a viewer quotes the wrong number back at you in the comments. By then, the damage is done.</p>
+    <p>There are three failure modes, and they show up in almost every tool in this category. If you are evaluating a tool — including this one — you can recognise each of them in about five minutes of use.</p>
+
+    <div class="autonom-error-grid">
+      <div class="autonom-error-card">
+        <h3>1. Invented facts</h3>
+        <p>A model asked to write a news script will produce one, and in the process it will sometimes add a detail that was not in the source. Usually it is a small thing: a number rounded to a cleaner figure, a date shifted to the nearest week, a quote paraphrased into something the speaker did not say, a name attributed to the wrong official because two names appeared in the same paragraph. The script reads fine, because the invented detail is plausible, and it is wrong.</p>
+        <p><strong>What actually happens:</strong> The tool ships the script with no way for the user to know which sentences were supported by the article and which were not. A single wrong number is enough to lose the channel's credibility. <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">The fact-checked scripts guide</a> covers what a script that ties every claim to a quote actually looks like.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>2. Sameness at volume</h3>
+        <p>A tool built on a single template produces a hundred videos that all sound the same. Same opening rhythm, same emphasis, same angle. The first three videos look like a channel; the next fifty look like a template with different names filled in. YouTube's algorithm and its viewers both notice.</p>
+        <p><strong>What actually happens:</strong> The channel stops growing, and there is nothing specific to point to as the cause. The videos are not bad; they are indistinguishable, which on a discovery-driven platform is the same problem.</p>
+      </div>
+      <div class="autonom-error-card">
+        <h3>3. Hours of assembly</h3>
+        <p>Some tools get the accuracy right and the workflow wrong. The script is good, the fact-check is real, and then the user spends two hours per video stitching the voice, the footage, the captions, and the eleven platform uploads together by hand. The output is publishable, but the cost per video makes the channel uneconomical.</p>
+        <p><strong>What actually happens:</strong> The user publishes five videos and stops, because the workflow that produced them does not scale to the volume a Shorts channel needs. A tool that gets everything right except the assembly step is a tool that nobody uses twice.</p>
+      </div>
+    </div>
+
+    <p>The three failures are not independent. A tool that solves #1 usually has to solve #3 to be worth using, and a tool that solves #3 without solving #1 is actively dangerous — it lets a wrong script reach a hundred platforms in the time it would have taken to write one. A tool worth building solves both, and gives the user a script that is both checkable and assemble-able in the same session.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">The correct workflow in eight steps</h2>
+    <p>The workflow below is the one this guide is built around, and the one Autonom Newsreel implements. It is not the only workflow that works, but every alternative I have seen either skips a step or fuses two steps that should be separate. The eight steps are the minimum viable pipeline for a channel that publishes daily without an editor.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">1. Channel</h3>
+    <p>Before any news is read, the channel is defined. Topics, tone, voice, and format. This sounds like the easy step — it is not, because everything downstream depends on it. A script written for a general audience is a different script than one written for a specialist; a video for a 45-second slot is a different video than one for a 90-second slot. Define the channel once, and every script gets written in its voice. Redefine it per video, and every video sounds like a different channel.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">2. Feed</h3>
+    <p>The news is scanned, not just consumed. Every story that matches the channel's topic signals — the keywords its profile declares — is fetched from open publisher feeds and from news aggregators, and each story comes with a readability tag: open, metered, paywalled, or thin. A paywalled story can be a topic signal, but it cannot be a source for a script, because the article text is not readable. This filter alone is what makes the next step possible.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">3. Consolidate</h3>
+    <p>Stories that cover the same event are grouped. The tool reads each outlet's article, extracts the facts from each, and merges them into one list, each fact tagged with which outlet reported it, which outlets confirmed it, and which outlets differ. This is what makes a story with multiple outlets writeable as one script instead of three. It is also the step that most tools skip, and the one that most improves the script, because a fact both outlets report is stronger than a fact only one does.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">4. Generate</h3>
+    <p>The script is written, but it is written from facts, not from the article. The model sees the tags: which facts it can state as fact, which it has to attribute to a named outlet, and which it has to leave out because the outlets disagree. Every sentence has to survive a series of checks — a code check for numbers and names, a model check for wording and hedging, and a sentence-by-sentence audit against the quotes. If the checks find a problem, the script is rewritten once, re-checked, and re-audited. If it still fails, the user sees the flags and decides, rather than the tool publishing a script it cannot defend.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">5. Review</h3>
+    <p>The user reads every script, edits what needs editing, and marks it reviewed. This is the step most tools hide, because it is the step that makes the tool look like a tool and not a magic wand. It is also the step that catches the class of error no automated check can catch: a source that is wrong, an angle the user disagrees with, a framing that is technically supported and still misleading. The pipeline shortens this read; it does not remove it.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">6. Video</h3>
+    <p>The voice, the footage, the captions, the callouts, the end card — all of it is generated from the reviewed script. The voice runs on the user's own machine, synthesised one sentence at a time, joined with a fixed <code>150</code>-millisecond pause between sentences so the audio sounds like reading, not recitation, and the captions land on the exact syllable. The footage is planned per scene, not per search, so abstract sentences get a card and concrete ones get a shot. The output is a video file, on disk, ready to upload. <a href="/guide/ai-news-to-shorts/ai-voiceover-news/">The voice guide</a> and <a href="/guide/ai-news-to-shorts/stock-footage-scenes/">the footage guide</a> cover this step in detail.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">7. Publish</h3>
+    <p>Each platform gets a caption in its own voice, its own length, its own hashtag convention. Two of them can be posted directly (Telegram, Mastodon) because they accept a video upload from a browser. The other nine need a copy-paste or a phone share, because they do not. The tool provides the caption for each, the schedule if you want one, and the share link where the platform supports it. <a href="/guide/ai-news-to-shorts/publish-shorts-everywhere/">The publishing guide</a> has the platform-by-platform conventions.</p>
+
+    <h3 style="margin: 28px 0 10px; font-size: 19px;">8. Export</h3>
+    <p>The finished package — scripts, narration, video, audio, captions, upload details — leaves the tool in a form the user can take anywhere. A ZIP folder per short, a JSON manifest, a copyable plain-text bundle. This is what makes the tool useful even after the user stops using it: the output is theirs, in standard formats, not locked into a service.</p>
+
+    <p>The eight steps are a pipeline, but they are not a lock-in. A user can do steps 1–4 inside the tool, export the script, and record the video in a different editor. Or use the tool only for step 5 — review — on a script written elsewhere. The point of a pipeline is that each step is well-defined, not that the steps cannot be swapped.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">How fact-checking actually works</h2>
+    <p>The word "fact-checking" gets used loosely in this category. In some tools, it means the model was asked to be careful. In others, it means a second model was asked whether the first model was right, which is a different way of asking the same question to the same kind of source. Neither is a fact-check. A fact-check is a mechanical comparison between a claim and a piece of text, done in code, with a result that either passes or does not.</p>
+    <p>The pipeline that works does the comparison at every level. First, every fact is extracted with an exact quote from the article. Then the quote is compared, character by character, against the article text — if the quote is not in the article, the fact is dropped. Then the claim is compared against the quote — its numbers, its qualifiers ("up to", "around", "reportedly"), its wording, and any named speaker. If the claim says more than the quote, the fact is rewritten to the quote's wording or dropped. Then a second outlet is checked against the first, and each fact is tagged: confirmed by both, single-source, or a difference between them. Only then is the script written, and only from the tagged facts.</p>
+    <p>The script gets the same treatment. Every number in the script has to appear in the source. Every capitalized name has to appear in the source. Qualifiers have to be preserved. Forecasts the source did not make are flagged. Attribution to "analysts" the source never named is flagged. And a final audit reads every sentence against the quotes, flagging the ones that said more than the quote supports and giving a suggested fix.</p>
+    <p>That is what "fact-checked" should mean. It does not mean the source is right — no pipeline can verify the article itself. It means the script is <em>faithful</em> to the source, and the source is on the record. <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">The fact-checked scripts guide</a> covers the whole workflow, and <a href="/guide/ai-news-to-shorts/source-quote-verification/">the source quote verification guide</a> covers the mechanics of the quote check itself — the five tests a fact has to pass before the script can use it. If you read only one spoke after this pillar, read those two.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Hooks that stop the scroll</h2>
+    <p>A fact-checked script is a necessary condition and it is not sufficient. The first two seconds decide whether anyone hears the rest of it, and a script that opens with the outlet name, the summary, or the setup loses the viewer before the third sentence. The hook is not one part of the script; it is the whole reason the rest of the script matters.</p>
+    <p>Three formulas work for news Shorts, and the shape of the story decides which one to use. A finished event — a decision made, a strike confirmed, a tariff set — opens with the consequence. An open outcome — talks underway, an election coming, an investigation ongoing — opens with a question. A story where the coverage has focused on the wrong thing opens with the hidden layer. The hook is written in the formula the story's shape calls for, and two alternative hooks are offered in the other two formulas, each scored on a small rubric (short, specific, real stakes, a curiosity gap, who not the outlet) and each fact-checked before it is offered. You cannot accidentally swap in a hook with an unsupported number, because the swap re-runs the audit.</p>
+    <p><a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/">The hooks guide</a> covers the three formulas, the score, and how to test a hook before publishing. It is the spoke to read when the workflow is working and the videos still are not getting watched.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Voice and footage</h2>
+    <p>Once the script is right, the video has to sound and look like a news video. That is two separate problems, and both of them fail in the same way: the tool does something plausible, and the result is subtly wrong.</p>
+    <p><strong>The voice</strong> is a pace, not just a tone. A news voice lands around 150–160 words per minute — about 2.5 words per second — with short sentences, stress on the number or the name, and a small pause between sentences that sounds like breathing. Most AI voices fail at the pause: they run sentences together because the engine was handed a block of text, and the result is the sound of a person who is not breathing. Autonom's built-in voice synthesises one sentence at a time and concatenates with a fixed 150-millisecond gap, which is what makes it sound like a person reading. It also runs entirely on the user's computer, which means the script never leaves the machine and the voice costs nothing per character. <a href="/guide/ai-news-to-shorts/ai-voiceover-news/">The voice guide</a> covers pace, sentence length, and the four failure modes that make an AI voice sound robotic.</p>
+    <p><strong>The footage</strong> is the harder problem, because stock footage is not footage of the event. A stock clip of a missile launch is footage of <em>some</em> missile launch; under a sentence about a specific strike, it reads as <em>the</em> strike, and the viewer is misled even when every word in the script is true. The fix is not to find a more dramatic clip — it is to find a less specific one, an establishing shot that suggests the place without claiming the event. And when the sentence is abstract — a claim, a question, an opinion, the closing CTA — the fix is to use a plain caption card, not a decorative clip that implies a claim the sentence is not making. Autonom plans each scene before it searches, so abstract scenes get a card and concrete ones get a verb-noun search, and every stock clip carries an illustrative-footage label by default. <a href="/guide/ai-news-to-shorts/stock-footage-scenes/">The footage guide</a> covers the search patterns and the label.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Publishing everywhere</h2>
+    <p>The last step is the one that costs the most time per unit of value. Eleven platforms, eleven character limits, eleven hashtag conventions, eleven tones. Rewriting the caption by hand is how creators burn out on the final, lowest-leverage step of a video they already made.</p>
+    <p>The right answer is not to post everywhere at once, and it is not to use a single generic caption. It is to write the caption for each platform, in that platform's voice, from the same story facts. A TikTok caption is a second hook; an Instagram caption is a companion read after the video; a LinkedIn caption is a professional framing; an X caption is the whole post. The same story, in each platform's sentence. Autonom writes all eleven captions in one call, each within the platform's limit, each following the platform's convention. Two of them can be posted directly (Telegram and Mastodon, which accept a video upload from a browser); the others need a copy-paste or a phone share. <a href="/guide/ai-news-to-shorts/publish-shorts-everywhere/">The publishing guide</a> has the platform-by-platform table, the tone for each, and the two direct-post cases.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">What YouTube accepts and what it does not</h2>
+    <p>A channel built on AI news to Shorts is subject to the same policy that applies to every channel, and the policy has gotten more specific in the last two years. YouTube's <a href="https://support.google.com/youtube/answer/1311392" target="_blank" rel="noopener">inauthentic content policy</a> targets three patterns: repetitive, mass-produced content with no added value; content that misleads viewers about what is being shown; and content that impersonates a real person or brand without disclosure. A fact-checked news Short is not what that policy is about — what it is about is a hundred such Shorts published in a day with no editing and no angle, which is the pattern the policy is built to catch.</p>
+    <p>What that means in practice is four things. <strong>Edit every script.</strong> Not "read it" — edit it, even if the edit is small. The review step exists because the pipeline cannot catch a source that is wrong or a framing that is unfair, and because a published script that has been touched by a human is a script the channel is responsible for, in a way that a script shipped by a tool is not. <strong>Publish fewer, better videos.</strong> The channels that get hit hardest by the policy are the ones that treat volume as the strategy. One to three well-made Shorts a day will do more for the channel than ten mediocre ones, and will not draw the policy's eye. <strong>Add your own angle.</strong> A story that anyone could have written is a story that reads as mass-produced, no matter who wrote it. A story with a specific read on it — a why, a who-benefits, a what-is-missing — is a story that reads as a channel. The analysis section of the script is where that angle lives. <strong>Use the AI disclosure setting where it applies.</strong> YouTube asks creators to disclose realistic synthetic content (an AI voice is not "realistic synthetic content" in the policy's sense, but an AI-generated face or a re-created event is). Disclosing is not a penalty; failing to disclose when you should have is.</p>
+    <p>The policy is not the enemy. It is a description of the failure mode that this workflow is designed to avoid. A channel that edits every script, publishes fewer videos, and adds a specific angle is a channel that the policy has nothing to say about, because it is not doing any of the things the policy targets. The pipeline is not just a way to make videos; it is a way to make videos that survive the rules.</p>
+
+  </div>
+</section>
+
+<section class="autonom-section">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Where to go next</h2>
+    <p>This page is the map, not the territory. If you are building an AI news channel — or converting an existing one to this workflow — the six guides below each take one step of the pipeline and go deeper than this page can. Read them in the order below if you are starting fresh, or jump to the one that matches the step you are stuck on.</p>
+
+    <ol>
+      <li><a href="/guide/ai-news-to-shorts/fact-checked-scripts/"><strong>Fact-Checked AI Scripts</strong></a> — how the workflow keeps every claim tied to a quote, and what to check in any AI tool before you trust it.</li>
+      <li><a href="/guide/ai-news-to-shorts/source-quote-verification/"><strong>Source Quote Verification</strong></a> — the five mechanical checks a fact has to pass, and where the approach stops working.</li>
+      <li><a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/"><strong>YouTube Shorts Hooks</strong></a> — the three formulas, the score, and how to test a hook before publishing.</li>
+      <li><a href="/guide/ai-news-to-shorts/publish-shorts-everywhere/"><strong>Publishing Shorts Everywhere</strong></a> — the platform-by-platform conventions, the direct-post cases, and how to schedule.</li>
+      <li><a href="/guide/ai-news-to-shorts/stock-footage-scenes/"><strong>Stock Footage for Scenes</strong></a> — how to match footage without misleading, and when a caption card beats a clip.</li>
+      <li><a href="/guide/ai-news-to-shorts/ai-voiceover-news/"><strong>AI Voiceover for News Videos</strong></a> — what makes a news voice work, what makes an AI voice sound robotic, and how the built-in voice runs.</li>
+    </ol>
+
+    <p>If you want to see the whole pipeline in one tool, the tool page is <a href="/ai/newsreel/">Autonom Newsreel</a>. It is free to run on your own API keys, and every step above is implemented in the browser — no server stores your scripts, your voice, or your video, except the one thing the site owner's own automation fetches from a temporary URL, and that is deleted after three days. The rest of the Autonom tool suite — <a href="/ready/shopify-guard/">Shopify Guard</a>, Image Fit, Brand Kit — works on the same principle: a specific problem, a specific tool, no marketing between the user and the work.</p>
+
+    <div class="autonom-cta-box">
+      <h3>Run the whole pipeline in one place.</h3>
+      <p>Autonom Newsreel scans the news, consolidates multiple outlets into one quote-checked fact list, writes a fact-checked script, synthesises the voice on your own computer, plans the footage scene by scene, and prepares the caption for every platform. Free to run on your own API keys.</p>
+      <a href="https://autonom.app/ai/newsreel/" class="autonom-cta-btn">Open Autonom Newsreel →</a>
+    </div>
+
+  </div>
+</section>
+
+<section class="autonom-section autonom-section-alt">
+  <div class="autonom-section-inner">
+
+    <h2 class="autonom-section-title">Related guides</h2>
+    <ul class="autonom-related-list">
+      <li><a href="/guide/ai-news-to-shorts/fact-checked-scripts/">Fact-Checked AI Scripts: How to Write News Shorts Without Inventing Facts</a></li>
+      <li><a href="/guide/ai-news-to-shorts/source-quote-verification/">Source Quote Verification: How to Check Every AI Fact Against Its Article</a></li>
+      <li><a href="/guide/ai-news-to-shorts/youtube-shorts-hooks/">YouTube Shorts Hooks: The First Two Seconds Decide Everything</a></li>
+      <li><a href="/guide/ai-news-to-shorts/publish-shorts-everywhere/">Publishing Shorts Everywhere: A Platform-by-Platform Guide</a></li>
+      <li><a href="/guide/ai-news-to-shorts/stock-footage-scenes/">Stock Footage for News Shorts: Matching Every Scene Without Misleading</a></li>
+      <li><a href="/guide/ai-news-to-shorts/ai-voiceover-news/">AI Voiceover for News Videos: What Works and What Sounds Robotic</a></li>
+      <li><a href="https://support.google.com/youtube/answer/1311392" target="_blank" rel="noopener">YouTube's inauthentic content policy (external)</a></li>
+      <li><a href="https://support.google.com/youtube/answer/10059070" target="_blank" rel="noopener">YouTube Shorts overview (external)</a></li>
+    </ul>
+
+    <h2 class="autonom-section-title" style="margin-top: 56px;">Frequently asked questions</h2>
+    <div class="autonom-faq">
+      <details><summary>What is the best AI news to shorts tool?</summary><p>There is no single best tool, because the tools do different things. The question is what you want from the tool: a script you can trust (which requires a real fact-check pipeline), a video assembled without hours of work (which requires a voice and footage pipeline), or a caption for every platform (which requires a publishing step). A tool that does all three is what this guide is about. A tool that does one of them well and the others badly is a tool that costs you more time than it saves. The tests in each spoke — the five-point check in the scripts guide, the four rules in the footage guide, the five-point test in the voice guide — are how you tell the difference in twenty minutes.</p></details>
+      <details><summary>Can I turn news into YouTube Shorts without showing my face?</summary><p>Yes, and this is what most news channels do. A faceless news channel is one where the voice carries the channel and the video is composed of footage, captions, and callouts rather than a person on camera. The workflow this guide describes is built for that case. The voice is the channel's identity, the footage is illustrative, and the script is what the channel is actually publishing. Faceless does not mean anonymous in a policy sense — the channel still has an identity, a voice, and a point of view — it means the on-camera presence is absent, which is a production choice, not a content strategy.</p></details>
+      <details><summary>Is AI-generated news content allowed on YouTube?</summary><p>Yes, with caveats. <a href="https://support.google.com/youtube/answer/1311392" target="_blank" rel="noopener">YouTube's inauthentic content policy</a> targets mass-produced, repetitive content, content that misleads viewers about what is being shown, and undisclosed impersonation — not the use of AI in general. A fact-checked news Short with an AI voice, edited by a human, published at a normal pace, is allowed. A thousand Shorts published in a day, none of them edited, is not. The rule is not about the tool; it is about the editing and the volume. The <a href="/guide/ai-news-to-shorts/publish-shorts-everywhere/">publishing guide</a> covers how each platform's conventions interact with those rules.</p></details>
+      <details><summary>How do I fact-check a news script for a Short?</summary><p>Start with the quote. For every fact in the script, ask for the exact sentence from the article that proves it. If the tool cannot show you the quote, it has no proof — it has a summary. Then check the quote against the article (the string comparison is mechanical, and you can do it in a text editor in seconds). Then check the claim against the quote: numbers, qualifiers, wording, and any named speaker. If a claim says more than the quote, the claim is wrong, regardless of whether the article "basically" says it. The two guides that cover this in depth are <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">fact-checked scripts</a> and <a href="/guide/ai-news-to-shorts/source-quote-verification/">source quote verification</a>.</p></details>
+      <details><summary>How long should a news Short be?</summary><p>Thirty to sixty seconds is the range that works for most stories, with 45 seconds as a default. Under 30 and the story cannot be told; over 60 and the audience drops. The right length depends on the story: a single fact fits in 30 seconds, a multi-outlet story with a background needs 60, and a 105-second Short is a format that works only for a very few stories that genuinely need it. The script's word count is the constraint — at about 2.5 words per second, a 45-second Short is about 110 words of narration. If the script is over 150 words, the Short is over 60 seconds, and the retention graph will tell you.</p></details>
+      <details><summary>Do I need a stock footage subscription for news Shorts?</summary><p>No. Pixabay and Pexels both have free tiers that are sufficient for the generic establishing shots a news Short needs, and both allow commercial use without attribution for most clips. The <a href="/guide/ai-news-to-shorts/stock-footage-scenes/">footage guide</a> covers how to pick a clip without misleading, but the short version is: search for a shot, not a topic. A clip of a missile launch is not footage of <em>the</em> strike, even if it looks dramatic. An establishing shot of a warship underway, labelled as illustrative, is the right choice for a story about a warship, and it is what the free tiers are good at.</p></details>
+      <details><summary>What is the difference between an AI news video generator and a fact-checked news pipeline?</summary><p>A generator produces a video. A pipeline produces a video you can defend. The generator takes a headline and returns a video file; the pipeline takes a headline, reads the article, extracts the facts with quotes, verifies the quotes against the article, cross-checks a second outlet, writes the script from the tagged facts, audits the script sentence by sentence, and only then assembles the video. The output looks similar at first glance. The difference is what happens when the source is wrong, the model hallucinates, or the two outlets disagree — the generator ships the error, the pipeline flags it. The <a href="/guide/ai-news-to-shorts/fact-checked-scripts/">fact-checked scripts guide</a> covers the pipeline in detail.</p></details>
+      <details><summary>How many Shorts should I publish per day?</summary><p>One to three, edited, is the range that most channels do best with. The temptation is to publish more, because the tool makes it easy and because the algorithm rewards volume in the short term. The problem is that volume without editing produces the exact content pattern YouTube's inauthentic content policy targets, and the algorithm's short-term reward is followed by a long-term collapse in reach. A channel that publishes one edited Short a day for a year will outperform a channel that publishes ten unedited Shorts a day for three months, both in views and in how the channel is treated by the platform. Fewer, better, edited is the strategy.</p></details>
+      <details><summary>Can I use the same voice and footage for every video?</summary><p>Yes, and you should — for the voice. The voice is the channel's identity; changing it per video reads as inconsistent. For the footage, you want a consistent visual style but not the same clip twice. Autonom keeps the voice consistent by default (one voice setting per channel) and avoids repeating footage by tracking which clips have been used in a session. What you should <em>not</em> keep the same is the script template — the same opening rhythm, the same transitions, the same call-to-action phrasing. That is what makes a channel feel mass-produced, and it is what the analysis section of each script is designed to avoid.</p></details>
+    </div>
+
+  </div>
+</section>
+
+</article>
+</div>
