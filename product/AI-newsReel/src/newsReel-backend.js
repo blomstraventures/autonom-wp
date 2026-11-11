@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.28.3';
+  var VERSION = '1.30.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -1644,7 +1644,7 @@
     var anaMax = Math.max(24, Math.min(80, Math.round(f.wordCountMax * 0.3)));
     var bodyMax = Math.max(Math.round(f.wordCountMax * 0.4), f.wordCountMax - 16 - (depth ? anaMax : 0) - 22);
     var lines = [
-      'You write explain-and-analyse YouTube Shorts for a faceless channel. By the end the viewer should understand what happened, the background that makes it make sense, who says what, and what is still open. It is not a news brief.',
+      'You write YouTube Shorts for a faceless channel that people watch to the end, replay and share. Each Short is ONE story told from ONE angle: tight, concrete, human. It is not a news brief and not a summary. Padding, repeated points and filler lose the viewer in seconds, and a script that has them is rejected.',
       '',
       'CHANNEL',
       '- Positioning: ' + (profile.identity.positioning || profile.identity.oneLiner || profile.name),
@@ -1652,7 +1652,7 @@
       '- Tone: ' + profile.tone.style + ', ' + profile.tone.energy,
       '- Voice DNA (write in this voice; hold this stance):\n' + dnaText(profile).split('\n').map(function (x) { return '    ' + x; }).join('\n'),
       '- Avoid: ' + (profile.tone.avoid || []).join(', '),
-      '- Length: aim for ' + f.wordCountMin + '-' + f.wordCountMax + ' words across hook + body' + (depth ? ' + analysis' : '') + ' + cta (about ' + f.targetDurationSec + ' seconds). The middle of that range is the target. Coming in under it is fine; going over the maximum is a failure and the script will be sent back. Budget: hook 8-16 words, body up to ' + bodyMax + ' words' + (depth ? ', analysis up to ' + anaMax + ' words' : '') + ', cta 10-22 words. Use only what the facts support: never add unrelated events or filler to reach a length, and cut the least important body sentences rather than going over.',
+      '- Length: a CEILING of ' + f.wordCountMax + ' words across hook + body' + (depth ? ' + analysis' : '') + ' + cta (about ' + f.targetDurationSec + ' seconds), not a target. Ideal is ' + f.wordCountMin + ' to ' + Math.round((f.wordCountMin + f.wordCountMax) / 2) + '. Stop the moment the angle is delivered: never add background, recaps or filler to reach a length, and going over the ceiling is a failure. Budget: hook 8-14 words, body up to ' + bodyMax + ' words' + (depth ? ', analysis up to ' + anaMax + ' words' : '') + ', cta 10-20 words.',
       '',
       'STORY: ' + story.title,
       'Primary source: ' + nameA + (story.publishedAt ? ' (' + String(story.publishedAt).slice(0, 10) + ')' : '') + (two ? (multi ? '. Other outlets: ' + nameB + '.' : '. Second outlet: ' + nameB + '.') : '. Single source: no second outlet could be checked.'),
@@ -1686,44 +1686,46 @@
       lines.push('');
     }
     lines = lines.concat([
-      'STRUCTURE (spoken order)',
-      '1. HOOK (under 16 words): the most consequential specific fact' + (two ? ', preferably one both outlets confirm' : '') + '. Keep its hedges ("thought to be", "reportedly", "at least").',
-      '2. WHAT HAPPENED: 3-4 sentences built only from the facts.',
-      '3. BACKGROUND: 2-3 sentences of context the facts supply (earlier events, who the parties are, how the process works). Optional: ONE plain-language definition of a general concept named in the facts, only if it matches how THIS story uses the term. Put no numbers, names, dates or event claims in the definition.',
-      '4. WHO SAYS WHAT: when the story rests on claims by governments, militaries, officials or parties to a conflict' + (two ? ', or when the outlets differ' : '') + ', spend 1-2 sentences saying who claims what (name them; "an unnamed US official" stays unnamed). Skip if nothing is contested.',
-      '5. WHY IT MATTERS: 2-3 sentences, only causes and consequences that the facts themselves state.',
-      (depth ? '6. (No "worth watching" or "the open question" lines in the body. The analysis, written in a separate step, ends on those.)' :       '6. WHAT TO WATCH: 1-2 sentences of open questions or "if X, then Y" possibilities. No forecasts (no "will", no "likely"). Do not attribute views to analysts or experts: write "Worth watching:" or "The open question:".')
+      'STEP 1: FIND THE ANGLE (field "angle", filled in first)',
+      'Decide the ONE tension this Short is about, in one plain sentence: a contradiction ("X says A, but B"), a stake nobody mentioned, a consequence for ordinary people, something odd in the numbers, or who a statement is really aimed at. Everything you write must serve that angle. You do NOT have to use every fact: use the 3 to 5 that carry the angle and leave the rest out. A fact that does not serve the angle is padding.',
+      '',
+      'STEP 2: WRITE IT IN THIS ORDER',
+      '1. HOOK (under 14 words): the single most surprising or consequential thing' + (two ? ', preferably one both outlets confirm' : '') + '. Keep its hedges ("thought to be", "reportedly", "at least").',
+      '2. THE BEATS (field "body"): ' + (shortForm ? '3 to 5' : '4 to 7') + ' short sentences, one beat each. Every beat must add something the viewer does not have yet: a new fact, a number, a name, a reversal or a consequence. Order them by curiosity, not by the order of the article: set the scene in one beat, escalate, and keep the detail that answers the hook for the last beats.',
+      '   - Context: only what the viewer cannot follow without' + (shortForm ? ' (skip it in this short form)' : ' (one beat, two at most; none if the story explains itself)') + '. Optional: ONE plain-language definition of a general concept named in the facts, only if it matches how THIS story uses the term, with no numbers, names, dates or event claims in it.',
+      '   - Who says what: only when the claims are the tension' + (two ? ' or when the outlets differ' : '') + '. Name them ("an unnamed US official" stays unnamed).',
+      '   - What changes for ordinary people (prices, jobs, travel, energy, borders): one concrete beat, only when the facts say so. Never invent an impact.',
+      (depth ? '3. NO "so what" in the body. The analyst writes it in a separate step, so end the body on the fact that makes the point obvious. No "worth watching", "the open question" or "why it matters" lines.' : '3. THE READ: one sentence on what it means or what to watch, as a reading, with no forecasts (no "will", no "likely") and no views attributed to analysts or experts.')
     ]);
     if (HOOKS[hookKind].rule) lines.push(HOOKS[hookKind].rule);
     lines.push('');
-    lines.push('HOOK CRAFT (the first 2 seconds decide whether anyone stays)');
-    lines.push('- The hook is the first frame: no greeting, no setup, no outlet. Someone who has never heard of the story must understand who did what and why they should care, in under 13 words.');
-    lines.push('- Pick the strongest formula the facts allow: (a) the consequence first ("Tehran just closed the door on talks."), (b) a question the facts answer ("Why would Iran offer to reopen Hormuz now?"), (c) a hidden layer or contrast ("Everyone is watching the front line. The real move is somewhere else."). Leave an open loop that the body pays off.');
+    lines.push('HOOK CRAFT (the first two seconds decide everything)');
+    lines.push('- The hook is frame one: no greeting, no setup, no outlet, no time marker ("On Tuesday", "Earlier today", "In recent days", "This week") and no reporting verb ("officials said", "it was reported"). The viewer already knows it is new.');
+    lines.push('- Do not open with a date range, a list of names, delegates or cities, a decimal statistic, or the story headline word for word. Lead with what it MEANS or what is at stake, and keep the exact figure for a later beat.');
+    lines.push('- Under 14 words. One specific thing (a name, a number, a place) and one gap the viewer needs closed. A stranger must understand who did what and why they should care.');
+    lines.push('- Pick the strongest formula the facts allow: (a) consequence first, (b) a contradiction between two things the facts state, (c) a question the facts answer that names the subject, (d) what it costs ordinary people, only when the facts state that link. Patterns only: never reuse example wording, and use only the facts above. Examples of the shape: "Tehran just closed the door on talks." / "The White House says the war is over. Commanders say it is not." / "Why would Iran offer to reopen Hormuz now?"');
+    lines.push('- The hook promises something the body delivers. No clickbait, no "you will not believe", no fake urgency. Withhold the answer: the hook opens a question, the middle builds it, the last beats close it.');
     lines.push('- "alt_hooks": also give two OTHER opening lines in the two formulas you did not use for "hook", each under 14 words, built only from the facts, no outlet names, each one a real alternative a viewer might stop for.');
     lines.push('');
-    lines.push('VOICE AND PACING (this decides whether people keep watching)');
-    lines.push('- Pace: short spoken sentences, mostly 6 to 14 words, none above 20. One idea per sentence. A new beat (a turn, a name, a number, a contrast) at least every two sentences. No filler (basically, essentially, in fact).');
-    lines.push('- Speak as the channel: plain, confident, human. A person explaining what they found, not a wire report. Short sentences, spoken rhythm.');
-    lines.push('- State every fact ONCE. Do not repeat a number, name or claim in the body, the analysis or the CTA, and do not circle back with a recap.');
-    lines.push('- The headline fact (or the question) comes in the first sentence of the hook. Nothing before it. Never start the hook with an outlet name or "according to": open with the event and why it matters to someone who has never heard of the story.');
-    lines.push('- For policy and economic stories, say in the first or second sentence what changes for ordinary people (prices, jobs, travel, energy, borders), but only when the facts say so. Never invent an impact.');
-    lines.push('- Name the source once and briefly, at the point it matters. Do not repeat the outlet name in every sentence.');
-    lines.push('- Where a figure is the point of the story, say it plainly and let it land; do not bury it mid-sentence.');
-    lines.push('- The CTA is one short question about the story itself and repeats no fact.');
-    lines.push('');
-    lines.push('HUMAN VOICE (it must not sound like a machine wrote it)');
-    lines.push('- Write the way a sharp friend would explain the news out loud: contractions, active verbs, plain words, a mix of short and medium sentences.');
-    lines.push('- Never talk about the script, the sources, or how the story was put together. Forbidden: "from one outlet", "single source", "this story", "this report", "the article", "it is worth noting", "in conclusion", "in summary", "delve", "landscape", "moreover", "furthermore".');
-    lines.push('- Name the outlet naturally and once ("CBS says...", "per CBS...", "officials told CBS..."). Do not write how many outlets there are. Whether it is one outlet or several is the reviewer\'s job to note, never the viewer\'s.');
+    lines.push('VOICE: PUNCHY, CONCRETE, HUMAN');
+    lines.push('- One idea per sentence. Mostly 5 to 12 words, none above 18. Follow a longer sentence with a short punch. A fragment is fine for emphasis.');
+    lines.push('- Concrete beats abstract: name the actor, the object, the number, the place. Never "the situation", "developments", "tensions", "concerns", "efforts", "measures".');
+    lines.push('- Strong verbs, active voice. Cut "that", "has been", "in order to", "it is".');
+    lines.push('- Say each thing ONCE. Do not restate a fact in other words, do not recap, and never follow a fact with a sentence that explains the same fact again. Repeated or near-identical sentences are deleted and the script is sent back.');
+    lines.push('- The deletion test for every sentence: if it is removed, does the viewer lose a fact, a turn or a stake? If not, delete it. A script 20% under the length ceiling that is all signal beats a full one with filler.');
+    lines.push('- Talk to one person in plain words and contractions, like a sharp friend explaining it out loud. Say "you" only when the facts affect ordinary people.');
+    lines.push('- Name the source once and briefly, at the point it matters ("CBS says...", "per CBS..."), never in the hook, and never how many outlets there are.');
+    lines.push('- Where a figure is the point of the story, say it plainly and let it land.');
+    lines.push('- Forbidden filler: "amid", "raises questions", "sparking concerns", "remains to be seen", "only time will tell", "sends a message", "highlights", "underscores", "serves as a reminder", "sheds light", "in the wake of", "game changer", "at the end of the day", "needless to say", "it is no secret".');
+    lines.push('- Forbidden robot talk: "from one outlet", "single source", "this story", "this report", "the article", "it is worth noting", "in conclusion", "in summary", "delve", "landscape", "moreover", "furthermore".');
     lines.push('- Bad: "CBS News reports from one outlet; Iran says warships are not allowed." Good: "Iran just told the US its warships are not welcome in the Gulf, under any circumstance. That is CBS\'s reporting, and Washington has not answered yet." (only if the facts say Washington has not answered).');
     lines.push('');
-    if (shortForm) lines.push('SHORT FORM (about ' + f.targetDurationSec + ' seconds): keep it tight. WHAT HAPPENED 1-2 sentences, skip BACKGROUND and WHO SAYS WHAT unless the story cannot be understood without them, WHY IT MATTERS 1 sentence, WHAT TO WATCH 1 sentence or fold it into the analysis. Analysis ' + (depth ? '1-2 sentences' : 'is off') + '.');
     if (depth) {
-      lines.push('7. ANALYSIS: leave the "analysis" field as an empty string. It is written in a separate step by an analyst.');
+      lines.push('4. ANALYSIS: leave the "analysis" field as an empty string. It is written in a separate step by an analyst.');
     } else {
-      lines.push('7. (no analysis section)');
+      lines.push('4. (no analysis section)');
     }
-    lines.push('8. CTA: one specific question that invites viewers to take a side AND echoes the key word or idea of your hook, so the ending flows straight back into the opening (viewers who replay it count as extra views). Never a goodbye: no "thanks for watching", "follow for more", "see you", "like and subscribe".');
+    lines.push('5. CTA: one specific question that invites viewers to take a side AND echoes the key word or idea of your hook, so the ending flows straight back into the opening (viewers who replay it count as extra views). It repeats no fact. Never a goodbye: no "thanks for watching", "follow for more", "see you", "like and subscribe".');
     lines.push('');
     lines.push('HARD RULES');
     lines.push('- Every number, date, name and place must come from the facts above. Never add outside facts, quotes or statistics.');
@@ -1754,12 +1756,12 @@
     lines.push('PINNED COMMENT (field "pinned_comment"): one or two sentences the channel posts and pins under the video: a different, specific question that makes viewers pick a side or say what they think about THIS story. No new facts, no numbers that are not in the facts, no hashtags, under 220 characters.');
     lines.push('CALLOUTS (field "callouts", 0 to 3 items): the key figure, date or name viewers should see on screen at the moment it is spoken. "text": at most 4 words copied from the facts (for example "50% tariffs" or "Oct 30"). "at": 3 to 6 consecutive words copied exactly, in order, from your hook or body at the point it is spoken. Only for figures or names that are in the facts. Use an empty list if nothing fits.');
     lines.push('');
-    lines.push('HEADLINE BANNER (field "banner"): the story\'s core tension or question in 4 to 9 plain words, shown in large text over the first three seconds for viewers watching on mute. Built only from the facts, no outlet name.');
+    lines.push('HEADLINE BANNER (field "banner"): the story\'s core tension or question in 3 to 6 plain words, as punchy as a news ticker, shown in large text over the first three seconds for viewers watching on mute. It must tell a stranger what the story is about before the voice does. Built only from the facts, no outlet name.');
     lines.push('TAG RULES: tags name this story\'s own subject: the people, places, institutions and topic (for example Trump, Economy, Inflation, Midterms). Never reuse the channel\'s usual tags unless the story is about that topic. No generic filler such as geopolitics or global strategy on a story that is not about it.');
-    lines.push('TITLE RULES: the title must make sense to a stranger who sees nothing else: name the main actor and the event in plain words, with no unexplained product names, jargon or metaphors (avoid words like stalemate, chess, tightrope). If the story is regional, put the wider stake in the title only when the facts state it. Every number, name and place in a title must come from the facts. No all caps, no emoji, no "shocking", no promise the video does not keep. Prefer a specific named subject plus the open question or the tension. "alt_titles" are two different options, not rewordings of one another.');
+    lines.push('TITLE RULES: 35 to 60 characters. Make a stranger need the answer: name the main actor and one tension, contradiction or consequence, using only the facts. Formulas that work (give each option a different one): a contradiction ("X Says A. Y Says B."), a named question with an open outcome ("Is X Ready For Y?"), a consequence for people ("What X Means For Your Y") only when the facts state it, the hidden layer ("What X Is Not Saying"). Plain words a stranger understands, no unexplained product names, jargon or metaphors (stalemate, chess, tightrope). Every number, name and place must come from the facts. Never a vague label ("Latest update", "What we know", "Situation in X"). No all caps, no emoji, no "shocking", no promise the video does not keep. The title is NOT the hook: do not reuse the hook sentence. "alt_titles" are three options, each built on a different formula from the main title and from each other.');
     lines.push('');
     lines.push('Return STRICT JSON only:');
-    lines.push('{"hook":"...","alt_hooks":[{"style":"consequence|question|hidden","text":"..."},{"style":"consequence|question|hidden","text":"..."}],"body":"WHAT HAPPENED + BACKGROUND + WHO SAYS WHAT + WHY IT MATTERS + WHAT TO WATCH as one flowing narration","analysis":"","cta":"...","title":"the best title: specific and catchy, under 60 characters, built only from the facts. A question works when the outcome is open (for example Is [Entity] Ready For [Event]?)","banner":"...","pinned_comment":"...","callouts":[{"text":"...","at":"..."}],"alt_titles":[{"style":"match","text":"plain, factual, in the channel tone"},{"style":"engaging","text":"the most curiosity-driving framing that the facts still fully support: a question or a tension between two facts"}],"description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
+    lines.push('{"angle":"the one tension of this Short in one sentence","hook":"...","alt_hooks":[{"style":"consequence|question|hidden","text":"..."},{"style":"consequence|question|hidden","text":"..."}],"body":"the beats as one flowing narration, one new thing per sentence","analysis":"","cta":"...","title":"the strongest title: 35 to 60 characters, a named actor plus a tension, contradiction or consequence, built only from the facts","banner":"...","pinned_comment":"...","callouts":[{"text":"...","at":"..."}],"alt_titles":[{"style":"match","text":"plain and factual, in the channel tone"},{"style":"engaging","text":"a contradiction or a named open question the facts support"},{"style":"engaging","text":"a consequence or hidden-layer framing the facts support"}],"description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
     return lines.join('\n');
   }
 
@@ -2592,7 +2594,7 @@
     return {
       id: 'sc_' + Math.random().toString(36).slice(2, 10),
       storyId: story.id, storyTitle: story.title, source: story.source, url: story.url,
-      hook: str(parsed.hook), body: str(parsed.body), analysis: str(parsed.analysis), cta: str(parsed.cta),
+      angle: str(parsed.angle), hook: str(parsed.hook), body: str(parsed.body), analysis: str(parsed.analysis), cta: str(parsed.cta),
       title: str(parsed.title) || story.title.slice(0, 70),
       description: str(parsed.description),
       tags: storyTags(Array.isArray(parsed.tags) ? parsed.tags : [], [story.title, parsed.title, parsed.hook, parsed.body, parsed.description, parsed.analysis].join(' ')),
@@ -2664,7 +2666,7 @@
     var parts = splitSentences(a);
     var keep = parts.filter(function (x) {
       var low = normText(x);
-      return !unsupportedNumbers(x, articleText).length && !repeatsFact(x, facts, 0.85) && !/\b(everyone|nobody|guaranteed)\b/.test(low) && !forecastIssues(x, '').length;
+      return !unsupportedNumbers(x, articleText).length && !repeatsFact(x, facts, 0.85) && !fluffIn(x).length && !/\b(everyone|nobody|guaranteed)\b/.test(low) && !forecastIssues(x, '').length;
     });
     parsed.analysis = keep.join(' ').trim();
     return parts.length - keep.length;
@@ -2741,6 +2743,80 @@
       return hit / n >= (thr || 0.6);
     });
   }
+  // ---------- Fluff, repetition and titles ----------
+  // Empty phrases that fill time without adding a fact. A sentence with one of them is cut or rewritten.
+  var FLUFF = ['amid', 'raises questions', 'raising questions', 'raised questions', 'sparking concerns', 'sparks concerns', 'sparked concerns', 'remains to be seen', 'only time will tell', 'sends a message', 'send a message', 'serves as a reminder', 'a stark reminder', 'sheds light', 'shed light', 'in the wake of', 'game changer', 'game-changer', 'at the end of the day', 'needless to say', 'it is no secret', 'its no secret', 'the stakes could not be higher', 'a complex web', 'delicate balance', 'ever-evolving', 'highlights the', 'underscores the', 'underscoring'];
+  function fluffIn(text) {
+    var low = ' ' + String(text || '').toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s-]+/g, ' ').replace(/\s+/g, ' ') + ' ', out = [];
+    FLUFF.forEach(function (ph) { if (low.indexOf(' ' + ph.replace(/'/g, '') + ' ') !== -1 && out.indexOf(ph) === -1) out.push(ph); });
+    return out;
+  }
+  var STEM_SKIP = { that: 1, this: 1, with: 1, from: 1, have: 1, will: 1, they: 1, their: 1, were: 1, been: 1, about: 1, into: 1, over: 1, after: 1, more: 1, than: 1, also: 1, said: 1, says: 1, just: 1, what: 1, when: 1, where: 1, which: 1, there: 1, would: 1, could: 1 };
+  function contentStems(sentence) {
+    var set = {}, n = 0;
+    String(sentence || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).forEach(function (w) {
+      if (w.length < 4 || STEM_SKIP[w]) return;
+      var k = w.slice(0, 5);
+      if (!set[k]) { set[k] = 1; n++; }
+    });
+    return { set: set, n: n };
+  }
+  function stemOverlap(a, b) {
+    if (a.n < 4 || b.n < 4) return 0;
+    var hit = 0; Object.keys(a.set).forEach(function (k) { if (b.set[k]) hit++; });
+    return hit / Math.min(a.n, b.n);
+  }
+  function echoesAny(sentence, pool, thr) {
+    var a = contentStems(sentence);
+    return (pool || []).some(function (x) { return stemOverlap(a, contentStems(x)) >= (thr || 0.6); });
+  }
+  // Pairs of sentences where the later one says what an earlier one already said. The CTA may echo the hook on purpose.
+  function repeatedSentences(parsed) {
+    var seq = [], out = [];
+    [['hook', parsed.hook], ['body', parsed.body], ['analysis', parsed.analysis], ['cta', parsed.cta]].forEach(function (p) {
+      splitSentences(str(p[1])).forEach(function (t) { seq.push({ part: p[0], text: t, st: contentStems(t) }); });
+    });
+    for (var i = 1; i < seq.length; i++) {
+      for (var j = 0; j < i; j++) {
+        var thr = (seq[i].part === 'cta' && seq[j].part === 'hook') ? 0.85 : 0.6;
+        if (stemOverlap(seq[i].st, seq[j].st) >= thr) { out.push({ later: seq[i], earlier: seq[j] }); break; }
+      }
+    }
+    return out;
+  }
+  // Free fix for what the model leaves in after a revision: drop the later copy from the body or analysis.
+  function dedupeParsed(parsed) {
+    var drop = { body: {}, analysis: {} }, n = 0;
+    repeatedSentences(parsed).forEach(function (r) { if (drop[r.later.part]) { drop[r.later.part][r.later.text] = 1; n++; } });
+    ['body', 'analysis'].forEach(function (k) {
+      if (!Object.keys(drop[k]).length) return;
+      var kept = splitSentences(str(parsed[k])).filter(function (x) { return !drop[k][x]; });
+      if (kept.length || k === 'analysis') parsed[k] = kept.join(' ');
+    });
+    return n;
+  }
+  // Rubric for a Shorts title: a named actor, a tension, a stake, a length that fits, and no vague label.
+  function titleScore(t) {
+    t = String(t || '').replace(/\s*#\w+/g, '').trim();
+    var len = t.length, pts = 50;
+    if (len >= 35 && len <= 60) pts += 8; else if (len > 70) pts -= 12; else if (len < 25) pts -= 8;
+    if (/\d/.test(t)) pts += 5;
+    if ((t.match(/\b[A-Z][a-z]{2,}/g) || []).length >= 2) pts += 6;
+    if (/\?\s*$/.test(t)) pts += 4;
+    if (/\b(but|despite|while|yet|instead|not|no one|nobody|without|quietly|secret|hidden|really|says|say)\b/i.test(t)) pts += 8;
+    if (/\b(your|bills?|prices?|jobs?|oil|gas|war|strikes?|sanctions?|bans?|banned|shut\w*|blockade|nuclear|cuts?|rises?|jump\w*|drop\w*|spy|spying|arrest\w*)\b/i.test(t)) pts += 6;
+    if (/\b(update|latest|news|what we know|situation|developments?|explained|overview|report)\b/i.test(t)) pts -= 14;
+    return pts;
+  }
+  function pickBestTitle(sc) {
+    var opts = [{ style: 'match', text: sc.title }].concat(sc.altTitles || []), best = opts[0], bs = titleScore(best.text);
+    opts.forEach(function (o) { var v = titleScore(o.text); if (v >= bs + 6) { best = o; bs = v; } });
+    if (best.text !== sc.title) {
+      var old = sc.title;
+      sc.altTitles = (sc.altTitles || []).filter(function (x) { return x.text !== best.text; }).concat([{ style: 'match', text: old }]).slice(0, 3);
+      sc.title = best.text;
+    }
+  }
   function checkScript(parsed, articleText, used, extraAllow, facts) {
     var main = [parsed.hook, parsed.body, parsed.analysis, parsed.cta].map(str).join('\n');
     var factual = [parsed.hook, parsed.body, parsed.cta].map(str).join('\n');
@@ -2769,6 +2845,10 @@
     var longS = splitSentences([parsed.hook, parsed.body, parsed.analysis].map(str).join(' ')).filter(function (x) { return wordCount(x) > 28; });
     if (longS.length) problems.push('A sentence is too long for a Short (' + wordCount(longS[0]) + ' words: "' + longS[0].slice(0, 60) + '…"). Split it into short spoken sentences.');
     if (robo) problems.push('Robotic phrasing: "' + robo[0] + '". Rewrite that sentence the way a person would say it out loud. Never talk about the script, the sources or how many outlets there are.');
+    var repeats = repeatedSentences(parsed);
+    if (repeats.length) problems.push('Repetition: "' + repeats[0].later.text.slice(0, 70) + '" says what "' + repeats[0].earlier.text.slice(0, 60) + '" already said' + (repeats.length > 1 ? ' (and ' + (repeats.length - 1) + ' more like it)' : '') + '. Say each thing once: replace the repeat with a NEW fact or a new turn, or cut it.');
+    var fl = fluffIn(main);
+    if (fl.length) problems.push('Filler phrases ("' + fl.slice(0, 3).join('", "') + '"). Replace each with a concrete fact, name or consequence from the facts, or cut the sentence.');
     if (badNums.length) problems.push('These numbers do not appear in the source: ' + badNums.join(', '));
     if (badTerms.length) problems.push('These names or terms do not appear in the source: ' + badTerms.join(', '));
     wording.forEach(function (w) { problems.push('Wording: ' + w); });
@@ -2820,10 +2900,12 @@
     var lines = [
       'You are the analyst of a faceless news channel. The short is written. Your job is the analysis that comes after the story and before the closing question. It is the part that makes this channel worth following instead of just reading the news, so it must say something the news does not.',
       '', 'CHANNEL VOICE AND STANCE (stay inside it):'
-    ].concat(dnaText(state.profile).split('\n'), ['', 'STORY: ' + sc.storyTitle, 'HOOK: ' + sc.hook, 'BODY: ' + sc.body, '', 'FACTS:']);
+    ].concat(dnaText(state.profile).split('\n'), ['', 'STORY: ' + sc.storyTitle].concat(sc.angle ? ['ANGLE THE SHORT SET UP: ' + sc.angle] : [], ['HOOK: ' + sc.hook, 'BODY: ' + sc.body, '', 'FACTS:']));
     verified.ok.forEach(function (x) { lines.push('- ' + x.claim); });
     lines.push('', 'ANGLE: ' + LENSES[lens].rule, '',
-      'Write 3 or 4 spoken sentences, at most ' + room + ' words, with a clear point of view.',
+      'Write 2 to 4 spoken sentences, at most ' + room + ' words, with a clear point of view. Shorter is better: every sentence must be a new thought.',
+      '- Open with the take itself, in one short sentence (never "This" or "The story"), then say why in plain words. This is where the hook is paid off: give the viewer the reading they stayed for.',
+      '- Punchy and concrete: strong verbs, named actors, no filler ("raises questions", "remains to be seen", "sends a message", "highlights", "underscores", "amid").',
       '- Say what the story does not say: what the move is really for, who gains and who pays, what the timing or wording gives away, what is conspicuously missing, how situations like this have usually played out. Use what an informed person knows about these actors and this kind of situation.',
       '- Frame readings as readings ("looks like", "reads as", "suggests", "the simplest reading is"), never as proven intent. No forecasts stated as certain.',
       '- No invented numbers, dates, statistics or quotes. Do not repeat what the body already says.',
@@ -2847,8 +2929,9 @@
         if (!tmp.analysis) return again('nothing usable survived the checks');
         return sleep(500).then(function () { return auditScript({ hook: sc.hook, body: sc.body, analysis: tmp.analysis, cta: sc.cta }, verified.ok, src.story, corr); }).then(function (a) {
           var bad = {}; a.flags.filter(function (x) { return x.id.charAt(0) === 'I' && x.severity !== 'minor'; }).forEach(function (x) { bad[x.sentence] = true; });
-          var sents = splitSentences(tmp.analysis).filter(function (x) { return !bad[x]; }).slice(0, 4);
-          if (!sents.length) return again('the audit flagged every sentence');
+          var pool = splitSentences(str(sc.hook) + ' ' + str(sc.body));
+          var sents = splitSentences(tmp.analysis).filter(function (x) { return !bad[x] && !echoesAny(x, pool, 0.6); }).slice(0, 4);
+          if (!sents.length) return again('the audit flagged every sentence or it only repeated the story');
           sc.analysis = sents.join(' ');
           if (sc.checks) { sc.checks.analysisRepaired = true; sc.checks.words = wordCount([sc.hook, sc.body, sc.analysis, sc.cta].map(str).join(' ')); }
           return sc;
@@ -2871,6 +2954,7 @@
     return callLLM(writePrompt(src.story, state.profile, verified.ok, feedback, corr), 'write', { best: true }).then(function (res) {
       var parsed = extractJson(res.text);
       var dropped = 0;
+      if (attempt >= 1) dropped += dedupeParsed(parsed);
       if (state.settings.depth === false) parsed.analysis = '';
       else if (attempt >= 1) dropped += sanitizeAnalysis(parsed, src.allText || src.art.text, allowWordsFor(src.story, state.profile).concat(outletAllow(corr)), verified.ok);
       if (attempt >= 1 && parsed.analysis) {
@@ -2907,6 +2991,7 @@
           var sc = scriptFromParsed(parsed, src.story, { model: res.model, provider: res.provider, level: 'article' });
           sc.storyId = story.id; sc.storyTitle = story.title;
           sc.altTitles = cleanAltTitles(parsed.alt_titles, sc.title, src.allText || src.art.text);
+          pickBestTitle(sc);
           sc.hookAlts = cleanAltHooks(parsed.alt_hooks, parsed.hook, src.allText || src.art.text, outletAllow(corr), src.story);
           sc.hookScore = hookScore(parsed.hook);
           sc.pinned = cleanPinned(parsed.pinned_comment, src.allText || src.art.text);
@@ -4401,7 +4486,11 @@
       '- "kind": "footage" if a camera could film something concrete that clearly fits the sentence (a place, a machine, weather, a crowd, an object). Use "card" when the sentence is abstract (an opinion, a statistic, a question to the viewer, an analysis) and footage would be mere decoration. Use "card" for the closing call-to-action scene.\n' +
       '- "query": a stock-library search of 2 to 4 words describing exactly what should be on screen.\n' +
       '- "alt": a different, more generic 2 to 3 word search that is still a safe fit.\n' +
-      'Rules: no names of people or organisations, no brands, no abstract words (conflict, tension, crisis, strategy). Prefer neutral establishing shots to dramatic ones, so the footage cannot be mistaken for real footage of the event. Do not repeat the same query.\n\nScenes:\n' + list +
+      'Rules: the footage must show the SUBJECT of the sentence, not just the mood. Name the concrete thing a camera would film: the kind of person or uniform, vehicle, building, facility, object or place, and a country, city or landmark when the sentence is about one (for example "iran city street", "soldier in uniform", "nuclear power plant", "oil tanker at sea", "parliament building", "stock market screen"). Scene 1 is the most important: it must show the story\'s central subject at once, because viewers swipe within two seconds if the first frame looks unrelated.\n' +
+      '- Never use stock queries that could fit any story: no highway, sunset, flowers, nature, generic crowd or "city skyline" unless the sentence is literally about that.\n' +
+      '- No names of people, no organisations, no brands, no abstract words (conflict, tension, crisis, strategy).\n' +
+      '- Do not search for explosions, wreckage, casualties or anything that would read as real footage of this event; show the setting, equipment, place or people at work instead.\n' +
+      '- "alt" must stay on the same subject with simpler words, never a generic fallback. Do not repeat the same query.\n\nScenes:\n' + list +
       '\n\nReply with JSON only: {"scenes":[{"kind":"footage","query":"...","alt":"..."}]} with exactly ' + scenes.length + ' items.';
     return callLLM(prompt, 'write').then(function (r) {
       var j = extractJson(r.text), arr = Array.isArray(j) ? j : (j && (j.scenes || j.queries));
@@ -4462,13 +4551,16 @@
   }
   function tagSet(s) { var o = {}; String(s || '').toLowerCase().split(/[^a-z0-9]+/).forEach(function (w) { if (w.length > 2) o[w.slice(0, 4)] = 1; }); return o; }
   // Pick the clip whose tags best match the search words, not just the first result.
-  function bestClip(vids, q, dur, used) {
+  // minMatch: how many query words must appear in the clip's tags. A clip that matches nothing (flowers under a spy story)
+  // is worse than no clip: the scene then gets the plain caption card instead.
+  function bestClip(vids, q, dur, used, minMatch) {
     var qs = Object.keys(tagSet(q)), fresh = vids.filter(function (v) { return !used[v.id] && v.duration >= 2; });
+    var need = Math.min(minMatch || 0, qs.length);
     var scored = fresh.map(function (v, i) {
-      var tg = tagSet(v.tags), s = 0; qs.forEach(function (w) { if (tg[w]) s += 2; });
+      var tg = tagSet(v.tags), s = 0, m = 0; qs.forEach(function (w) { if (tg[w]) { s += 2; m++; } });
       if (v.duration >= dur) s += 1;
-      return { v: v, s: s, i: i };
-    });
+      return { v: v, s: s, m: m, i: i };
+    }).filter(function (x) { return x.m >= need; });
     scored.sort(function (a, b) { return b.s - a.s || a.i - b.i; });
     return scored.length ? scored[0].v : null;
   }
@@ -4485,8 +4577,8 @@
   function fetchSceneClip(scene, plan, provider, key, used, target, title) {
     var tries = [plan.query, plan.alt], words = String(plan.query || '').split(' ');
     if (words.length > 2) tries.push(words.slice(0, 2).join(' '));
-    tries.push(fallbackQuery(scene.text, title) || 'city street');
-    tries.push('city skyline');
+    tries.push(fallbackQuery(scene.text, title));
+    // No generic last resort ("city skyline", "city street"): unrelated footage hurts retention more than a caption card.
     var seen = {};
     tries = tries.filter(function (q) { if (!q || seen[q]) return false; seen[q] = 1; return true; });
     var dur = scene.end - scene.start, ti = 0;
@@ -4494,7 +4586,7 @@
       if (ti >= tries.length) return null;
       var q = tries[ti++];
       return stockSearch(provider, q, key, target).then(function (vids) {
-        var pick = bestClip(vids, q, dur, used);
+        var pick = bestClip(vids, q, dur, used, 1);
         if (!pick) return nextTry();
         used[pick.id] = 1;
         return mediaFetch(pick.file.link).then(function (r) {
