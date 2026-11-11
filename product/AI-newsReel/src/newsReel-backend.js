@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.30.0';
+  var VERSION = '1.31.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -896,9 +896,24 @@
     var c = viralCache[storyQuery(s)];
     return c && Date.now() - c.t < 12 * 3600 * 1000 ? Object.assign({ ok: true }, c.d) : null;
   }
-  // Reach: stories with no major power, market or supply angle in the headline rarely find a wide audience.
+  // The superpower/market lexicon below was tuned on a geopolitics channel's Studio data. A markets, AI-tools or real-estate
+  // profile has other kinds of stakes, so the reach penalty only applies to profiles whose topics are geopolitical or macro.
+  function profileIsGeo(p) {
+    p = p || state.profile;
+    if (!p || !p.topics || !p.topics.length) return true;
+    var names = p.topics.map(function (t) { return String(t.name || '') + ' ' + (t.signals || []).join(' '); }).join(' ').toLowerCase();
+    return /\b(geopolit\w*|military|defen[cs]e|conflict|war|sanctions?|nato|diplomac\w*|foreign policy|politic\w*|election\w*|macro\w*|trade war|tariffs?)\b/.test(names);
+  }
+  // Reach: for geopolitical profiles, stories with no major power, market or supply angle in the headline rarely find a wide audience.
   function stakesOf(s) {
     var t = String(s.title || '') + ' ' + String(s.summary || ''), l = t.toLowerCase();
+    if (!profileIsGeo()) {
+      return {
+        score: 1, big: false, glob: false, proc: false,
+        unseen: /\b(secret\w*|covert|hidden|leak\w*|undisclosed|shadow|undercover|hack\w*|breach\w*)\b/.test(l),
+        conseq: /\b(prices?|fees?|rates?|shortages?|outages?|layoffs?|jobs|bans?|banned|fines?|recall\w*|shut ?downs?|collapse\w*|cuts?)\b/.test(l)
+      };
+    }
     var big = /\b(US|U\.S\.|UK|EU|UN)\b/.test(t) || /\b(united states|america\w*|china|chinese|russia\w*|iran\w*|israel\w*|nato|european union|trump|putin|xi jinping|biden|federal reserve|ukrain\w*|taiwan|opec|north korea|kim jong|white house|pentagon|kremlin|beijing|moscow|washington)\b/.test(l);
     var glob = /\b(oil|gas|energy|trade|tariffs?|sanctions?|chips?|semiconductors?|shipping|hormuz|suez|nuclear|inflation|prices?|markets?|dollar|war|strikes?|missiles?|ceasefire|talks|summit|election\w*|midterms?|economy|currency|supply)\b/.test(l);
     // Shorts viewers swipe past procedure and stay for conflict, hidden layers and tangible stakes (from the channel's own Studio data).
@@ -1703,7 +1718,7 @@
     lines.push('- The hook is frame one: no greeting, no setup, no outlet, no time marker ("On Tuesday", "Earlier today", "In recent days", "This week") and no reporting verb ("officials said", "it was reported"). The viewer already knows it is new.');
     lines.push('- Do not open with a date range, a list of names, delegates or cities, a decimal statistic, or the story headline word for word. Lead with what it MEANS or what is at stake, and keep the exact figure for a later beat.');
     lines.push('- Under 14 words. One specific thing (a name, a number, a place) and one gap the viewer needs closed. A stranger must understand who did what and why they should care.');
-    lines.push('- Pick the strongest formula the facts allow: (a) consequence first, (b) a contradiction between two things the facts state, (c) a question the facts answer that names the subject, (d) what it costs ordinary people, only when the facts state that link. Patterns only: never reuse example wording, and use only the facts above. Examples of the shape: "Tehran just closed the door on talks." / "The White House says the war is over. Commanders say it is not." / "Why would Iran offer to reopen Hormuz now?"');
+    lines.push('- Pick the strongest formula the facts allow: (a) consequence first, (b) a contradiction between two things the facts state, (c) a question the facts answer that names the subject, (d) what it costs ordinary people, only when the facts state that link. Patterns only: never reuse example wording, and use only the facts above. Shapes, with placeholders: "[Actor] just closed the door on [thing]." / "[A] says X. [B] says the opposite." / "Why would [actor] do [surprising thing] now?"');
     lines.push('- The hook promises something the body delivers. No clickbait, no "you will not believe", no fake urgency. Withhold the answer: the hook opens a question, the middle builds it, the last beats close it.');
     lines.push('- "alt_hooks": also give two OTHER opening lines in the two formulas you did not use for "hook", each under 14 words, built only from the facts, no outlet names, each one a real alternative a viewer might stop for.');
     lines.push('');
@@ -1718,7 +1733,7 @@
     lines.push('- Where a figure is the point of the story, say it plainly and let it land.');
     lines.push('- Forbidden filler: "amid", "raises questions", "sparking concerns", "remains to be seen", "only time will tell", "sends a message", "highlights", "underscores", "serves as a reminder", "sheds light", "in the wake of", "game changer", "at the end of the day", "needless to say", "it is no secret".');
     lines.push('- Forbidden robot talk: "from one outlet", "single source", "this story", "this report", "the article", "it is worth noting", "in conclusion", "in summary", "delve", "landscape", "moreover", "furthermore".');
-    lines.push('- Bad: "CBS News reports from one outlet; Iran says warships are not allowed." Good: "Iran just told the US its warships are not welcome in the Gulf, under any circumstance. That is CBS\'s reporting, and Washington has not answered yet." (only if the facts say Washington has not answered).');
+    lines.push('- Bad: "CBS News reports from one outlet; the ministry says the ships are not allowed." Good: "The ministry just told foreign ships to stay out, under any circumstance. That is CBS\'s reporting, and no one else has confirmed it yet." (only if the facts say no one else has confirmed it).');
     lines.push('');
     if (depth) {
       lines.push('4. ANALYSIS: leave the "analysis" field as an empty string. It is written in a separate step by an analyst.');
@@ -2912,7 +2927,7 @@
       '- It must be about THIS story. If the paragraph would fit any story on the topic, rewrite it.',
       '- Plain spoken words, contractions, a human voice. Never mention sources, outlets, the script or the word analysis.',
       '- End on the sharpest open question or the thing that settles it ("The test is whether...").',
-      'Good: "The interesting part is who the message is for. Tehran is not really talking to Washington here, it is talking to hardliners at home, and that makes a quiet climb-down much harder. The tell is that no one is offering a way out, only a price."',
+      'Good: "The interesting part is who the message is for. [Actor] is not really talking to [rival] here, it is talking to its own supporters, and that makes a quiet climb-down much harder. The tell is that no one is offering a way out, only a price."',
       'Bad: "This situation could have significant consequences for the region and global markets." (generic, fits any story)',
       '', 'Return STRICT JSON only: {"analysis":"..."}');
     var prompt = lines.join('\n');
