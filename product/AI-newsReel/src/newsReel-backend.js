@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.31.0';
+  var VERSION = '1.32.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -1649,6 +1649,12 @@
     });
   }
 
+  // What this channel covers, taken from the profile (never hardcoded), so the same story gets a different angle per channel.
+  function lensLine(profile) {
+    var tops = ((profile && profile.topics) || []).map(function (t) { return t && t.name; }).filter(Boolean).slice(0, 8), pos = profile && profile.identity && (profile.identity.positioning || profile.identity.oneLiner);
+    if (!tops.length && !pos) return 'CHANNEL LENS: none set, so pick the angle that matters most to a general viewer.';
+    return 'CHANNEL LENS: this channel is about ' + (pos ? '"' + String(pos).slice(0, 200) + '"' : '') + (tops.length ? (pos ? ', covering ' : '') + tops.join(', ') : '') + '. Choose the angle through which this story matters to THAT audience (for example what it changes for the subject areas above), using only the facts. A personal-scandal or gossip angle is the weakest choice unless the facts tie it to those areas; if the facts do not connect to them at all, take the strongest general angle.';
+  }
   function writePrompt(story, profile, facts, feedback, corr) {
     var topics = profile.topics.map(function (t) { return t.name; }).join(', ');
     var f = profile.format;
@@ -1701,12 +1707,13 @@
       lines.push('');
     }
     lines = lines.concat([
+      lensLine(profile),
       'STEP 1: FIND THE ANGLE (field "angle", filled in first)',
       'Decide the ONE tension this Short is about, in one plain sentence: a contradiction ("X says A, but B"), a stake nobody mentioned, a consequence for ordinary people, something odd in the numbers, or who a statement is really aimed at. Everything you write must serve that angle. You do NOT have to use every fact: use the 3 to 5 that carry the angle and leave the rest out. A fact that does not serve the angle is padding.',
       '',
       'STEP 2: WRITE IT IN THIS ORDER',
       '1. HOOK (under 14 words): the single most surprising or consequential thing' + (two ? ', preferably one both outlets confirm' : '') + '. Keep its hedges ("thought to be", "reportedly", "at least").',
-      '2. THE BEATS (field "body"): ' + (shortForm ? '3 to 5' : '4 to 7') + ' short sentences, one beat each. Every beat must add something the viewer does not have yet: a new fact, a number, a name, a reversal or a consequence. Order them by curiosity, not by the order of the article: set the scene in one beat, escalate, and keep the detail that answers the hook for the last beats.',
+      '2. THE BEATS (field "body"): ' + (shortForm ? '3 to 5' : '4 to 7') + ' short sentences, one beat each, and never more beats than the number of facts above plus one: few facts means a short script, and a short script is fine. Padding a thin story with restatements is the worst failure. Every beat must add something the viewer does not have yet: a new fact, a number, a name, a reversal or a consequence. Order them by curiosity, not by the order of the article: set the scene in one beat, escalate, and keep the detail that answers the hook for the last beats.',
       '   - Context: only what the viewer cannot follow without' + (shortForm ? ' (skip it in this short form)' : ' (one beat, two at most; none if the story explains itself)') + '. Optional: ONE plain-language definition of a general concept named in the facts, only if it matches how THIS story uses the term, with no numbers, names, dates or event claims in it.',
       '   - Who says what: only when the claims are the tension' + (two ? ' or when the outlets differ' : '') + '. Name them ("an unnamed US official" stays unnamed).',
       '   - What changes for ordinary people (prices, jobs, travel, energy, borders): one concrete beat, only when the facts say so. Never invent an impact.',
@@ -1742,6 +1749,11 @@
     }
     lines.push('5. CTA: one specific question that invites viewers to take a side AND echoes the key word or idea of your hook, so the ending flows straight back into the opening (viewers who replay it count as extra views). It repeats no fact. Never a goodbye: no "thanks for watching", "follow for more", "see you", "like and subscribe".');
     lines.push('');
+    lines.push('PEOPLE, TAKE AND CLOSING QUESTION (checked by code; a breach sends the script back)');
+    lines.push('- Name at most 3 people in the whole short. Everyone else becomes a role or a description ("Russia\'s envoy", "a senior Kremlin aide", "the US negotiators"). A list of names loses a viewer who is scrolling.');
+    lines.push('- Commit to ONE reading. No "if X then Y, but if Z then W" hedging and no stack of "could", "might" and "may". If the facts really leave it open, say that in one plain sentence and pick the more likely reading.');
+    lines.push('- The CTA is exactly ONE question mark and takes a side: a forced choice between two named positions ("Is [A] bluffing, or is [B] out of options?"). Never a generic forecast ("Do you think X will...?", "What do you think?") and no second question after it.');
+    lines.push('');
     lines.push('HARD RULES');
     lines.push('- Every number, date, name and place must come from the facts above. Never add outside facts, quotes or statistics.');
     lines.push('- Keep every qualifier and baseline from the facts (up to, around, almost, more than, at least, reportedly, could, "since ...", "in September"). Never round a number up, drop "up to", or drop the baseline that makes a percentage meaningful.');
@@ -1768,7 +1780,7 @@
       lines.push('- Remove or rephrase anything not supported by the facts.');
     }
     lines.push('');
-    lines.push('PINNED COMMENT (field "pinned_comment"): one or two sentences the channel posts and pins under the video: a different, specific question that makes viewers pick a side or say what they think about THIS story. No new facts, no numbers that are not in the facts, no hashtags, under 220 characters.');
+    lines.push('PINNED COMMENT (field "pinned_comment"): it must NOT repeat the closing question; one or two sentences the channel posts and pins under the video: a different, specific question that makes viewers pick a side or say what they think about THIS story. No new facts, no numbers that are not in the facts, no hashtags, under 220 characters.');
     lines.push('CALLOUTS (field "callouts", 0 to 3 items): the key figure, date or name viewers should see on screen at the moment it is spoken. "text": at most 4 words copied from the facts (for example "50% tariffs" or "Oct 30"). "at": 3 to 6 consecutive words copied exactly, in order, from your hook or body at the point it is spoken. Only for figures or names that are in the facts. Use an empty list if nothing fits.');
     lines.push('');
     lines.push('HEADLINE BANNER (field "banner"): the story\'s core tension or question in 3 to 6 plain words, as punchy as a news ticker, shown in large text over the first three seconds for viewers watching on mute. It must tell a stranger what the story is about before the voice does. Built only from the facts, no outlet name.');
@@ -2793,7 +2805,7 @@
     });
     for (var i = 1; i < seq.length; i++) {
       for (var j = 0; j < i; j++) {
-        var thr = (seq[i].part === 'cta' && seq[j].part === 'hook') ? 0.85 : 0.6;
+        var thr = (seq[j].part === 'hook' && seq[i].part !== 'analysis') ? 0.85 : 0.5;
         if (stemOverlap(seq[i].st, seq[j].st) >= thr) { out.push({ later: seq[i], earlier: seq[j] }); break; }
       }
     }
@@ -2832,6 +2844,16 @@
       sc.title = best.text;
     }
   }
+  // Distinct people named in a text: two or more capitalised words in a row (not at a sentence start alone) that are not places,
+  // organisations or months, plus single capitalised surnames that follow a title ("Putin said"). Used only to cap name lists.
+  var NAME_STOP = /^(United|New|North|South|East|West|Middle|White|Black|Red|Strait|Gulf|Saudi|Sea|Security|Council|House|Department|Ministry|Bank|Federal|European|Union|Nations|Supreme|Court|Wall|Street|Abu|Dhabi|Hong|Kong|Sri|Lanka|Costa|Rica|Great|Britain|Foreign|Defense|Defence|State|Treasury|Pentagon|Kremlin|Congress|Senate|Parliament|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December)$/;
+  function namedPeople(text) {
+    var out = {}, re = /(?:^|[^.!?]\s)([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,}){1,2})\b/g, m, t = String(text || '');
+    while ((m = re.exec(t))) { var w = m[1].split(/\s+/); if (w.some(function (x) { return NAME_STOP.test(x); })) continue; out[w[w.length - 1]] = m[1]; }
+    var re2 = /\b(?:Mr|Mrs|Ms|Dr|President|Minister|Secretary|Senator|General|Chancellor|Prime Minister|Envoy)\.?\s+([A-Z][a-z]{2,})\b/g;
+    while ((m = re2.exec(t))) if (!out[m[1]]) out[m[1]] = m[1];
+    return Object.keys(out).map(function (k) { return out[k]; });
+  }
   function checkScript(parsed, articleText, used, extraAllow, facts) {
     var main = [parsed.hook, parsed.body, parsed.analysis, parsed.cta].map(str).join('\n');
     var factual = [parsed.hook, parsed.body, parsed.cta].map(str).join('\n');
@@ -2862,6 +2884,15 @@
     if (robo) problems.push('Robotic phrasing: "' + robo[0] + '". Rewrite that sentence the way a person would say it out loud. Never talk about the script, the sources or how many outlets there are.');
     var repeats = repeatedSentences(parsed);
     if (repeats.length) problems.push('Repetition: "' + repeats[0].later.text.slice(0, 70) + '" says what "' + repeats[0].earlier.text.slice(0, 60) + '" already said' + (repeats.length > 1 ? ' (and ' + (repeats.length - 1) + ' more like it)' : '') + '. Say each thing once: replace the repeat with a NEW fact or a new turn, or cut it.');
+    var nBeats = splitSentences(str(parsed.body)).length;
+    if (facts && facts.length && nBeats > facts.length + 2) problems.push('The body has ' + nBeats + ' sentences for only ' + facts.length + ' facts, so it is padded. Cut to at most ' + (facts.length + 1) + ' sentences, each with a new fact or turn.');
+    var nm = namedPeople([parsed.hook, parsed.body, parsed.analysis, parsed.cta].map(str).join(' '));
+    if (nm.length > 3) problems.push('Too many named people (' + nm.slice(0, 5).join(', ') + '). Keep the 3 who matter and refer to the rest by role ("Russia\'s envoy", "a senior aide").');
+    var cta = str(parsed.cta).trim(), qn = (cta.match(/\?/g) || []).length;
+    if (qn > 1) problems.push('The closing line has ' + qn + ' questions. Ask exactly one.');
+    else if (/^(do you think|do you believe|what do you think|will |would |can you|are you)/i.test(cta) || (qn === 1 && !/\b(or|vs\.?|versus|bluff\w*|blink\w*|side|better|worse)\b/i.test(cta))) problems.push('The closing question is generic. Make it take a side: a forced choice between two named positions ("Is [A] bluffing, or is [B] out of options?").');
+    var hedges = (ana.match(/\bif\b/gi) || []).length + (ana.match(/\b(could|might|may)\b/gi) || []).length;
+    if (ana && (hedges >= 3 || /\bif\b[^.]*\bthen\b/i.test(ana) || /\?\s*$/.test(ana.trim()))) problems.push('The analysis hedges or ends on a question. Commit to ONE take, say why, and end on the test that would prove it wrong, as a statement.');
     var fl = fluffIn(main);
     if (fl.length) problems.push('Filler phrases ("' + fl.slice(0, 3).join('", "') + '"). Replace each with a concrete fact, name or consequence from the facts, or cut the sentence.');
     if (badNums.length) problems.push('These numbers do not appear in the source: ' + badNums.join(', '));
@@ -2926,7 +2957,8 @@
       '- No invented numbers, dates, statistics or quotes. Do not repeat what the body already says.',
       '- It must be about THIS story. If the paragraph would fit any story on the topic, rewrite it.',
       '- Plain spoken words, contractions, a human voice. Never mention sources, outlets, the script or the word analysis.',
-      '- End on the sharpest open question or the thing that settles it ("The test is whether...").',
+      '- Commit to ONE take. No "if X then Y, but if Z then W" branches and no pile of "could" and "might". State the take, give the reason, and end on the single fact or test that would prove it wrong, as a statement ("The test is whether..."), never as a question: the closing question belongs to the next line.',
+      '- Name at most 2 people; use roles for everyone else.',
       'Good: "The interesting part is who the message is for. [Actor] is not really talking to [rival] here, it is talking to its own supporters, and that makes a quiet climb-down much harder. The tell is that no one is offering a way out, only a price."',
       'Bad: "This situation could have significant consequences for the region and global markets." (generic, fits any story)',
       '', 'Return STRICT JSON only: {"analysis":"..."}');
@@ -2969,7 +3001,7 @@
     return callLLM(writePrompt(src.story, state.profile, verified.ok, feedback, corr), 'write', { best: true }).then(function (res) {
       var parsed = extractJson(res.text);
       var dropped = 0;
-      if (attempt >= 1) dropped += dedupeParsed(parsed);
+      dropped += dedupeParsed(parsed);
       if (state.settings.depth === false) parsed.analysis = '';
       else if (attempt >= 1) dropped += sanitizeAnalysis(parsed, src.allText || src.art.text, allowWordsFor(src.story, state.profile).concat(outletAllow(corr)), verified.ok);
       if (attempt >= 1 && parsed.analysis) {
@@ -3002,6 +3034,7 @@
             dropped += aFlags.length;
             audit.flags = audit.flags.filter(function (f) { return f.id.charAt(0) !== 'I'; });
           }
+          dedupeParsed(parsed);
           var url = cleanUrl(src.story.url);
           var sc = scriptFromParsed(parsed, src.story, { model: res.model, provider: res.provider, level: 'article' });
           sc.storyId = story.id; sc.storyTitle = story.title;
@@ -4196,7 +4229,7 @@
    * -> real-time canvas + audio recording to MP4/WebM, all in the browser.
    * Finished media is stored in this browser (IndexedDB) next to the scripts.
    * ===================================================================== */
-  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true, callouts: true, endcard: true, banner: true, motion: true };
+  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true, callouts: true, endcard: true, banner: true, motion: true, visuals: true };
   var BUILTIN_VOICES = [['am_echo', 'Echo · en-us · Male'], ['am_liam', 'Liam · en-us · Male'], ['af_heart', 'Heart · en-us · Female']];
   var STOCK = { pixabay: { name: 'Pixabay', keyField: 'pixabayKey' }, pexels: { name: 'Pexels', keyField: 'pexelsKey' } };
   function vopt() {
@@ -4623,13 +4656,430 @@
       if (i >= tl.scenes.length) return null;
       var idx = i++, p = plan[idx];
       if (onProgress) onProgress(idx, tl.scenes.length, p.query);
-      if (p.kind === 'card' || fatal) { plain++; return next(); }
+      if (p.kind === 'visual' && p.visual) { tl.scenes[idx].visual = p.visual; return next(); }
+      if (p.kind === 'card' || p.kind === 'visual' || fatal) { plain++; return next(); }
       return fetchSceneClip(tl.scenes[idx], p, provider, key, used, target, title).then(function (r) {
         if (r) { tl.scenes[idx].video = r.video; tl.scenes[idx].usedQuery = r.query; if (r.credit) credits[r.credit] = 1; } else { plain++; }
         return next();
       }).catch(function (e) { if (e && (e.fatal)) fatal = e; if (e && e.cancelled) throw e; plain++; return next(); });
     })().then(function () { return { plain: plain, credits: Object.keys(credits), error: fatal }; });
   }
+
+  /* ===== VISUAL ENGINE (maps, figures, comparisons, quotes, timelines drawn on the canvas; no footage, no network) ===== */
+var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCbChCLXMpBTZBZtBrB","Zambia|39:gmBxT7BNFVfNtBtBxCW1BF1B4BBiEuCAA2CSVkBICPcLgBBMOQZiBJYhBeDC0BdHbiBMmBJ2BUcqCMMP2CpBSjBPNAvBKJTLNlBWP1DnBGZ","Yemen|20:siC6UdNFZXL5CbbX3DbXVpBHTEhBmDGsBOOIgBoEJQLoBwB0BUmDOsB9C~5:mjC6PeDfJPKSE","Vietnam|4:iiEgNBNFMIC~60:-mE8afVRCCJdfPnBkBnBFHiD9CavDJCHzBlClBJKBJNCGFLAOHHJROQVbOMX3BfO2BZSYUsBDLiBiCcEsBJcMsBTWKKdS7B2CxBaGOWBOQXSKITMRJVIFgBLATcMOWLOMYH0BgBYRmBDJLET0BT","Venezuela|4:5vC-NBJTEWG~60:_qC2KGLhBbOVfLJdepBjBXtBLFPtCcYbGrBaL1C7BDKZHXSLwBZQWYVsBOkCtCDbiBpCERSEaRmBVEaiCegBaIZLOjBThBQdSEIWTsBmCaTSMMObyBNKZsCGsBX4BSVGgDEnBHYdIIONGKgBVRdNAgCB","Vanuatu|7:uwGxSCLMIAZRIDaID~6:oxGjUSNPDLSEIGH~4:syGtUNEIGGJ~4:yyG9VCJNEMG~4:2zG1XNEAIOL","Uzbekistan|51:24C60BMDpBZwBPKSWTmBJ5BZrBCJIQOLKdNNEDVXBMBRVpBDDJgBJIdXpBxBICavDuBxBiBXsBnCMDgB3BYRFMNPIrBZCXnBCA0EmDWiDtBoBjB0DIkBfMEDnBUAIfyBASXeiBoCgB","Uruguay|15:1iClqBRZrBV1BCjBSbAXegBqEgBGiBnBQKqCvBabRPIX","Puerto Rico|6:1yCiXUBLPxBACUoBB","United States of America|4:9lF0mCDMMHHD~4:_lFqmCJEQEFH~8:p2GyvCoBCmCPnBNtBUfDDOMB~6:1vGwrCQDGPVFzBS0BI~13:j_FooCcHdDKFxBXGKRGDJNSYMQNFWmBB~192:viF8lCBXVVRQMGLgBpBVDIaSzBiBXEHUWDRMOChBGGSLJXIVmBFHQlBfGFQIELGDLdKmBVVH9D0BKQINMKRGlBLnBIAItDDdOIMVJzBOGQ3BJHCKKXFHJKHNDcATTlBEHN1CVFIiBOfCUkBkBM2BDlBKYO7BL3BhBZBOL9BhBgBHBHfX3CfHNlCVEJHFrDZLIXRVEAJbFCKgCgB4BDJIKMiCUOUiBIJIEOQGLIce3BVLKQGbBFV3BanCPUSNCGSVcSQdRGJ1BH5BeWOqBLOGTEMC7BCKGbAXWOCLEUCDKUOSCGIHDAMQMsBFoBU2BEBYTIYOhBAlBPTKCJ3DIfWgBGtCOyEmBgBBPNODqDEhBIZQIGeT2BB_BMGMpCEVUrDeQEIS-CGuC0BoCKKLSIbGQGoCC6BWiBLNJoBKeLsCCFHUHsDC6FT4BE4CRA1LsCCDJgChBGNwCkByC3BgCnCkCTEH~5:rsG4kCQNnCDQOoBE~4:zmFulCNLDKSC~5:lkF8kCEHHAFOKF~5:jlFkmCJFNKMMMP~5:3jFslCHLZGYYKR~7:1mFonCQLPGILNDTWaA~4:7oGklCIDLBEG~4:jpGopCJCSGHH~4:t9G0gCTAUKAJ~7:1oF2nCMXBVdqBNJOWUH~8:roF2oCSASTTQQbVLT0BKH~9:1pF6oCGJaAPJQJXGNHZUgBM~11:9mFumC4BhBTBaJARrBYCKZISETCIQ~6:vnFinCKHRVEOJQOA~5:v-F-oCSBFFzBBoBK~5:9xG2iCtBTgBaSADF~8:nwGsjCOCLHKB7BPoBOJMSB~4:r6GihCXB0BObL~4:38G6gCGDTFOK~4:r-GygCLKWBJH~5:g4GoiCaFTDRIMC~6:viG4XLCFcIWqBffT~5:zjGmaUHPFLMIC~6:nlG6aEFPAFMMEGJ~4:lnGubRESGAJ~227:r9Co4BgEAGMUBgC4C6BNA1BOFALSRpBRPEDJHMPTrBPXfKJRJYXSEDKGPvBHJMDP3BDrBVCULbMFFXbfbUSUVNWvBjBzBMgBHQPEKGNEUgBbJGjBJIMRjBMIUHLAJoBRJHXSiBbHHLKOThBOyBRSrBPiBGVNIPLHKALcABJOGPTjBIWLRJUFlBDVfAIBJhBHrBpBbFCHHGEJbhBDVKnBezBCXFYDFFQENc_BDlBNXXDGEdeFcHFCQLDPaMORAIqBpBqBXEnBNLYZIlBFIInBLICHQFN3CBGJgBALRcPPHdWBRrBICKZMNL_BGAMBLhBLIGRGENNPnBRKGZCKJdLLfLEY3BHHlCYPsBrC4ClBEjBhBtBWTqB9BuBlCCARxDA3EuBGIhDFLepBc1CYAUxByBEUbcCKQLJUgBCjBEDLTGEIfcFkBTSMwBT2BQkBGkDgBBhBGGOHIKELAV6BsCJGJTVYWBXRFOBOKEaVoByiBAAOIAOXgCF8BVyCBqBMsE3BORSEERQAALqBRQnCPlBXRSRyEsBDaMGyCCaa6Bc","S. Geo. and the Is.|6:ruBxjCeHWTLDrCiBkBB","Falkland Is.|7:xpChgCYLOGCLjCVAOca~9:rrCpgCqBAxBdRGcMNCOCLMKD","Isle of Man|4:vF4jCPFOOCH","United Kingdom|55:pDwgCjBHjCUsBSCWXDSO8BGLIIcLBRQWQzCDSaDaXFNZW4BRHTGQGAgBYKJGQIAOuCCrBpB8CAZlBfLaDtBFiCHUNQhBuBXITdEkBNHRoBCaJFXtBZoBDRP9EJbRTG3BN4BuBqBAUQ~4:nF0iCFFHKOD~6:zB2rCKDJVAKNGOK~4:nHumCTBAKUH~4:1H-lCCLPCOK~5:3H-oCjBVKEHMiBG~6:1H8nCUJLHfQQIIF~11:3H0jCRBPOVJVMmBaqBESPHFSFdP","United Arab Emirates|14:smCigBEZXFIfVDN1BlDOnBwBCIMNwCEUIkCmCIP","Ukraine|59:4vB86B9CTfTIOPJERtBStCEGGREqBCVCLWEVpBDXbVFCRlBAVIeYAQwBBnBsBAS_BWpDfPK_BAdYQUMAFW4BmBTqBeKgCCmCP4BG6BPSgBuDMaVLDERsBHMboBFgBIaTyCLANPJMHNHMNFN5BLFT","Uganda|17:sqBnB7DAhBRNCO4C0ByBTQMyBeEOLiBQUFUSSVWtCpB9BBtB","Turkmenistan|49:gmC0zBoBBBYsBaQHLOSG4BXEfoCLYrByBhBwDtBBZdIHLdDLf1BTDPdLpBSFqBdApBiBpBGpBWnCFbXfDBgCbMEOOBDOTECJLaIakBPWCMOjBqBhBDDfNYgCW2BpBWA","Turkey|61:8zB8zB0BCiBXAfuBTHEXNSpBJRYZTJHM1BCnEZrDEAVTPNSQOFKZNbKnBXjBF5BebCHXdDdW7BAgBOnBBMGTUIOlBMGOILUEPKKILQIKfDEWWQ6CAHGGEkBEdICK0CDyCkBkCCMLeBORwCLqCAyBW~12:gjBu0BIPiBLDJ5BBzBjBYYdEWaJOkBOeF","Tunisia|20:sOwpBAfvBbDjBbVRoCbUhB0BekBBmCQSsBQUFIRaMVhBYlBpBrBKPwBV","Trinidad and Tobago|6:nsC2MjBDQIFSWGEb","Togo|14:kB4NFXYPKlBBxCKbXHbeCmDLCGiBTQCQmBD","Timor-Leste|6:q8E7LESJEMM0CK5CrB","Thailand|49:k9DsZQDAZcAJvCuBaWPaYaDgBhBCnBiBfFrBRLJI_BDjBfapCrBmBlBACgBlBDAvBhBpCAVETYCWzCsBNYXJRdFBYfSFJTkB1BqBU6CiBuBRsClB0Bc2BJAxB2COEKuBkBAWYaB","Tanzania|5:sxB1HALLMESIR~4:6xBjGDVDUIC~25:kpB3LtCiB3B6CFqCWGiBsBNQSaPsBsECyExCBRgCvBP1BelBJ5BQ9BeRLJhCbXEVP_CEZqC3BO","Tajikistan|38:20CuuBYqBHefKEKoBEUWLCYCEWODcQONPLYHRJlBGJX8BDaIgBP4BKGhBoBFMpB1BFNIlCdHSGebWbVALbBHRPKhBPLI","Taiwan|8:o3EocJZZuBCWkB4BWKONlB9C","Syria|16:8sB8sBeOAWsDD2BQ8BIGHpBbLtCnF1CnBSGoBaSHSPADyB","Switzerland|16:8Ls7BARmBFANNCCNhBKNZVYXVdALUfJsB2B8BMmBL","Sweden|6:6XqoCJFELdTAakBM~4:2UsmCFKceVnB~71:oO6pCKDCagBUHkBYOdOGYLoBgBc2BGBMRGiBcCiBmBGDIoBWHSuBYWFKYoCHQUJGgBAuDpBHTMBDJONLVSRlCCnBVGFPNONdX1CZLHGDVBGJZFKHHVLFEhBcDqBdpBTYCJLzCReFLBD3BZjBvBATLARzBACOTWOBFIKGhCmCDaKC","eSwatini|7:-nBtgBA1BjBIJUMYMKWH","Suriname|18:1jC2GLhBSjBPtB9BCAZdIX2BNAPYGkBYGOmBqBLCK8BBMDDR","S. Sudan|38:wqBoFTRTGhBPNMZALLzBuBNJrBAlB0BZOFYpBgBRcZIgBsCiBGchB2BCGJgBAuBmBeVQAyB2BNkBuBIB5BeVI7BFJZALVkBPgBhBWtBxBzB","Sudan|49:0qB6LJCCcdWC6BTACHbAOjBxB1BPAdWtBlBfAFKxBDhBkBdDT3BPJXGEoBfsBCSLKJqBTGsBuDoBGCsFoBAAwC4HAIICH4GAQjBI7CuBfvBlBPAVrCCjBP7BRFVfFlBXHJvB","Sri Lanka|11:gkDoMcRuBxCHhBjBRZGJcF2BQ4BODRM","Spain|5:-D4xBMDPPbKgBK~5:6B0wBJAGIKAFH~37:nCo2BON4BNeGePmCACTlDtBIDxBvBWdbRHZlBJRX5CDzBZdYIKZQVDBWUSPKOYVYWGCwBeWPQ9BFDOXHESRe8BYsHN~5:tUwjBLPJOgBKJH~5:3RmjBLBaaDTJD~4:nTmjBBNNEQK","South Korea|21:q-EovBSUmBAOMoB9BGrBNdbDBJdEPTBMbRLOOGLOScJiBNCiBINiB~4:-gFwrBJCIGCH~4:-9EwpBAKYAXJ","South Africa|44:2kB3buCHatCA_BdEPlBmBTIACUkBBThCpBjBpB9BhDzCxBZfBJL3DClDftBSDKLJAaXiBUOFelC-DSSSDERoCHeSAyEgBrBDjBoBBkBcSiBkCTcESmBmBUKa6C4B~7:-jBzlBaiBdajBNbbclBoBU","Somalia|20:-zBjCViBA0EqB0BeGgBW2BC6D8DmB6BAoCqCeSFH3BOBRBFjBvDlGtCxCnDpCrC7C","Somaliland|12:m9BiOAnClB5BnBA3DoB1BgCYkBuBpB4BQeDiBQ-BE","Solomon Is.|5:mlGpKCNXOMMKL~4:8jG7JFOKFDH~4:2nGxLqBXlBCDW~4:8kGlJPCZaqBb~4:-oGrKYzBXaAa~5:kqG_MaPfKJOQH","Slovakia|11:mcq9BRZ_BGlCdrBAfYMS8CeOP-BKwBP","Slovenia|11:0Uk6BhBLPdbIlBFMETaMKiBD-BSQN","Sierra Leone|14:7M0KvB_B3BmBNYOILBGMJGiBiBwBEWbIXHNQG","Serbia|24:scq3BNRYbTJBThBDIQlBYRPtBYMIJMOETMKWNAQMVa2BM0BnBFLeLWECP","Senegal|23:rPwSKtBSNIfjBF5BM1DLKKLCEUgBAcQkBLQGxBQ5BHBSlBccWYyB0BG6BVwB1B","Saudi Arabia|40:ghC4X1DPjBRnBvBPMlEKXtBxCoE7BwBHiCXsBjBYPoBtCuDXAO0BsBFcacGWUpBoB4CawBHmChBoDrCuDHIRgBAOhB2BpBDVUnBQTSBDHyB3BqDJSbZvC3DnB","São Tomé and Principe|4:qIEHGKGBL","Samoa|4:t3G5QGNXMSC","Rwanda|9:glB3BOBWQOzBjBAJRfEKkBSQ","Russia|630:sjF80BLSaGIUJ6BiBUyBHesBMqBYQDW7BFZP9BAPuBpBWtCQCQ9BmDhDgBnDJjBTWJCXZNjBvBEN3BVtEe7BdzCNzCGZOBMvBOzBGzCJnBQHe_DepBpBSTFNfRtDKNWrCMlGlCdSCKTLlBEJShCmBrCJbWdT1CiD1BeOSjDlBlBBDKOOvBDJQrBFEQRclCEhBPpDPPJ5ENJPWDNHkBLpBBLJKNlBP8BZFRRFjBGVNhCYPHlBEfPpBQDRvBmBtBIhBJVM3CtBGZPDjBUVZGVPdaZiBBgBlBPFcLTPzBHdtBYRGVIOHhBsBvBlBZtCoBAMfKnBHrBYtDKzBkBxCiBMGFEiBAMYWEdW8BQBInBFAIYWoBCGOLOOILIQKAOxCMZUfHnBGLcrBIDSMEZWvCJTkB6BQlBQEKpBeEetDYBQRMISTKSMNmBcWDS0CG7BSFMbF2E-C9BiBWOVQEKTIKIJEEQQGpBsBmBe9BiBOMPEmCecDAKcDSKoBJfBIFqBBLPWK2CDsG7BQTFNrBV5BJlFUnDYmCbLD2BPLValBgDZYM5BcMOyDVcIZgBgDkBsCTOmBZMQoBhBQmDFgBZtBDZNgCXuBIKYmBEDIiEaQHMGNE6BQcAbDGRbHgCBWOmCAsCSMJJLaDGOqBMfYeKkELsFvBaYXAlBabBQwBXCGKHCgCYuByB0CB0BHJbbViBTJZG1BoBRRLDRjCfIJhBHLEMGjCCoBPyCFmCemBeNaIOUE2BGgBVBZkCHzBGCSOCNahCO3CBHYegBxBiBsCcEKLQgBHGLTNKLHHSHiELlDYPO2CAdKqBKkBA6Cb6BAfRFZCHQUQALbQDaSXWQYrDgBASRMIM8HOrBRkBNdOgCO9BUyBC5BMyBGQIRG6IetBAOI-CCUBRHiBA2COsBHHJKOlBOuDBZECSgEeqCNpCLiEFpBR8FI8BLCNYIYPNLpBM0BPhBRhH3BzCfgHkBpBCWK0BCLDGDeFkBIOJJHODNXUDRGcWPGWEwFAUDTBAH0BJwDDqBMHSuBE2FZTHaHhBFkBDAN9BMuBZMGKFXDkBVyBNqBUYcqBTgDGqCROIPCOImCDZSiBKpBGuCKLM6GRtCJmDEdNGITEALbAGJyCa6CHUJpBHiCHTJ8BCULNAeFoEKwDFwBRBbqBHSbTNcOAUiCM0EHmBKST0BRmBCSMhBUOS4GH-EjB5hOA6FzBANUABdUJMECHKIRIGMRGiBCWDDHeETEwBDwBbgBDhBVdIMLjCIWJPHSHhBHaPTEJJHKPHjCSZa7CCVWQOtBHDLSPZR6hOA1BR_BUVBcBAHnBG7BJ8BIMHHDyBGMRWCSTJLkBNIRRRzCUGJrFrB5CnBJTrBafAvBHnBVEa3BZTIlBFJXzBvBSPKKYFTVYnBTHHIQKPAVPPXQdxCVHPGZ9BDCZPX1BhBvBqFS-BiBWAU4BI4EiDiCSFGSMHEQiBwBInBIpBFJnBbE5CnBKOXBUmB_DHvDpCFLgBDIJ3ELJIqBIjDShBHGHHD3CITLTKjCA7BJ9IrFgCJAfiBULHUFXP0BQLRICIeqBAkCnBHLNEQJDPOJnB3BEbTjClGhGvChBhBIAQRHEIfZRAAN~4:q7BilDyBH3EBmDK~8:8-BmlD4BJzDNIH9CGiDIGMqBG~22:20Cq_C_HlBjCbrBDCJhBJAJREKHjBN9CCVQgDeVGkBMXIaB6FwBiEEgEY0BLvBR~21:klC07CuBDpBZDXuBhBuBNtBHtDKLCIIWCdS_BBNMGKoBKMONEgBGDMyCE~13:24DslD0BNdFMLJBrEJzCO0BKQIZAeKoCI4BF~13:i6DmkDOFNJmBM6BJNTZAiBLRFxFItCSuCYqDC~8:0gEijDTP4BM2BNGLvHR8C0B0BD~18:ivF6-CeHcU6EX1BTvBIGSZAHBEJmBRpEAXLzCYMEBQ-BSyBN~7:w3Fm-CgFHlBN9BA1CQMOOH~23:uyFgkCY5BFnB8BjEZYlBBV5BqB3BFLFUbGTfJWO-BNeOiDTWBUIsBcEGSNQQE~7:_gHu5CiDLpCN4_NDDMwBQ7hOC~4:4sBwxCAHJGKC~5:kiCm5CMFHJdOaC~4:6pGk2CNUQKBd~4:q9Ci7CVGiBCLH~4:w3CkzCVIaADH~5:opCqlDOHLD5BK4BC~5:6-Bw2C1BRXMaS0BL~5:mvC8kDhBEoCOuBHzCJ~5:uoCkkDXCJO2CFzBJ~5:2tCilDrBRlCGQMiDA~5:8iCokDzBCoBGaFNB~4:snCukDDLzBC4BK~5:ooC-lDeFrBJvCG-CK~5:skCslD4DL5DBXEaK~4:8zD0jDhCMuDDrBH~5:owFw8CXDLMiBCCJ~5:4xFs8CuBNEL1EGkDU~5:-pFo-CTAKSSJHH~6:usF8kCKBTPRGOQOD~4:wzGg3C3BKgCCHL~6:ysGopCHAMQgBICLlBL~4:qwGykCjBSWAOR~4:whG09BHEIKAN~4:wjGq_BJEMEBH~5:8iG8-BTJHIkBUHR~5:45F04BjCjBoBoBiBGFJ~4:42F03BMFpBXee~5:4tEg9CXLzBKYI0BF~5:q4Cs7CdASQ0BJnBF~5:ihDs6CfAkBOYFbH~4:sjD86ChBGUKOP~6:yrCu3CAHfBvBWYI4BT~11:maklCNLMDMCCM0BHMHDT9DEOSoBQ~11:gqB05BsBDebsBEFNlBCjCbLGEWpBMsBc","Romania|21:ojB64B8BHFPZCLtB7BQ_BTnDIGKVOIG1BKGMxBmBiBIkBwBuBYmCPoCW2BxBG9B","Qatar|7:igC4ePEDcUeMJChBNR","Portugal|23:_Ku0BWIEN-BGQPdVBvBVFWXNXQJTRCVRHtBCE4BKBVCBISSZNewCDwB","Poland|38:wdsgCUlB5BnBGVtBQ_BHXQTHPUjBICIfGEHNFRMEK7BIIQPYAcROKMFWODBGNE8EmBaFLCGJQF8ECWJSrBANbPSJBV","Philippines|31:s3EoXeLQGDfOVrBnCOtBSHSOSVIMUHJHKVOBDTDOZGbiBAbfeRLbGMiBNKFRNQN4BYFKgDUE~5:0yEyKsCyCOgBGf_CxC~7:k5EwOaBBJtBhBGwBHIYJ~7:-5EqLdeSMGgBKEMHPlC~10:27EmOUFIjBJCCLJEBeLAFYKF~5:y8E2PU7BTEjByBkBG~5:82E8QgBNJlBjBwBOE~30:w9E0LMNFNMPGlBPPAVTmBLVKbLPDSLFhBUEoBVQJPfORfJEOkBwBeQJBPYWOBEQaCBeWR~4:m6E6LcoCBhBZlB~4:u3EyHGHPEKE~5:k2EmPIFLADMIF~5:47EoMTHLIWOKN~4:04EiIJISAHH~4:k9EsMHIGOCV~6:06EsPOVXSLJEaSL~4:u7EiRLAGSGR~4:y4E4SDNFMKC","Peru|56:t3CpFhBEzClBJ1BXRJZqB5BJPgBDITmBCcUD9BqBCkB9BPvBKRTZIRJPWbfhBGLNHDTRFtBqBtEsChBeRgBGU3ByCrBsDxBqCtBcKQRoBEQkBiBGTLDARiBAYTc-BiCiBuBoBMmBPUSC-BvBctBwCIiBRZtBgBR","Paraguay|18:1oClZMhBDrB0CHShCeGQJTjDlBhBzDEmBuCnEgC_B8BOkCWkBqDOkBTCN","Papua New Guinea|6:m_F9FZuB9BiBEI2C9BBZ~16:89FrFUBBRNJEPhCffBzBaEI4BBKUETWAkBYBcMD~31:owFrLEkIoExByBlBAXoCZMXjBHKVmBbSlBYACReHJDEHoBJPBIHNFlDYjCuC_CaMTRBEH3BAkBJKTbPhCK~6:88FvMICBJLEHQOL~5:63FtCQBJHZAUK~4:i8FpDTIMCIJ~4:m8F1LOLRCEK~5:-iGrIXAXeAUwBxB","Panama|30:1gD6KGbNPHGFRTgBKOQJ1BiBPBlBdSbZJPaHJTUlBGHJFMMWHGGWcZMADIWNmCgBUBoBLeX","Pakistan|64:-_CysBMVRNjBJlCGBXODJJATcbaHfTEdxBrB9BvCpBJPMhBjBBNaJBXWJQxBxBJnBGDNXHXINgBRENeHDMBnCJXIjDHMqB0BQGUVEAoBhBMpB0BiCRgCA2CSEmBUSYAcWcFSMIqBgBOPauBCDUaaPiBmBa4DKeNKdYH","Oman|22:siC6UrB-C4DoBawCRqBKkBWEHgBYGcnBiCTqBnBAL1BnCLILNBxBnBJPdjBFRftCP~4:smCigBHQMMDb","Norway|148:4Zq2CTBKFPThCIPXrBBZRKPnBVEHlBFBhBhBbSFBNxBDZPArCeNXNIjBfTBZfKJWPdZE3BlBtBF7BeEKeAREUSxBPGUkBGRCQQOGCJSOhBFnBbCSUAVOUKVBDQyCDWKFKLLxCCDKOCPQoCB7BEDI6BKRAIImCG1BBgBQqBJRMUILGME0CFcW3BTRMuCmBJAIKyBIZGmBYJGyBIlBBEQeGLESI0BElBCUMaHLQTCwBSMNDQ2BGpBEgCYGMYFJIsBMBPaWHXaGFQ4BBZQ2BEaNCKyBesBFdZIB0BeKBFRQEYYgBDTLOBBPaY0CRbL5BCoBPqBCCJdEvBZDIUKHI3BQjCNLbfPlDEfWnBH~4:qdw4CXJhBE6BG~4:gTm2CANhBEiBK~6:iYy3CODfNdAsBaEH~5:8Vg3CUDBLtBFcW~8:2T21CeKTPlCHuBQESSKHd~13:gboiDSAKNuBDNFoCJzCRNAKKlCDcS3BY2BE~21:kaqkD4BHGOWCMBHH0BGiDHOJ9BTtDF3DMkBIhDEUIlBE6BBFKWDFI0BH~37:gV8jDqBDHPeIQFDHsCFgBN5CNhDnCrDkB0DQvDFPMkEMVGOG3BHAMbBJHID7BFnCcqBAPEAKfFTY4DEtBL4BHaSmCfTcQOWF~5:iOoiDiBNnBIVScL","North Korea|26:wgFowBNLlBARTjBIPLNKIGTCiBWPEIebCJUgCgBkBkByBPDYiBCwBkBYZlBXBhB1CtBFToBX","Nigeria|41:gRkRYzBQJBXhBb7CrFLDTYRBrBnBTxBLGCNvBGHLFMENbBVOJYIINEKCnBelBCIInBJCsDMCe2BLmBGuBesBsBIgBHaZkBOmCViBWwCJuBY","Niger|38:gRkRtBXvCKhBVlCWjBNZahCETLTjBBhBfcRHCLLgBVBVOAOIAXORgBEScCOK4CEcyBCmDgCOiC2ByFqD-BLcXgBQI7BetBTpEvCjDGb","Nicaragua|17:9nD4SJFITNpBCjBDMFHCjCxCKrCqCcGIccMMHkBmBMF4BO","New Zealand|28:s4GzzBwBMJJMGLNKLrBxBXJBHURnBIGHlBNR_BjCfnDcUKJGEKMDDM0BoBiBIqCqBwB0CcKJFQZ~5:myGx6BEHdHMWOF~34:y4G1rBqBLUpBDViBNDcatBuBNeSWFZ9BfCJlB9B5BZMWsB5BkBgBSQqBNcOATGJSIDAOTOITbiBKKJHLMPeOAIT~4:4vGt_BLBIKEH~5:n8G12BLAANNMaC","Netherlands|18:wHu_BNEGMdM_BEiBDNOgBuByCUQFFZNDMLJNfDKNNPGL","Nepal|12:kuD6iBB3BdDzCQrBe1BArD2BWsByBQmFhDGIuCJ","Namibia|25:odhW2BGUL_BZRS3CLBzElBAAhIhBTpBEZGPaXVtB0Bf8DBmCpDyFBe2BMkBRwFAWPoCHqDO","Mozambique|51:knB_buBsBCaUaLqBMYBiCjCchBAFoB2DoBSVcEIbLdoBvBDWIQQEGuB1B-BHwBKW0BGQJqBAWQYDgBMuBaAlDQjCLdbnB9CrBrBvB5BpBLEarDGMEHA7BLZ7CpBNTKJEGBdfADgDbyC","Morocco|39:3C8rBQNE5BahBHN_BAjBPEdzBTTTjCN7BjBF_BnDHLfNDPtB5BtBL3BVf5CDsBiDoBiBU-BgBUauB4BQ2BsBWcF0BWuBecgCcoBqCYEabkCIEJaB","W. Sahara|18:7KyiBAhCjEAAlDtBZG5B9EAFTEW6CEWgBM4B6BuBQuBOEMgBoDIEW","Montenegro|8:gYu2BuBbLLPELfjBaAUeW","Mongolia|56:4tDu9B2FkCsCLOVuDJgBSGORUqBqBgEdIdoBP0CK0BFwBNCLaN0CF0CO8BeuBNkBEOHvBhCELmCHQOeAwBhBIPhDFjBLhBhBtBBlBZjCMTbWZ9BlBpBLnDFlCbTCAKfF9BQZQrGGpBgCpCanDKJOQoBbsB9CkBHY","Moldova|10:ohBq8BmBKgCVARoBrBvBCAPdXF-B5ByB","Mexico|97:tyE2oBiDGFH4EtByDAASmCB-BtBUpBuBVaeuBCuC5CQrBuCTT9BHrCanC0BrCcDeVwCUkBHMGHMcSQiCsCW0BCQRlB7BKBNxBJUrBpBpCAAVPAoBhBBNzBARdBdzCmCOLjBQEHjCVtF-BpBe9BQxCiCFQQIJIMcXuBtCoCKCRENUKBnBSGKPDAkBrBcFYVEpBqBjBiCAWrCcMlCoClCEVkBtBGDDMKHkB9CMJEKiBhBXXNcjCyBN2BdeRJ3BqBcEKFHKIU_B0B7BwD~4:nsEokBLFEOIH~4:hsE2eJKGUEd","Mauritius|4:ioCzZNCOSAT","Mauritania|29:rPwSrByBtBYjCDLbU-CRuBMkBbiBFLEW-EAF6BuBaAmDkEAA0B8E7CnCAmBxKMJFf5EIDJxBBJJVURdND","Mali|52:nOwPAWZcJuBOESeWTKKyBCEK6EHGgBLKlByKoCAuH7EYd4BTEhBoBGBlDbxB3CDrBNhBG5BjBTENXLABNZEPLDdhBTH3BVJHUPBNTTMTLNiBLAKOPMLgBXPXGPLJMNHDQ","Malaysia|14:k9DiIGKgBRCXwBWgBfOdAjCgB9BJITJ3C-BXqBXkD~41:gzEmFlCIPzBNFEPPJLfjBHrBMbVzBFlBoBEI-BZFGIkBIBGQ4BOoB4BaTEaMIKVFWQIFMUIkB4BAPOOUTFVUGBNQEkBRDJjBDMXlBJ","Malawi|25:wpBvRVQOmBUMJKAwBQObuBmBJEGUVEpBOTNAJVIvB2B9BDpBTJHlBhByBK0BFIbFRW","Madagascar|33:-9BxPQXSnDHLLUJBInBPdDrB1ChIRNhCPpBWfoDKqBkB6BPkDUwBiCSKHCSUMGJKcGJSOHMIcMBWSAgBQOON","Macedonia|8:-a60BeEULGb1BThBCHmBoBQ","Luxembourg|6:0H0-BQLFNVEBOOI","Lithuania|14:uc-jCEULIzBIHgBYKiEEkCdFLODlBNFd1CJfS","Libya|35:8L6lBcWEkBwBcAgB0EfUlB2CT0BbmBcBuBoBcuBEkBLIPiCJILLLGVLXMnBAvLnBAAT_J-EnChBbY9BMRgBtBKlBgCUcD6CToBIG","Liberia|12:rO0IwBgCaBIpBWFMSMZLVuBZD7B_Bc9CqC","Lesotho|7:-jBzlBnBTbmBcckBOeZZhB","Lebanon|6:gtBqrBQAIRrBrBPAkB-B","Latvia|17:ohBylClCetDApBNAYckBgBGeXaDSKDYoBImDdHRSLCP9BT","Laos|44:2_DgcUbMAGfWHSKULJHYRNPVCFNyBZ8B1CeRJJUVJbXJXIHFCRfMQ6BhBgBBoBfiBZEZXVQlBbJEMuCfEGUJKHFEOmBmBENWALqBKKQD","Kyrgyzstan|31:24CqyBeD6BalBKVUJRvBSqBYNIUS0CPCYaKuBP4EBsBd1ClBvBDXZXBHOZFhBRLX5BJfQZH7BEKYmBFSM","Kuwait|10:y8B2jBfAHSjBEYkBYEQVRFOBQf","Kosovo|7:uZy1BSQmBXHPlBPVcMM","Kenya|22:sqBnBCuBqBgCVsCRWyB0BUFKjBkBBwBd4BHyBgBQLeClBvBCxEWhB1BnBftC_BoBFY1EyC","Kazakhstan|116:24C60BnCfdhBRYxBAHgBTAEoBLDjBgBzDHnBkBhDuBlDVAzEVA1BqB_BVEmBzBQRqBXK0BEVOQSoCARIQaDapCKtCdZKOGfmBhBCZaQeJOckBiBVQEFa4CuBWLiBKuBHwBlBESqBPgBQmBDQIiCXWOkBFSGGS7BamBQJOMKqBCjBMOIVEKQ6EOQKqDQiBQmCDSbDPsBGKPwBENNEJmBCkDmBNR2Bd2ChDeUcVsCKiClBKRmBDUMBJaRTBJTfFJ1BbHlCOd_BMHDJfIpCRaHFXSlBXPAVpBY3ECtBQZJBXlCQTBLT","Jordan|11:4sB-oBoBRuCqBMpBKB9CdqBnBvCzBpBGYkEKE","Japan|4:2oF8qBLAOKBJ~22:4zFk3BkBFaQHbINUErCTbjB3BYhBJTIFJgBTrBNHuBYOBOoBAOwBDkBMEqC3B~19:gkFgqBUAFNOAENZ7BZPEcHTRIQ6BLOETXFBUMHPQsBcUN~13:-nF6qBMAERVVVKhBdLGDWNDkBeKFeQQD~52:ywF2zBICAbWxBVpBTJCpBRhBMVTTVJMaJCFTRGNZHSTTtBAIGNBDOJNMPTDZbVUKYZGhDRFRxBGEQsCsB4DEmBoCSEPPONqBSsBmBQeKcLMIeSYOPOCGMRCGKMF~5:qgFqhBXVKYOIAJ~4:6hFojBLCWKJL","Jamaica|5:xgDiXqBV9BAVSqBE","Italy|52:4Iu5BgBBYWWXOagBJAOOBAMkCKKP0BHLJUZbGlBLKTJJGTuBZoBzBgCNJPyChBURBL5BWRbYNCPVHVhBNAUoBTqBdKHQPBXabArCuBZWRqBzBQxBZGQdIEUNIUONOII~8:wT4vBTdIPHNpDsBMQqBHoCI~8:iMkzBGPJ1BTEPLRsCqBQQN","Israel|12:6sB6pBCTNVNGJPKPLPWGVvCZkCiBsCeO","Palestine|7:usBwoBDjBVFMQJEEYUB","Ireland|31:_I8kClBZWLYKONSAFDMnBJb3DdfEUKdBSMRE-BUrBFmBatBIUQLCFQ8BAQQXCUSYEALOQODJF","Iraq|26:-0BsuBQK2BBILSGYtBkBJhBnCYVERyBVUXFfMAAVWT1BEZlBpCEnDsClCiBvBIPwB6CsBMuCqBc","Iran|61:sjC2uBgBEcYoCGqBVqBFqBhBgBDGpBfnCQHNNKhCiBDGTlBpBqBzBiBLAnBWFFRzBPJpBpFYX2BZA5BZlBKvBiBjBK9B-CTFVSFRPARQAWLAGgBTYxBWDSXWiBoCjBKdkCPIKSRqBYOkBdaFqCiBMLLViBPKfqBJmBZyDCBW","Indonesia|5:85D6BSTFPbkBQA~5:-7DnCLIFaKAIhB~6:6xE3KBLdEWYMFBJ~5:qwElKKJVRbcoBA~9:ykEhCMfSDFTZIHaZGMUYD~7:g6E1FJXKHVLIqBKIEF~5:q5ExGNBCWOGBZ~4:snE0ELMKICT~5:onE3DXHCaWFAL~4:opFZmBRRDTW~4:qpF_B6BHZDfM~6:wjFASNVKILZIWI~4:ygFyCJKQMFV~4:mgFhCdAKMUL~4:m8EjCOHlBCYG~4:kkF_JFMUYNjB~4:w-ExJnBNGOiBA~4:27ElKYHbDEM~4:4jFzBNOQCBP~33:04DyGqBBerB6BjBgBnBOJBMIA2B3BWHCJRHgBMMHHjBmBREdOLHTeIabLrDrBMBP3DuDzB8CtBwBV8BjBUdyB7ByBFewBN~9:w5E3KlCNxBKEMcGkCPWWGJHJ~6:g2E3LgBbNH3BaGKgBA~10:6zErKcAGR7CJCSMIgBPMGTSUF~43:k8EoBRVbF9DKPLFfYfUASU-BMMJzCrBmBnBBbYRANdFBLREAabYGePEPLIpDjBAHMKyBFWVADgBUeIqBIIGFFeWqBODUUuDTuBiBKHNT~19:mmEvHoBLOTmCFQWkCVSb4BFIlB1BSlCA3CYrBDlCSCMxBMKBWkB0BD~43:ipEyCARiBd0BGcWsBLkBIMgBQKDQOGKuB4BGUHIRdDoBzBJJwBpBRHZMPhBCnBZRFGRdKTLhBLRxBVNkBZHZULNjBJFa5BBJiCdUAiBLMGuBWW~12:2_EiBmBcARRNaVjBKDFWvBdaJ4BYqBL1B~10:miFxDgBLKblBUnBENHNMJNMa-BA~6:y-E7DQNLLjBOCMeA~7:k8ElLKDHXTTfFCcwBa~6:uoFjHBXJBJaOKIJ~4:moFhIRPAaSJ~6:mtFpKjBFSiBaGKLRV~43:mwFnDCjInBmBEKvBNIaNOSCXKKEPUDapBezCUTOIGlBGJMGSRhBTFFefUeAUOUFIU_BFNclBGKWuBU-BPMXBlBKVIMKbODuBsBaGeY-DrB~4:0tFvKNEKGEJ~4:k_D0CHNDKME~4:6gEeVEAKWN~4:4iEwBANNGOI~4:gjEHNAEIKH~4:kpEvBJDCMIH~4:quE7IrBCyBIFJ~4:u_ELMVVOKI~4:-iFjCDNTIYG~4:o9DtDHBAKIH~7:g6EtBMLNFAMJLAQMC~5:sxE5EHHDOKSCX","India|147:m1C6dWEEOoBFyBKPyBVKCYZKCOiBkBQLqBK-BwCyBsBDegBQ1BoBAUKKNECYmCF0CoBKAMjBYLHLS7BfAOvBOEsCxBXPNjBsD1B2BAuBduDNG-BaCBfQPyDCESRSkBGce2BagBJaQMHHNMGGLLNoBHPXITjBGpBZAVVdEJVtBfGAjBRtBNALkCLANbRYIUWEWenDOHkBLHNQFFTMJZiBZTBRVcNFZQRE9BLBDUBRTAEUJIIJHJrBXDlBVPlBFID1B1BlCvBDVlBHLXbBJZK9BJEMJZxCGnBVBNbSNnBDNbVLlBgBHoB3DmIT4CGOHEIINWKgBLgBUMVBASKEXAHrBnBPTE9B6ByBKMWxBJhBcQMVJDK~4:s1DyIJGGKEP~4:8zDuOFMUkCNvC","Iceland|48:tT6yCmBGTLQDFJSCBJiBBHFIL1BdzEjBjDW7BDBKyBMXDSO_CI0CIXGaKnDCuBKVEQOoBLTMSCXEIE8BPALJBUROQODKWcNEOWEcRFQeHqBKBKMCcJ","Hungary|14:2bw8BeRjBRdrBXJxDNjCqBYcLEaCEMgCHmCeiCF","Honduras|18:9nD4SpCJdjBLIbLCRNLdQAUbBhBWIa6BiBuDEcHUNNBmBP","Haiti|14:35C0YGVNVKVhCITHVOIKqCDPUEQbIEI8BF","Guyana|28:9rCwGZeKegBMNWiBcFMgBTcbFlBOUqBbCnBbLFfQbOAgB5BfA7BdRITSJiBSyBFSRGAcXB","Guinea-Bissau|13:7UuP2DMHRIRlBJNVRSSIREQKhBFLSRE","Guinea|36:7M0KPFIOb0BxBDhBhBPkBdMNcJDOamBKHSIS-CJEPOIKLiCUKdQLJNMAObFfKDBXKPTEIPHTRERTNIBmBfG","Guatemala|16:pzDmSCeSe0BACOnBiBQAAWqCADrCoBFjBbARlBhBzBKhBW","Greece|4:4ZgwBGNPGKI~5:od2wBeLSZjCiBUE~4:0gB4vBJOMABN~4:ghBmxBCPXKWG~4:6iB-sBFIWMPT~9:6dusBsCHCJUIFL1BBvBMBMMA~47:8gBk0BMLTZnBK1BJYXXIIPTMKLLCTYJDBRehBREGJTH4BXEVVORFSRdEQrBROJLNWHLFEBWXUMMWEmBNMIfMvBDRUOIfMLOaQMe8DcqCJQQ","Ghana|16:B8NBRUNFhBMBHZOPH7Bcd_D1BrBOOOT2Be4BNwDwDE","Germany|48:8Ls7BlBMnBHY2B3BIPMGOPMKOTYOOJQgBEKMLOUQAcgBCULEUYBYLtBeMKLO-CTDPUBwBUuBLUPGVJLSNAbOdHLRK3CfWfuBhBpBTKXfItBLXGJJbI~5:kRgkCNFFMIGML~4:4RujCJBDKOH~4:sKwkCEKKFND","Georgia|17:q2BszBbUxBDKSJc7BeuDJsBXoBIiBJBLgBLJJSNDHxBOpCN","Gambia|12:1UgR6BIyBPPFjBMbPjBDESKJmBIjBDHK","Gabon|34:0Q2CDhBoBCKRXrBYNB1BPXJOLJRENSHThBAMzBPGNP3B4BMBRIVqBSJfmBKDOOCcSLIGZOKCASmCBA0BuCF","France|8:8Lw1BCZNdPIJeeOCMGH~54:wJw7BZFnBxBiBIIRHHONTNOHDTeHFP3Bb3CUhBZGRtBDzBUfF5BOLOMGQuBAiBWVZcCYjBUFOSClDYPKSKTG8BQWL0BERqBYAEL-BCHK4BWCakBIIN4BTALaICNaLqDVVfAV~5:4lC1aREBOOAGR~12:nkC-CYyBR0BWiBoBLiBdCNGMIXpBjC5BJRK","New Caledonia|4:otGpZuDxCvCoBdqB~4:gyG5aBHFKIB~4:oxGtaNSKBEP","Fr. S. Antarctic Lands|9:w2Cr9B2BDfJUDFFxBAAiBIIGR","Åland|4:gZurCIFRDKK","Finland|52:meoyCRSMWNOEKLCIU5DsBoBIgBVmDDgBQKaWK2BGyBPIHTJEHVDOBLN-BhBlBdqBrBPFDPKDJHUHDJWPVN-BhB1E9CxBFAKvEfKGNIPFGOtBIGoBToBWSDGeE6C8BeCCavBM","Fiji|7:ghHlURTQGAJxBJHI8Ba~6:8-G1VOdbFZGIWgBI","Ethiopia|38:isB8GVuBfiBjBSMUgBGGuCcMGmBWgBSGQ8BeIMLOcWPYImCVgChCXdAbsBAJPIPuBvB4DnBoBA5D7D3BBhChBdBPMxBf3BIvBejBCJkBTG","Estonia|12:miB-nCjBAtBUnBHKUfAJiBwCSkDFVbOlBRL~6:ocopCcFzBTIINOeE~5:0cypCNFTKYGKJ","Eritrea|20:0tB6RBkBWsCQAwBmBwBzDCOORoBPsCrCPLLC_BiCZOtBIVHVQNbLMdH","Eq. Guinea|4:-K2EIDRPKU~5:mO2CAtBtCGQuB-BF","El Salvador|7:1vDgSiBVeABVbD_BWea","Egypt|28:iuBwb3GABIHH3HAF2LMMeB-DdyCegBBKHPBOHEIQJgCKcnCblClBgBb4BHLwBlCiCpEYTLFIhBuBlB","Ecuador|29:j-CDNAQTLlBtBnBhChBb9BXUhBAASMEFUYgBDWDTBILNZSCuBYUHKSUAcuBOCK6BpBkBFKImBV~4:lkD1DDIOCJJ~4:9wDdHGMEDJ~7:hyDASdNJNGQMTWOA","Dominican Rep.|15:15CyWJWKGBmBKIgCJINUBNFyBTNPVKnCHPXLQ","Djibouti|10:i2BsONTrBAAcagBKDQMMXjBVeB","Greenland|281:tlBuoDmFL5HJ2IGaJuDH3BNvIL-FBiBL2DOERpCfqEiB4CJ2BQqCAwDN3DRIFJD5CHgBDVH1DAbJEJcABPQF1CVIDfhBkBI2BHvBDKFwCHENpFHuDXSXDLtDDyBBGPiBOeZrCJfGIKJCNTwCHLPjCH9DYcNxBJvBIcHnBDoEK0CTJflCQXWvCNqCIGLRJ-DXVNeEKlBjBDBQJPZAvBelDSyBFELpDHQDBHnBJiDAlBNGDqCOiEL9BLEFtDjBzFZ1BQIRnBN7BvBVHZIILzCVJEcYhBEQFPNNEMLtCFUJ5BJkBV3BHoBFCPhBbfGWJJHpBBgBFFPILTFKDbrBhBEcHENhBBMFJBTEIOPJfIaSZHZGIYnBP1BBSKZAjBYDMWIdDCKdIUYXJpBiBDO0BI5BAoBUcJDKhBUKPVBZVZuB6BS5BNZGEQLC2CiB9CdIUoBKzBEDQ0BOsCHVGIE3BC3BLYa-BFSO5CDOMsCAOIRBGQgBAfCgBiBtCA7CamCC0CNpBYeAvCIEKsBKhCDMITWLBSRTHCHhCEeiBdHMGLEcEGMjBGOOfIKIPQnBBoBS7CgBMGJI_FazEFGJ5BGvBM4BK5DQ-FKEK5DDvBKSGrDOuBQqHWoBiBYEpDANEIIkDY6BDHIKE-BBOKDOeG6EVpDa8FOkBHETUICSqEP3BUkBC0GZQavBMoFA_FENEOEiGCmBK4CNIGfIqBG2JC~10:9hCu3CiBNjCNXGOGpBGYKVIUGgCN~4:3_B-2CNMaALL~4:9iC64CPEOGCJ~4:3kCg7CVJZGwBE~4:h4B0mDjDUiDDCP~6:5f04CCJfHpCCSQ2CA~5:_V6jD9BAuBIWAFH~4:3XuhDLQOCBR~4:nXi_CRaMBGX~5:vWo-CYN7BACKiBE~4:tWihDHCSGJH","Faeroe Is.|4:pI6tCDLPOUB","Denmark|8:2P4lCbpBhBmBaKGJQQQBBJ~16:mMykCrBCBURIAoBqBECMfNHEIK2CeLtBaF1BlBFRMH~5:qNwlCGLFJfMgBK~4:mO0kCQHbCMG","Czechia|19:yX89BrCjBtCQLPTA7BgBXkB4CeQJMI2BPFHSLOGDIgBFBHkBHMP","N. Cyprus|5:wqB6rBzBEqCUXNCJ","Cyprus|5:8oB-rB2BFrBPZOQI","Cuba|26:pmD-cyCJWTmCVaTuBJAPgBBeTlBJnDBYWFKhBEZiBhDaZBJIQEFGjBCzBdfDUIMY4CU~5:lnD-aZCKABOSP","Croatia|21:gR84BmCBKccQ8BdsBGEVQHRNxCSXLTIBRqCnCbSjBEfaKEjBqBbRJa","Côte d'Ivoire|29:_J2MUMULOUQCGTWKmBd4BIUPIzBd9BS7BPIFHtCC5ChBE8BtBaMUHWKAKWJOWBJQCYJEGa","Costa Rica|22:lnDgMPFIVLVGLPYFCGLLEFaxBmBJGORHHVMHQISJGMMkCRKGsBzB","Dem. Rep. Congo|65:umBnKpCLTbKZFtCWVeIBzBZCbkBhBMPYLNfCbMBQjBHRWhCNAmBTgBA2CvBAAQdDLFHflCFtB4C9EDLKMCBaQMMGKJMQaGCVMB0BuBI-B-BiCMmDW0BBmBUaaIiBZqCLSW4CKUO-BDsBhB8BKwBtBFnBWL1B1BN3CdpBOXOhEwBrC","Congo|33:-N7EOQQFL0BiBAIUORSDMKKNQYC2BXOYsBJSnBBEiB0BC6BTWoCsCEdlF9BhCBxBLTtBlBLCBWZFLPXQfVhBsB","Comoros|4:03BjPAJLIMC~4:q2B7OHGCQGV","Colombia|66:j5C6OZHdfZhCWDSlBDZSRqCDchBuCENjCWrBVXaPMpBHFLkBVNJKALhCAAZWAGPjBBAdapBV5DfSauBhBSvCHbuBXMVe5BaJHjBGhCwBSGAYgBOcwBPMIUJiBMKDeVcGSIFOQHcYbDYyBkBBciBmBUDBJKWiBAgCsBSBBT","China|229:-mE8azBUDUKMlBEXSzBfNKXNVMLNREHJKrBTCFWlBJJWdEOgBZKAkBzBHK2BiBYAkCNAZmBNLnBIMOFMLFIOLIZPfKnD9BzCWnBnBLgBnBLnBMXH9EiDZALLvC2BNDNwBgBAR8BIMZOJiBpCMNiB7BUeKJoBpBIFiBOYiBSaGINYCYawBEaS8BUDYaURmBGYZIqCSgBHEKLIegCmCNcIIyBiBKUWeCIX8ChBetBPnBKNoDJqCZqB_BsGFaP-BPgBGAJUBmCcsDGkDyBVaUckCLmBauBCiBiBkBMgDCFUvBiBdAPNXIhBFPSwBiCuBL4BWDOgCkCDSVKkBU8CK-CTcbyB1CBPuCPqBVQtB-BAoCaODEVXPLpBdrBxBIhBTK5BHTZFGHZSHVfPhBBEX5BMbflCnB3BLjChBaaVGoBmBPSZBbZrBTPVvBBFd0BNGhBaBoBcsCRLVPEtBLFTRCEHtBtBsBXY_BoBdDHxBQRFaCuBlBhCfqBCiBRXNSABNRAKHDZhBLb1BRGMRdJSDAXPCEHLBNXfFIHbZRCRbhDRTYFHIb9DhBJPORFHRCJWMYPIPJZSAJVF~8:0qEgZENnBxBTHfOBeYYiCE","Chile|146:_3C9WSGEUOIQVGjBUTLlBWjBM7BkBHNpBvBbGNH1BMTVHfxBPjBIhBZnBQxCMDBjBbpBGfffOjCVPLbJtBIxBPVCROHBtBaFjBHcTPNCpBfxBINLVnBfStBgBCBhBSPsENfE9BVHpBLDrBWSEGJWczBZTIMUyBGvBCPTVIWOjBFJW6BGEPIEBWXKWNjBJbOKEAOhBILOQCCMiBXGSNNHKKEbMcINQSAJGGSPPAgBOETCDSwBFLUVLPKUENGOKFQbCAKVHEJJKeWDKkBGIOBZPFaQDdKaFQgBCROcUVSUsBAgBOFDQLEUQ5BJJgBemCPqCSIoByCeiDJsCQsBHciBoDKwDHMUmCL-D~19:51C5hCA3ChEKsBKUHVSMSAT0BPIGrBUgBUnBADMMGJISBWMeF~4:7zC9kClBBJIwBF~8:l8Cl2BZEO6BUDGLPPONLP~9:j9Ct9BDhBLKIONRTCaqBOACP~4:r-C98BEeKXNF~5:l9C38BNBLcOEMd~7:j7C7iCcLZLEKRFZSmBC~5:v9CxgCKLFNPUMG~9:j3CzkCyBBFHWTtBUANJEVKMK~5:n5CxjCQBFJpBMgBA~7:l8Cv3BJHKZNBTaYUKJ~5:n7C_3BPCGQSFHL~4:j-Cr_BFIOAHH~4:79Ch9BVNCOUA~4:l9CjgCdLGMYA~5:59C7-BPBEOSDFH~4:78Cj5BPCQUAV~4:34CxkCcJrBGQE","Chad|30:gesYB3EnBFrBtDWJShCrBJ3B7B3BHGLVXjBBhBRJMpBNPqBrBuBKM4BATaLqCPUPEX0BwCkDUqEduBH8BoBSgK9E","Central African Rep.|32:me6K4CvCGXaNKXpCITN3CJRVpCMpBcjBfAhBrBIjBHPxBFazBkCL8BqB4BqBOKLiBSkBCWYHKmCQ4B8BgBEgBrBDnBYF","Cabo Verde|4:tfmVHGMEDJ~4:pd4SJBBQMN","Canada|9:5lF2jCUHPLkBUNjBdCMCZaSG~7:1kFwiCELLAUHKV1BoBgBC~16:_-Eq_BkCN4CrC9BKLGOQbJRSXAQKjCUBMSGXDJMsBF~393:viF8lCDIjCU_BoCxC4BvCjBFO_BiBEKrCBA2LmHlBZQ8BYUHLJ0FmBCH5DdbNIF4BceAEJiBUwBKJFMBuBURGGGkDvBOEHIYOJCSESRJNgBCUQoBAgGjB6CBqBRvBJLJMDsDDgDMyCdTFwBbRWYBfkB4CgBjDRRGQM2CMiChBqBCuBNoEAUCJKwBRKKnBCRSyBGmBHJJeIPdmBTnBCYRJOaAGMPUIKwCYPQdHUMFIaEFFIK_CMXQaOZKESkBEGGREyBQ-BZCT6BZdCHFUBjBPkDHhBFePDPOJmBoByBRKRVBCNmBdgBMiBuBiBEJEKIVIDY-DHPF2BLVLcFzBLyBlBFRtCbtBYVBkBHOTxDMeP7Bd7CYhCA8BFmBRsCFpBnBpBJjBIIHLCALZDzDWGLyDVDN9BFQHXBHHIHZIMFbJMHXJhBnBH5BaNBPKSkBAe5BNP4CMkG_BUJFJ6BI8BJIJHVKRFdcXJJwBRINPLeIeVNYQKQPGMJMWSZ4BEObasCayBqBN4B_BmBeoBQDCQLEESLEIGXAceTMFSgBKsDRmBOoBLBLUAIFFDWAHFSL4BLWGHjBnBBkBFCVOBHRXDmCACXbJaGQSBNMKCP2BgBONBOaKLGIKSBPQQBDGOSMDJJSCCLUJHDWHVFcAQPbLmBGZTeGWJALVDuBTALtBEqBRJDOBDHsBHGLPRiBKMDPPYQSNiBCWL3DlBMFJJgDiBNEkBBKNNHGFgBMYLGfTDWDJBOH1Bd7BF_BpB7HBVHPZlBF1BnB1BKyBN7BzB5DxBMH3BX3BrBxCBLFEZxErBRSYSQmBPoCpBSAMPAFSPDNSrE4BpBLxCC7BW_BGJWLCAN9iBAFKOGPBEONLTISELCCQRPTKJQISHNpBANEWEXAAOVHZMMScEnBHDcWIWNTQIQrBpBJOQQLHIWLBfcMGkBPbKEMPAXXfSeWhBGkBqBJEJTCiB~6:npEqiDSFFH3ECgDQsBD~9:hqE0hDiBBxBHeFXJhCDfIFKyDM~22:twE2gDfHWHRBMHzBPdEEQjBLIFPHXIFJIDNFTARO9BJTI4EuBoDKmBH~38:rnEi_C4BNIMqBBGJRVzDDxEZnCMgEWnDHFIQGVCTFCHzBFpCMiDSvCB2CKhCCSK4BBnBEgBK8CLiCZuCBGIjBKQGhBM6BQQBHFWNHH~50:jvE46CmCQ8BLZNKB6BOROaAyBRWhBQBUKlByBII-BFsBPoBvBDVoEjBINlDFQHBJmBMOLrBP3CEEIhCOfRvCLzEHVcvDKbY-GKzCQ5EBZQ2DSpDDLCUIxBEgBUFMoCU6CMKPRN~13:11E08C6CG0CdzEhBrBRPbjDPjBYpCMyCmCjBYgEImCR~119:72C4nD8DBxCLgGGWJFDwCFpJnB6EG7FpBtBGSLnCF8BAhBN3DEmBDKFFDtEAgDJBHhFCmFPtCHwBFdNxCBDRPF9DIOHVF-CAMJwBDLL_CNLACK_BKMJhCALIDLhBBzBMJHfIAHjBADOBNnBECOsDOnBMLIOG2BBiCRuBEmBS3CPbS2BKbCEMfRXAMKhCFeWqGKpDAgBCvDgBDQwDAgEZjDc2HWpCEoCUjFflFFzBK-DQvFT5BMoFO5FJNEeETE0CIrDFUKrCAyES4DD9BIkCK6GX3DWeEPG0BBHI6CDtBKgDB8BNOE7BO0FLfIaIkED~5:r3DohD-CFxDFHIcE~7:90D69CAPnBAxCQkCYoBJON~24:_8Du8C0DFVLQDvBRsCJEJNFIRnBHbIEPlBD5BgBxCWSQmBPsBIPMeAjCMoBBROmBG~17:jqDyxCQIiDfORHHqBEYLfN5CczCpBNY3BDkBWDQW0BWBOV~25:j6Dy_CGNNNWNVAKJND7CAHGOCVG8BMvEDaKwBBvBUOGuCVJIWCzBOuCBDGMEoBJ~20:phEkjDiBPkBIkCNQHFJeLlBHrBQzEGFI-BIhBCMEJEdHGKfAEKwCA~42:7yDulDyBV4BDQNaBLMiBBJJkBHLLiCAYLlDXRMHNKDdCBPxBQWR_DKiBG3BCNGSCnBIyDO3EBVKyBI5BDjBUkDC1CEiBCXIIGwCF9BM4CKjBK8CH~42:71DkgDqBFLL6CKeHhBB0CFzCD0CPNJeDKIsDJwCQoCCkDPGHjBHoBFlBACLhCF9BSGFHFjBD9EAFOnBL1BKZFhBYIYjBU1CDfKQExBGUCNGkBE-BF~10:n4DmiD0BFRHQDxCLZMcCrBILQ2CH~12:t0D28CuDNjCpBzCAaJTRtBARiCmBBRKIGoCE~10:55Di3C4Cf1BPxDSAKoBIDIUDFOeF~12:rsCu5BKCHLMCSWSNfNfECSkBiBAdXL~46:7zCu4BbYA2B5BO_B3CTCFL_DAuBQQYqBWgCUkC0BkEkByBNJBKFDLjBP5BAsBNkBEXZSBMfoCXgBIkBVlDXAHbCvBpBZMMeJBiCiBMNgBO7BAWUNEFLrBRFIPLZC~51:plCugCXHKLnB5BYUcDZPkBDDPiBSCHiBBVTSFPJqBKfZIAHHIFgBSLXOKGHPhBVBAUXJOWNQLRzBVDGsBafHVCMMjBJjDEDMoBWfCSCMUQDHQQEFIkB0BoBWYA~187:nsD44CoCCEYvBOYKoBH1BaQKoBFvBMyCWoCC0BlBlBRaGNVqBMHGKEiBHQNJIGKwBFjBOuBIyCLGHhBVeOkBAlBNUALTuBWNNUIULDKQGyBHSJ5BPwCIDJtBNYCFNkBY4BAgBJjCRyBGHHKBcOkBTzCLmDH9CHwBBBJ3BCmDPLDGLcKJRUIWNUODJuBJhBHiCDZRgCKgBPfAUJJDbEWNXAIHJHfIHHMBANJLdIEKLLhBamBW1BLGIPBlBULDCJZGcPFD3BKWDKViBDJDaVCIwBJIDLFSBTFwBXJRVUWhBTCCLvDsBGNrBOyD9BNNnGwBZOYIrBIlBYIIfFZQHDIJ1CJvBKBSeKAK8BHQPNS6CIhBa4CsBrBsBTAAORFZKIKrCNCMkBGhBOKGhBAKGdCFQzBONHYPtDEaNjGMTEDM5BHnBKXW8CBrDUFSOIHKYc-BYsDEhCpBShBwBV_BN~5:ntCs9BxBG5BaiCHqBX~9:3vCi6BoCBVPRCAKZBdQQQIX~6:vmD2uCnBdbBHMUS4BC~6:tjDguCMHPVXGCQaI~8:x-Cs1CYFDXJH9BDNSYWqBC~8:tjDi8C-CFsBXzEBPQXEBO0BB~4:9kD-hCzBMkBGQR~11:1iDqmCHNBMLNJBIORJWaDNMQMN~6:pwDygDtBEHIqBCSFFH~5:1iEugDZChBUeBeT~4:v7DgkDFLvBM2BA~6:zjEk7ChCY6BKiBFCLbP~6:5_Dg_CpBJKG1BIiCIUL~5:_hE4_CmBFzBDJKYA~4:9zEw-CpBAmCUbT~5:puEmhDvBIcGeJJD~4:piFuiCZQWDEL~6:1gFmiCFZBSRKGMUN~4:97C64BPAUKDJ~4:p1CqrCEMODRH~4:hxC2sCXMaABL~4:5iD--CZBcKBH~5:_7C40CtBIyBAEHHA~5:rhDqvCOHPFXMaC~5:l2D2-CNIQCIHJB~4:_4Dm7CJISDHD~4:56Dq8CtBCgCIRJ~4:z9Cu1CTKQCEL~4:pjDo3CVLfI2BE~5:_iDi2CHEeQQBlBR~4:ngDu2CNKaALJ~5:nsD20CNOKIMDHR~4:j_DkhDdGyBATF~4:lwD0_CfKYEIN~5:jiE69CfEgBKSJRD~4:n9Dg2CPBAKQH~5:r3D-2CAHJIJFUG~4:p_D41CRESEAH","Cameroon|29:2K-FSuBgBiBgBMaXYakCsEoBkBCaPKFcQDatBCvBUZ3BAJL-BtCrBjCYzCoBpBEvB9BU3FBLsCbCDSNAAI","Cambodia|21:smEsSFVKbBnBtBTAJVBMhBrBEXThBGBYPJhBqDecmCIyBVBSIGeFWO","Myanmar|73:k9DsZZCVXjBAJtBNDyB1CKAb1BmBzBSrCpBlCDaSoBJCD4BLgBFJLuBDkCLBVkBDbLHJKELjBdBQFJJBBQJLCYRTO-BVmCDPRSUELSRGDHDWJHXsBQBBeYKIoCgBFWuBDKWeAWqBakBFHUckBUNIXOAEhBDhBpBpBBjB0BIAjBaJLfcDMXmBMpB5B","Burundi|10:mmB_CDROFALhBnBVFNoCaFKSYB","Burkina Faso|21:kB4N1EAE9BRS3BHjBeI4BiBUMmBcDiBqBUD6BkBiBFKlBeXHAALwBTEhB3Bb","Bulgaria|20:gjBu0B3BAbZZBdM_BHEQZWEWWOTMDSMMOFFJoDHgCU8BPrBzBUT","Brunei|5:6vEkGLHDZXWoBM","Brazil|167:zzCwBWRaKKLwC6BCKZEFsBXcuCbQW6BQOaaDFVSFGRRxBOlBgBVmCgBuBFAamBEiBTQKgBF8B0Ce1CeTCT3BxBbxBZHcBqBaUpBsBKNjBSeiBQDOOQiBEoCbENKKSLDTODLhBSeCNgBQsCT-BC6BhB0BvBiCJMPSlCFrBZtBlCjCjB_BJDHOFHJfI5CJpCTVFzBtBjCBdbLNZjBAHIBJ5BBEHjBV3BR1BtBVCOJNZIlBJ3BlBdtBrCtBhBAKgBOaqBbQAbZZblCbXHYSQZcpCwBPJhBoBdDqCwCsCsBIgBJabCO-BPKdFPgCZKTFnBGEsBLiBMGLKa-BNcVKCmBpCCBeNQOAJ0BzBKxBkB1BIXSPeA-BtBHxCvBxCEE-BbTlBBHUfEKQpB6BKaYSK2B0CmBiBFW8DZqBAekBCFQVAAaiCAAMKJWOMjBIA~7:h-BJyBBRrBhCPLkBGaoBA~4:l-BKFJRCYI~4:59BDPAOICH~4:h_BGFCKQDR~5:5gC5BMgBMEBRVR","Botswana|25:yfnWkBlCqBVEPQBBTOTqBJMP5C3BJZlBTRlBrBBvBS5B9BnBCEkBfsBAwDmBAC0E4CMQRiCa","Bosnia and Herz.|14:gYu2BdVARfOrCqCCSUHYMiDPJVUNNBKLLD","Bolivia|45:72C7VFMgBiBVcKQHSUaJSQwBjB-BoBFyCwBuBIA9BQdYR2BHyBjB0BJKzBNAOPCdqCBBlBWJObXtCDOjBUpDNVjBNjCHKnBARhBLY_BSnBnBTDpBkDMoBTSFkBPW","Bhutan|8:yyD2iBSRDR5CFnBUyBsByBHQN","Benin|13:gC4HAyDfiCaeWBOgBSIgBbKrBf7BLBBrDrBF","Belize|7:tvDoWccOJH_BXdNAEsC","Belgium|15:oFogCiBCgBLHLcVXPCNlBKBOZHDO5BYBIaKoBC","Belarus|24:2nBkhCnBHHZ9Fa5BBdNCWRKcSPwB6CIHIKUoBQNEGM8BUwDXDdqBdDJmBP5BPUjB","Bangladesh|39:qvD0bDsBPSGabOSWUChBaKaULGGOPMIIjB4CFSJ1BxBGVMDOcMAQ_CRCEVR-BNWVLNoBNFOHAjBNTBMLBEORbBWFXLQ~5:wxD0bLBAgBONBP","Bahamas|4:hhDqeCTPSOC~5:xgDsgBAabOkBNHZ~5:lhD8eLPPOMWQT~5:jiDuhBYBhBHJIUC~5:5_C8fUNATASTQ~4:x9C0cNKDUSd~4:j-CoeHBHWQT","Azerbaijan|5:g4ByxBoBDMZXEba~20:i9BiwBhBQMWLM7BfAajBSOKlBqBMGyBNEIROKK2BbiBYgBnBkBTfDblC","Austria|23:-Li7BIOSLKKYFuBMgBHHaoBYkBFMQsCLKbDLZBMDJVTL3BLxCKNSvCJXQ","Australia|161:gzF9OW_CcEiBbG5BSTG1BOd-CzBBLUTU1BMDEQSPEGIpBoBZ0BpCBxBU5BZvDTnBtBtBT3BXhBJjCxCPpBbZDKDBLnBYEMVJJGQKHI1BjBrBQnBCpBSXaBkBfeOAAIrBHMYPiBPnBfDEOQAEeSWFoBVpBfPVXCNLCVOOAJaTcPEBY7DqB3CHhCV3BBhCbdjBxEBvCrB1BC7BeAeOFOSA8BXuBJ4BhC2DaLPkBKVUFfqCYmDGXWcwCuBcBkCcsCQ2B8BHaIQYYYpBCSMGPQEMuBHNEKSHOKKOHHMUCFQSSALOCCUUFOQWLeZFZWYqBPIMRSwBuCKDSUGJyBIBSXIDK8DnBiBOHNQHSSQPTjBTBAZTlBwDnCeHKRgBNSCkBgCKoBHyBGiBMGHSS4BSIKpBOF~4:8qFnRITVEOQ~4:ijFzOPDKSGN~7:ojFnOaIMJXTROFQKH~6:gsF1sBUDZJjBIgBMKF~4:82F5WAJHKIA~17:q1F_yByBNsCMG1BFKHLAjBbORffCGKbOLcMDdmBBeOF~4:-zFjyBCUGNHF~4:g5F1xBMPVMKE~4:u5FryBCHPEOE","Armenia|14:-3B0xBrBSCWJQ-BIYRHHWRNHkBRAZPANanBG","Argentina|99:_nC3lBXjCL_C2BpBJVcTBVftBZNzDVxBIMVN9BvBJ5BOCzBYNYOIXRHRQRFaLlBXP5BzBJZfEPcVmBFEPRLQDhCnBRpBNDPONJYFVJPZMTPBUDWXtEORQCiBfBRuBoBgBMWHOgByBBqBQObUkBIZGCuBPKCeOIH2BWmCWONmCgBgBFgBcqBCkBLERsCcuBHiBQkBgByBWILUEoCuBYOqBHIoBoBgCRMXQgBqBCoClCoE_BlBtC0DDmBiBGmBYAOZHhBrCrBpCvC~8:51CxkCA4CQRJFwBf0CZzBN1CI~4:1wCrkCeBhBFEI","Angola|7:qQ5FXPCZLBHegBWKH~31:-dxNA1CtCAChE2B3BpDNnCIVQvFAjBS1BLA4BgBgDqBuBKyBhBwCQcrB6CkBKiEBuB3CmCGIgBMGeEAPwBAA1CUfDhBmCK","Algeria|39:4KmuBPRClCdjBiBzBcTSnCHFUjBElDTTiB9ByBLSfxFpDhC1BnDTDiB3BUXepM4HA4BSMsBYkCOUU0BUDekBQgCAIOZiBD6BPOqE4BmDQ8BJwBS0CF","Albania|10:mYq0BBMQUgBTAjBWZhBlBjBeM4BJC","Afghanistan|50:kzC2uB-BPiBQQJIScCAMcWcVFdIRmCe8BHhBPnCDnBZOjBZZETtBBQZfNHpBRLbGbVXATRFlBzCR_BAhCSmBqBFUhBEJ-BOSPGASQIFIUsB6BNOIEQ2BUMgBeEIMeH","Siachen Glacier|4:qgD8rBLWqBFdP","Antarctica|449:_gHtpDudhBnBMiBC1KS4BElBGYIzEGhIoBwSdyHmBQGjCUeK7DQmLQjDWkDU_JsBNEKEsCMtEIZKMaoEAsGZ-BObGMIyDPDKMCRGMEDI7EQ2BKyDLlBMQIyEQ8BJNI8BO6DC0BSoRB0DOqEDYYsBHJJQDdVgDIDWYCmBNrBZ-FFsEK4BBaJkDIrCOOOtBARUpBEBK8EC_EMRUKEeBBJoFAoCL8GA0CYYDHRoDCwEZkBEEUiBFJMGGiCVuCCHPqKeuBKgBeXWJiBnByB2BCQKRMYYNKSShBACSSGGLQBAYeCAOUMeCFIiBIJKMKcDBI6BOgBWqEgBWPRGlBJfTKJtBC1CfOLVNSHyBGRPhCECRXSTBNNOHlBCNPKDbDFdgBAXHSBFHqBFIKmBCfJoC3BRJkBFRPaCOPnBPeEGJvBH-BBBPVF2BRFJfArBGwBVpBNgBBfHqBCHJxBCQNTFhBKAHbDaFpBFmBFxIvB3IA6Bd0DLtCTvIOmFXPLhDBrEgBWPRAEHsDjBeK-EFGJTJ7DDiED0BdwFImBLoFTgEF3ENyBPuFG3CNiBRcAJPuCB0EmBuGUwFCIHRL6BA4BIkDqBgDM-BFqCQoHSwHK_HObUtEAxCOCM0CoBuGsB8FYuHMRI0BiBoCAsBShCCKGVECIiBO6BAGELKwDOUa1BO8BFgBQHIoBHYTmBEBcoCGOFTTqGEURiDcoHagBDaKmDVyBWLGQAeLoDIkCPkBOIDFNOJiCCaY0BVoBQeTmCD0HoBQQNegBIeBPPgBAeXiDBsBP0B2B4HwBGOgBDJHQHcCILgBedI0CFHekEYiCDkCTIFHDhBCOHbNOB8BKgCT8MJSbRLETdDITjBAlBPwCHtDrDgBFaIAOSKuBEmCgBSgB-BmB-CASOkCSyBiBqFYwBUuJYkJF-BMUQyBEwIpBuBQMQ4CMmDlBhCRCJqDQsEEpBPsIoBgBFkBV6BBsBgBmEIiBPqBOmJhBqBEiBJXbwCKiBNBLMD6EAORyCAWUgCbsFTgC1BgBHHYaGcLoFHoDhBMKQRfJGRlCG4BNLL_CDbIyBR9CTHUNAIVHDYTvCGfPHR7BD0BDYPNLOLNTaDaZaHPL4BGiCZ_CEvCLnBOFFSNrBANFGJZFODRFaFvCP0CBILXBSDJR-Dd7CPqEG6EblBHSDsOjBvhOD~19:v4BviDiCDYbDLbDIH3HX3FCmBasBBuCaPIOU0Be6CK6CJgBJBJ1BJ~14:1qCtkDDPdHlDOrBFjDSsGBSETKsBKkBDDJUDRF~34:x3Cv2CmCjCCjBlBdvEBLIOEmDC5BAJGsBI5BKbJhBCKFRF3BMMMcDEKgBHCMyBBfGMGyDDAK1BKgCK1COAaPImCQOP~12:z6D75CBHWIKLUOcBhBL4BGANRH5HUoFI~8:12El8CMJdNzBBZEMObEwDE~8:99Ez7CsBNVFyBCcTlEWBQkBA~7:5mG3jDvDEhDSqBWiBBsDZaP~7:8wGzgD6CHnDNVOSEFIYD~4:tqBjjDpDAqBIgCH~5:93CzjD1BGKQ8FevEzB~9:poChwCOEMJnBFIERGGISEAJ~4:tlC9uCQH1BAmBI~4:voCrtCOD1BHoBM~6:_uCxwCODjBLTGeSMH~5:9tCvwCRDOUQFLJ~8:_0Cp0CfLNK0BkBDRKDVHKD~6:j8Cp4CfLvCB-BQOHkBG~5:39Cl3CWFHJtBEgBM~9:98Cr7CLHMFHF9BSiBETGOEqBL~7:9xDv7CNAGMLMiBAAPNH~4:yxG1hD1BFLIiCB~5:o-DjyCdEaIOFJF~4:yhB_3CjBGaGKL~5:jEl4CHCOISDXF~5:1yCjkDhCWoCBUNZF~5:h0CpjDzBAiBKaBHH~4:9kCvsCJGeBTD~4:xnC1wCHEWENH~4:vtCj3CVUeHHL~6:t1Ez8CNAKEFIkBDZH~4:l_En9CfKkBDDF~4:gtGx9CJGSEHJ~4:q0G_7CNCMKCL~4:44DxyCQDXBIG~4:oUv3CZGoBGNL~4:6Dn4CRCYGFH~4:0B53CNGSCDH~5:lDt4CSBbNdSoBB~4:2Fj4CTISCCJ~6:3Zr8CEXZOjBC2BSEJ~4:9rCr4CHGUALF~4:5rC5vCLAKICH~4:pyCpyCLEUIHL~4:l0C10CPEUCDF~4:r8C17CJCYINJ~4:9xE18CZCoBKNL~4:x6FrgD9BEmBGYJ"];
+  /* ===== VISUAL ENGINE: gazetteer (names the narration can mention) ===== */
+  // Canonical country names are the ones in the map data. Aliases include demonyms and capitals used as metonyms.
+  var VZ_COUNTRIES = {
+    'United States of America': 'United States|U.S.|US|USA|America|American|Americans|Washington|White House|Pentagon',
+    'Russia': 'Russia|Russian|Russians|Moscow|Kremlin', 'Ukraine': 'Ukraine|Ukrainian|Ukrainians|Kyiv|Kiev',
+    'Iran': 'Iran|Iranian|Iranians|Tehran', 'Israel': 'Israel|Israeli|Israelis|Jerusalem|Tel Aviv|Knesset',
+    'Palestine': 'Palestine|Palestinian|Palestinians|West Bank|Ramallah', 'China': 'China|Chinese|Beijing', 'Taiwan': 'Taiwan|Taiwanese|Taipei',
+    'India': 'India|Indian|Indians|New Delhi', 'Pakistan': 'Pakistan|Pakistani|Pakistanis|Islamabad', 'Saudi Arabia': 'Saudi Arabia|Saudi|Saudis|Riyadh',
+    'United Arab Emirates': 'United Arab Emirates|UAE|Emirati|Emiratis', 'Qatar': 'Qatar|Qatari', 'Kuwait': 'Kuwait|Kuwaiti', 'Oman': 'Oman|Omani|Muscat',
+    'Iraq': 'Iraq|Iraqi|Iraqis|Baghdad', 'Syria': 'Syria|Syrian|Syrians|Damascus', 'Lebanon': 'Lebanon|Lebanese|Beirut|Hezbollah',
+    'Yemen': 'Yemen|Yemeni|Yemenis|Houthi|Houthis|Sanaa', 'Turkey': 'Turkey|Turkish|Türkiye|Ankara', 'Egypt': 'Egypt|Egyptian|Egyptians|Cairo',
+    'Jordan': 'Jordan|Jordanian|Amman', 'Afghanistan': 'Afghanistan|Afghan|Afghans|Kabul|Taliban', 'Libya': 'Libya|Libyan|Libyans',
+    'Sudan': 'Sudan|Sudanese|Khartoum', 'S. Sudan': 'South Sudan|South Sudanese', 'Ethiopia': 'Ethiopia|Ethiopian|Addis Ababa', 'Somalia': 'Somalia|Somali|Mogadishu',
+    'Kenya': 'Kenya|Kenyan|Nairobi', 'Nigeria': 'Nigeria|Nigerian|Abuja', 'South Africa': 'South Africa|South African|Pretoria',
+    'Dem. Rep. Congo': 'Democratic Republic of Congo|Democratic Republic of the Congo|DR Congo|DRC|Kinshasa', 'Congo': 'Republic of Congo|Brazzaville',
+    'Algeria': 'Algeria|Algerian', 'Morocco': 'Morocco|Moroccan', 'Tunisia': 'Tunisia|Tunisian', 'Mali': 'Mali|Malian', 'Niger': 'Niger|Nigerien', 'Chad': 'Chad|Chadian',
+    'Ghana': 'Ghana|Ghanaian', 'Senegal': 'Senegal|Senegalese', 'Japan': 'Japan|Japanese|Tokyo', 'South Korea': 'South Korea|South Korean|Seoul',
+    'North Korea': 'North Korea|North Korean|Pyongyang', 'Vietnam': 'Vietnam|Vietnamese|Hanoi', 'Thailand': 'Thailand|Thai|Bangkok',
+    'Philippines': 'Philippines|Philippine|Filipino|Manila', 'Indonesia': 'Indonesia|Indonesian|Jakarta', 'Malaysia': 'Malaysia|Malaysian',
+    'Myanmar': 'Myanmar|Burma|Burmese', 'Bangladesh': 'Bangladesh|Bangladeshi|Dhaka', 'Sri Lanka': 'Sri Lanka|Sri Lankan|Colombo', 'Nepal': 'Nepal|Nepali|Kathmandu',
+    'Cambodia': 'Cambodia|Cambodian', 'Mongolia': 'Mongolia|Mongolian', 'Kazakhstan': 'Kazakhstan|Kazakh|Astana', 'Uzbekistan': 'Uzbekistan|Uzbek|Tashkent',
+    'Turkmenistan': 'Turkmenistan', 'Kyrgyzstan': 'Kyrgyzstan', 'Tajikistan': 'Tajikistan', 'Australia': 'Australia|Australian|Australians|Canberra', 'New Zealand': 'New Zealand',
+    'Canada': 'Canada|Canadian|Canadians|Ottawa', 'Mexico': 'Mexico|Mexican|Mexicans', 'Brazil': 'Brazil|Brazilian|Brazilians|Brasilia',
+    'Argentina': 'Argentina|Argentine|Argentinian|Buenos Aires', 'Chile': 'Chile|Chilean', 'Colombia': 'Colombia|Colombian|Bogota', 'Venezuela': 'Venezuela|Venezuelan|Caracas',
+    'Cuba': 'Cuba|Cuban|Havana', 'Peru': 'Peru|Peruvian', 'Bolivia': 'Bolivia|Bolivian', 'Ecuador': 'Ecuador|Ecuadorian', 'Panama': 'Panama|Panamanian',
+    'Haiti': 'Haiti|Haitian', 'Nicaragua': 'Nicaragua|Nicaraguan', 'Greenland': 'Greenland',
+    'United Kingdom': 'United Kingdom|UK|U.K.|Britain|British|Britons|England|London|Downing Street|Northern Ireland|Scotland|Scottish|Wales|Welsh',
+    'France': 'France|French|Paris', 'Germany': 'Germany|German|Germans|Berlin', 'Italy': 'Italy|Italian|Italians|Rome', 'Spain': 'Spain|Spanish|Madrid',
+    'Portugal': 'Portugal|Portuguese|Lisbon', 'Netherlands': 'Netherlands|Dutch|Amsterdam', 'Belgium': 'Belgium|Belgian', 'Switzerland': 'Switzerland|Swiss',
+    'Austria': 'Austria|Austrian', 'Poland': 'Poland|Polish|Warsaw', 'Czechia': 'Czechia|Czech Republic|Czech|Prague', 'Slovakia': 'Slovakia|Slovak',
+    'Hungary': 'Hungary|Hungarian|Budapest', 'Romania': 'Romania|Romanian|Bucharest', 'Bulgaria': 'Bulgaria|Bulgarian|Sofia', 'Greece': 'Greece|Greek|Athens',
+    'Serbia': 'Serbia|Serbian|Belgrade', 'Croatia': 'Croatia|Croatian', 'Bosnia and Herz.': 'Bosnia|Bosnia and Herzegovina|Bosnian', 'Kosovo': 'Kosovo',
+    'Albania': 'Albania|Albanian', 'Macedonia': 'North Macedonia', 'Montenegro': 'Montenegro', 'Slovenia': 'Slovenia', 'Moldova': 'Moldova|Moldovan|Chisinau',
+    'Belarus': 'Belarus|Belarusian|Minsk', 'Lithuania': 'Lithuania|Lithuanian|Vilnius', 'Latvia': 'Latvia|Latvian|Riga', 'Estonia': 'Estonia|Estonian|Tallinn',
+    'Finland': 'Finland|Finnish|Helsinki', 'Sweden': 'Sweden|Swedish|Stockholm', 'Norway': 'Norway|Norwegian|Oslo', 'Denmark': 'Denmark|Danish|Copenhagen',
+    'Iceland': 'Iceland|Icelandic', 'Ireland': 'Ireland|Irish', 'Cyprus': 'Cyprus|Cypriot', 'Armenia': 'Armenia|Armenian|Yerevan', 'Azerbaijan': 'Azerbaijan|Azerbaijani|Baku',
+    'Georgia': 'Georgian|Tbilisi'
+  };
+  // Display names that differ from the map data's names.
+  var VZ_DISPLAY = { 'United States of America': 'United States', 'United Arab Emirates': 'UAE', 'S. Sudan': 'South Sudan', 'Dem. Rep. Congo': 'DR Congo', 'Congo': 'Rep. of Congo', 'Bosnia and Herz.': 'Bosnia', 'Macedonia': 'North Macedonia', 'United Kingdom': 'United Kingdom' };
+  // Countries whose outline includes far-away territory: frame the part the news is about.
+  var VZ_FOCUS = {
+    'United States of America': [-125, 24, -66, 50], 'Russia': [20, 43, 65, 70], 'Canada': [-130, 42, -55, 62], 'France': [-5, 41, 9.7, 51.5],
+    'Norway': [4, 58, 31, 71], 'Spain': [-9.5, 35.9, 3.5, 43.9], 'Portugal': [-9.6, 36.9, -6.1, 42.2], 'Ecuador': [-81, -5, -75, 1.5],
+    'China': [74, 18, 135, 50], 'Netherlands': [3.2, 50.7, 7.3, 53.6], 'Denmark': [8, 54.5, 15.2, 57.8], 'United Kingdom': [-8, 49.8, 2, 59]
+  };
+  // Places that are not countries. name|lat|lon|country to light up|half-width in degrees (optional)
+  var VZ_PINS = [
+    'Abu Dhabi|24.47|54.37|United Arab Emirates', 'Dubai|25.2|55.27|United Arab Emirates', 'Doha|25.29|51.53|Qatar', 'Manama|26.22|50.58|', 'Bahrain|26.07|50.55|',
+    'Kuwait City|29.37|47.98|Kuwait', 'Strait of Hormuz|26.57|56.25||4', 'Hormuz|26.57|56.25||4', 'Persian Gulf|27|51||6', 'Gulf of Aden|12|48||6', 'Red Sea|20|38||9', 'Bab el-Mandeb|12.58|43.33||4',
+    'Suez Canal|30.5|32.35||4', 'Black Sea|43.5|34||8', 'Baltic Sea|58|20||8', 'Mediterranean|35|18||14', 'South China Sea|13|114||10', 'Taiwan Strait|24.5|119.5||5',
+    'Panama Canal|9.1|-79.7||4', 'Gaza|31.45|34.4|Palestine|3', 'Rafah|31.3|34.25||3', 'Crimea|45.3|34.4|Ukraine|4', 'Donbas|48.2|38||4', 'Donetsk|48|37.8||4', 'Luhansk|48.57|39.3||4',
+    'Kharkiv|49.99|36.23||4', 'Odesa|46.48|30.72||4', 'Kherson|46.64|32.62||4', 'Zaporizhzhia|47.84|35.14||4', 'Mariupol|47.1|37.55||4', 'Bakhmut|48.6|38||4', 'Sevastopol|44.6|33.5||4',
+    'Kursk|51.73|36.19|Russia|4', 'Belgorod|50.6|36.6|Russia|4', 'Taiz|13.58|44.02|Yemen|4', 'Hodeidah|14.8|42.95|Yemen|4', 'Aden|12.78|45.04|Yemen|4',
+    'Dublin|53.35|-6.26|Ireland|4', 'Geneva|46.2|6.14|Switzerland|4', 'Brussels|50.85|4.35|Belgium|4', 'Strasbourg|48.58|7.75|France|4', 'The Hague|52.08|4.3|Netherlands|4', 'Vienna|48.21|16.37|Austria|4',
+    'Istanbul|41.01|28.98|Turkey|4', 'Aleppo|36.2|37.16|Syria|4', 'Idlib|35.93|36.63|Syria|4', 'Mosul|36.34|43.13|Iraq|4', 'Basra|30.5|47.78|Iraq|4', 'Kirkuk|35.47|44.39|Iraq|4', 'Erbil|36.19|44.01|Iraq|4',
+    'Benghazi|32.12|20.07|Libya|4', 'Port Sudan|19.62|37.22|Sudan|4', 'El Fasher|13.63|25.35|Sudan|4', 'Goma|-1.68|29.22|Dem. Rep. Congo|4', 'Lagos|6.52|3.38|Nigeria|4',
+    'Cape Town|-33.92|18.42|South Africa|4', 'Mumbai|19.08|72.88|India|4', 'Karachi|24.86|67|Pakistan|4', 'Lahore|31.55|74.34|Pakistan|4', 'Kashmir|34.3|76.5||5',
+    'Shanghai|31.23|121.47|China|4', 'Hong Kong|22.32|114.17|China|3', 'Shenzhen|22.54|114.06|China|3', 'Singapore|1.35|103.82||3', 'Davos|46.8|9.84|Switzerland|4',
+    'Silicon Valley|37.4|-122.1|United States of America|5', 'Wall Street|40.71|-74.01|United States of America|4', 'Texas|31|-99.3|United States of America|8', 'Florida|27.7|-81.5|United States of America|6'
+  ];
+  // Regions only steer the camera and add a label.
+  var VZ_REGIONS = [
+    'Middle East|24|10|65|42', 'Europe|-12|35|40|68', 'Eastern Europe|20|43|45|60', 'Africa|-20|-35|52|37', 'Asia|60|-10|150|55', 'Caucasus|38|38|50|45', 'Balkans|13|38|30|47',
+    'Sahel|-17|10|25|20', 'Horn of Africa|32|-2|52|18', 'Baltics|20|53|29|60', 'Scandinavia|4|55|32|71', 'Indo-Pacific|60|-20|160|45'
+  ];
+  // Names that contain a country name but are not that country.
+  var VZ_IGNORE = 'Latin America|North America|South America|Central America|New Mexico|Washington Post|Washington State|Washington Examiner|Bank of America|Voice of America|France 24|Times of India|Hindustan Times|Iran International|Radio Free Europe|Al Jazeera America|Wells Fargo|Texas Instruments'.split('|');
+  /* ===== VISUAL ENGINE: map data decoding and scene detection ===== */
+  var VZ_A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  var vzGeo = null, vzMatcher = null;
+  function vzWorld() {
+    if (vzGeo) return vzGeo;
+    var idx = {}, i; for (i = 0; i < 64; i++) idx[VZ_A.charAt(i)] = i;
+    vzGeo = {};
+    VZ_WORLD.forEach(function (line) {
+      var bar = line.indexOf('|'), name = line.slice(0, bar), rings = [], bb = [1e9, 1e9, -1e9, -1e9];
+      line.slice(bar + 1).split('~').forEach(function (rs) {
+        var c = rs.indexOf(':'), n = parseInt(rs.slice(0, c), 10), s = rs.slice(c + 1), p = 0, px = 0, py = 0, xs = new Float32Array(n * 2), k;
+        var rd = function () { var v = 0, sh = 0, d; do { d = idx[s.charAt(p++)]; v |= (d & 31) << sh; sh += 5; } while (d & 32); return (v & 1) ? -((v + 1) >> 1) : (v >> 1); };
+        for (k = 0; k < n; k++) {
+          px += rd(); py += rd();
+          var x = px / 20, y = py / 20; xs[2 * k] = x; xs[2 * k + 1] = y;
+          if (x < bb[0]) bb[0] = x; if (y < bb[1]) bb[1] = y; if (x > bb[2]) bb[2] = x; if (y > bb[3]) bb[3] = y;
+        }
+        rings.push(xs);
+      });
+      vzGeo[name] = { rings: rings, bbox: bb };
+    });
+    return vzGeo;
+  }
+  function vzEsc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function vzBuildMatcher() {
+    if (vzMatcher) return vzMatcher;
+    var map = {}, names = [];
+    function put(alias, ent) { if (alias && !map[alias]) { map[alias] = ent; names.push(alias); } }
+    VZ_IGNORE.forEach(function (a) { put(a, null); });
+    Object.keys(VZ_COUNTRIES).forEach(function (id) { VZ_COUNTRIES[id].split('|').forEach(function (a) { put(a, { k: 'c', id: id }); }); });
+    VZ_PINS.forEach(function (ln) {
+      var f = ln.split('|'); put(f[0], { k: 'p', nm: f[0], lat: parseFloat(f[1]), lon: parseFloat(f[2]), c: f[3] || '', sp: f[4] ? parseFloat(f[4]) : 3.5 });
+    });
+    VZ_REGIONS.forEach(function (ln) { var f = ln.split('|'); put(f[0], { k: 'r', nm: f[0], bb: [parseFloat(f[1]), parseFloat(f[2]), parseFloat(f[3]), parseFloat(f[4])] }); });
+    names.sort(function (a, b) { return b.length - a.length; });
+    vzMatcher = { map: map, re: new RegExp('(^|[^A-Za-z0-9])(' + names.map(vzEsc).join('|') + ')(?![A-Za-z0-9])', 'g') };
+    return vzMatcher;
+  }
+  // Places named in the text, in order of first mention. Never more than 4 that can be drawn.
+  function vzFindEntities(text) {
+    var M = vzBuildMatcher(), re = M.re, m, seen = {}, out = [], drawable = 0;
+    re.lastIndex = 0; text = String(text || '');
+    while ((m = re.exec(text))) {
+      var ent = M.map[m[2]]; if (!ent) continue;
+      var key = ent.k + ':' + (ent.id || ent.nm); if (seen[key]) continue; seen[key] = 1;
+      if (ent.k !== 'r') { if (drawable >= 4) continue; drawable++; }
+      out.push(JSON.parse(JSON.stringify(ent)));
+    }
+    return out;
+  }
+  var VZ_MONTHS = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
+  var VZ_STOP_LABEL = ' and but as while which that who after before from to with by is are was were will has have had amid though although because since so ';
+  var VZ_TRIM_END = ' on of in for the a an to at by with ';
+  var VZ_MAG = { trillion: 1, billion: 1, million: 1, thousand: 1, bn: 'billion', m: 'million', k: 'thousand' };
+  function vzNumbers(text) {
+    var re = /([$£€¥]\s?)?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s?(%|percent|per cent|trillion|billion|million|thousand|bn\b|m\b|k\b)?/gi, m, out = [];
+    while ((m = re.exec(text))) {
+      var start = m.index, before = text.charAt(start - 1), cur = (m[1] || '').trim(), whole = m[2], dec = m[3] || '', unit = (m[4] || '').toLowerCase();
+      if (/[A-Za-z]/.test(before) || (before === '-' && /[A-Za-z]/.test(text.charAt(start - 2)))) continue;     // G7, F-35, COVID-19
+      var raw = whole.replace(/,/g, '') + dec, val = parseFloat(raw);
+      if (!isFinite(val)) continue;
+      var after = text.slice(start + m[0].length), nextWord = (after.match(/^\s*([A-Za-z.'’-]+)/) || [])[1] || '';
+      if (!cur && !unit && val >= 1900 && val <= 2100 && !dec && whole.indexOf(',') < 0) continue;                // a year
+      if (VZ_MONTHS.test(nextWord) && !unit && !cur) continue;                                                  // 5 November
+      if (/^(p\.?m\.?|a\.?m\.?|st|nd|rd|th|o'clock)$/i.test(nextWord)) continue;
+      var prevWord = (text.slice(0, start).match(/([A-Za-z]+)\.?\s*$/) || [])[1] || '';
+      if (VZ_MONTHS.test(prevWord) && !unit && !cur && val <= 31) continue;                                      // November 5
+      var score = 0;
+      if (unit === '%' || unit === 'percent' || unit === 'per cent') score += 4;
+      if (cur) score += 4;
+      if (unit && /trillion|billion|million|thousand|bn|m|k/.test(unit)) score += 3;
+      if (val >= 10000) score += 2; else if (val >= 100) score += 1;
+      if (!cur && !unit && val >= 10 && /^[A-Za-z]/.test(nextWord)) score += 2;
+      if (score < 2) continue;
+      var mag = unit && VZ_MAG[unit] ? (VZ_MAG[unit] === 1 ? unit : VZ_MAG[unit]) : '', pct = (unit === '%' || unit === 'percent' || unit === 'per cent');
+      // label: the words that follow, up to the next break
+      var tail = after.replace(/^\s*(percent|per cent)\b/i, ''), words = [], tw = tail.split(/\s+/).filter(Boolean), j;
+      for (j = 0; j < tw.length && words.length < 5; j++) {
+        var w = tw[j], bare = w.replace(/[^A-Za-z0-9'’-]/g, '');
+        if (!bare || VZ_STOP_LABEL.indexOf(' ' + bare.toLowerCase() + ' ') >= 0 && words.length) break;
+        if (VZ_STOP_LABEL.indexOf(' ' + bare.toLowerCase() + ' ') >= 0) break;
+        words.push(bare);
+        if (/[,.;:!?—–]$/.test(w)) break;
+      }
+      while (words.length && /^(for|of|in|on|to|at|by|with|from|across|over|into)$/i.test(words[0])) words.shift();
+      while (words.length && VZ_TRIM_END.indexOf(' ' + words[words.length - 1].toLowerCase() + ' ') >= 0) words.pop();
+      var label = words.join(' ').toUpperCase(); if (label.length > 34) label = label.slice(0, 34).replace(/\s+\S*$/, '');
+      out.push({ at: start, val: val, dec: dec ? dec.length - 1 : 0, cur: cur, pct: pct, mag: pct ? '' : mag, text: m[0].trim(), label: label, score: score, big: whole.indexOf(',') >= 0 });
+    }
+    return out;
+  }
+  function vzNumKind(n) { return n.pct ? 'pct' : n.cur ? 'cur:' + n.cur + ':' + n.mag : n.mag ? 'mag:' + n.mag : 'plain'; }
+  function vzQuote(text) {
+    var m = /[“"]([^”"]{4,160})[”"]/.exec(text); if (!m) return null;
+    var q = m[1].replace(/[,.;:\s]+$/, '').trim(), words = q.split(/\s+/).length, before = text.slice(0, m.index), after = text.slice(m.index + m[0].length), who = '';
+    var CAP = "[A-Z][A-Za-z.'’-]+";
+    var a = new RegExp('((?:' + CAP + '(?:\\s+(?:of|the|and|' + CAP + '))*)(?:\\s+(?:side|officials?|negotiators?|government|spokesperson|spokesman|minister|ministry|delegation))?)\\s+(?:said|says|told|called|warned|added|stated|declared|insisted|argued|described|wrote|promised)\\b[^“"]*$').exec(before);
+    if (a) who = a[1]; else { var b = new RegExp('^[,.]?\\s*(?:said|says|according to)\\s+(' + CAP + '(?:\\s+' + CAP + '){0,3})').exec(after.replace(/^[”"]\s*/, '')); if (b) who = b[1]; }
+    if (/^(He|She|They|It|We|This|That|The)$/.test(who)) who = '';
+    if (words < (who ? 2 : 4)) return null;
+    return { type: 'quote', text: q, who: who, score: 3 + (who ? 2 : 0) };
+  }
+  var VZ_ANCHOR = /\b(january|february|march|april|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday|yesterday|today|tomorrow|next week|last week|next month|last month|20[0-9]{2})\b|\bMay (?:\d|of|in|20)|\b(?:in|since|by|until|from|of) May\b/gi;
+  function vzAnchors(text) { var s = {}, m; VZ_ANCHOR.lastIndex = 0; while ((m = VZ_ANCHOR.exec(text))) s[m[0].toLowerCase()] = 1; return Object.keys(s); }
+  // Everything that could be drawn for one sentence group. Only things the sentence itself says.
+  function vzDetect(text, index, title) {
+    var out = [], ents = vzFindEntities(text);
+    if (!ents.some(function (e) { return e.k !== 'r'; }) && index === 0) ents = vzFindEntities(title).concat(ents.filter(function (e) { return e.k === 'r'; })).slice(0, 5);
+    if (ents.some(function (e) { return e.k !== 'r'; })) out.push({ type: 'map', ents: ents, score: ents.length });
+    var nums = vzNumbers(text).sort(function (a, b) { return b.score - a.score || a.at - b.at; });
+    if (nums.length) {
+      var top = nums[0], pair = nums.filter(function (n) { return n !== top && vzNumKind(n) === vzNumKind(top) && n.score >= 2; });
+      if (pair.length && nums.length <= 3) {
+        var two = [top, pair[0]].sort(function (a, b) { return a.at - b.at; });
+        if (two[0].val !== two[1].val) out.push({ type: 'compare', a: vzPick(two[0]), b: vzPick(two[1]), score: top.score + 1 });
+      }
+      out.push(Object.assign({ type: 'number' }, vzPick(top)));
+    }
+    var q = vzQuote(text); if (q) out.push(q);
+    return out;
+  }
+  function vzPick(n) { return { val: n.val, dec: n.dec, cur: n.cur, pct: n.pct, mag: n.mag, text: n.text, label: n.label, score: n.score, big: n.big }; }
+  /* ===== VISUAL ENGINE: choosing scenes ===== */
+  function vzLabel(v) {
+    if (v.type === 'map') { var n = v.ents.filter(function (e) { return e.k !== 'r'; }).map(function (e) { return e.k === 'c' ? (VZ_DISPLAY[e.id] || e.id) : e.nm; }); return 'Map: ' + n.slice(0, 3).join(', '); }
+    if (v.type === 'number') return 'Figure: ' + v.text;
+    if (v.type === 'compare') return 'Compare: ' + v.a.text + ' vs ' + v.b.text;
+    if (v.type === 'quote') return 'Quote' + (v.who ? ': ' + v.who : '');
+    if (v.type === 'timeline') return 'Timeline: ' + v.items.length + ' dates';
+    return v.type;
+  }
+  // Timelines are the only visual a model proposes. Every item must be backed by words that are in the scene's own text.
+  function vzPlanTimelines(scenes) {
+    var idxs = [];
+    scenes.forEach(function (s, i) { if (vzAnchors(s.text).length >= 2) idxs.push(i); });
+    idxs = idxs.slice(0, 4);
+    if (!idxs.length) return Promise.resolve({});
+    var list = idxs.map(function (i) { return (i + 1) + '. ' + scenes[i].text; }).join('\n');
+    var prompt = 'Each numbered sentence below mentions several dates or days. Turn each into a short timeline of 2 to 4 events in the order they are said.\n' +
+      'For every event give "when" (the date words copied exactly as written in the sentence, e.g. "Monday" or "5 November") and "what" (2 to 4 words, using only words from the sentence). Invent nothing. If a sentence has no clear sequence of dated events, give an empty list for it.\n\n' + list +
+      '\n\nReply with JSON only: {"items":[{"n":1,"events":[{"when":"...","what":"..."}]}]}';
+    return callLLM(prompt, 'write').then(function (r) {
+      var j = extractJson(r.text), arr = j && (j.items || j.timelines), out = {};
+      if (!Array.isArray(arr)) return out;
+      arr.forEach(function (x) {
+        var i = (parseInt(x && x.n, 10) || 0) - 1; if (idxs.indexOf(i) < 0 || !Array.isArray(x.events)) return;
+        var text = scenes[i].text, low = text.toLowerCase(), last = -1, items = [];
+        x.events.slice(0, 4).forEach(function (e) {
+          var when = String((e && e.when) || '').trim(), what = String((e && e.what) || '').replace(/[^\w\s'’$%-]/g, ' ').replace(/\s+/g, ' ').trim();
+          var at = when ? low.indexOf(when.toLowerCase()) : -1;
+          if (at < 0 || at < last || when.length > 22) return;
+          var ws = what.split(' ').filter(Boolean); if (ws.length < 1 || ws.length > 5) return;
+          if (!ws.every(function (w) { return low.indexOf(w.toLowerCase().replace(/s$/, '')) >= 0; })) return;
+          last = at; items.push({ when: when.toUpperCase(), what: what });
+        });
+        if (items.length >= 2) out[i] = { type: 'timeline', items: items };
+      });
+      return out;
+    }).catch(function () { return {}; });
+  }
+  // Pick which scenes get a visual so the video keeps a rhythm: never the same kind twice in a row, at most three maps,
+  // never the closing scene, and with footage on never more than two visuals in a row.
+  function vzMerge(plan, scenes, title, useFootage, tlm) {
+    var n = scenes.length, cands = scenes.map(function (s, i) {
+      var c = vzDetect(s.text, i, title); if (tlm && tlm[i]) c.push(Object.assign({ score: 4 }, tlm[i]));
+      return c;
+    });
+    var rank = { number: 5, compare: 5, timeline: 4, quote: 3, map: 2 }, chosen = [], maps = 0, prevT = '', run = 0, i;
+    for (i = 0; i < n; i++) {
+      var c = cands[i].slice();
+      if (c.length && !plan[i].visual) plan[i].visual = cands[i].slice().sort(function (a, b) { return (rank[b.type] + (b.score || 0) / 10) - (rank[a.type] + (a.score || 0) / 10); })[0];
+      var pick = null;
+      if (i < n - 1 && c.length) {
+        c.sort(function (a, b) {
+          var pa = rank[a.type] + (a.score || 0) / 10 + (i === 0 && (a.type === 'number' || a.type === 'compare') ? 3 : 0), pb = rank[b.type] + (b.score || 0) / 10 + (i === 0 && (b.type === 'number' || b.type === 'compare') ? 3 : 0);
+          return pb - pa;
+        });
+        pick = c.filter(function (v) { return v.type !== prevT && (v.type !== 'map' || maps < 3); })[0] || null;
+        if (pick && useFootage && run >= 2) pick = null;
+        if (pick && plan[i].kind === 'card' && !useFootage) { /* captions-only video: visuals replace plain cards freely */ }
+      }
+      if (pick) { chosen[i] = pick; prevT = pick.type; run++; if (pick.type === 'map') maps++; } else { prevT = ''; run = 0; }
+    }
+    for (i = 0; i < n; i++) {
+      if (chosen[i]) { plan[i].kind = 'visual'; plan[i].visual = chosen[i]; }
+      else if (plan[i].kind === 'visual') plan[i].kind = useFootage ? 'footage' : 'card';
+    }
+    return plan;
+  }
+
+  /* ===== VISUAL ENGINE: painters ===== */
+  var VZ_FONT = 'system-ui,"Segoe UI",Roboto,Arial,sans-serif', VZ_COL = ['#ffd400', '#3dd6ff', '#ff6b6b', '#b48cff'];
+  function vzEase(t) { t = Math.max(0, Math.min(1, t)); return 1 - Math.pow(1 - t, 3); }
+  function vzBox(W, H) { return { x: W * 0.05, y: H * 0.10, w: W * 0.90, h: H * 0.48 }; }
+  function vzPanel(ctx, b, W) { rrect(ctx, b.x, b.y, b.w, b.h, W * 0.03); }
+  // Which countries to light up, which pins to mark, and the area the camera must cover.
+  function vzMapPlan(v) {
+    var G = vzWorld(), lit = [], pins = [], regs = [], bbs = [], seen = {};
+    function light(id) { if (!G[id] || seen[id]) return; seen[id] = 1; lit.push(id); var f = VZ_FOCUS[id], g = G[id].bbox; bbs.push(f || g); }
+    v.ents.forEach(function (e) {
+      if (e.k === 'c') light(e.id);
+      else if (e.k === 'p') { pins.push(e); bbs.push([e.lon - e.sp, e.lat - e.sp * 0.8, e.lon + e.sp, e.lat + e.sp * 0.8]); if (e.c) light(e.c); }
+      else regs.push(e);
+    });
+    if (!bbs.length && regs.length) bbs.push(regs[0].bb);
+    var u = bbs.reduce(function (a, b) { return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])]; }, [1e9, 1e9, -1e9, -1e9]);
+    regs.forEach(function (r) { if (bbs.length > 1 || !lit.length) u = [Math.min(u[0], r.bb[0]), Math.min(u[1], r.bb[1]), Math.max(u[2], r.bb[2]), Math.max(u[3], r.bb[3])]; });
+    return { lit: lit, pins: pins, regs: regs, bb: u };
+  }
+  function vzCamera(bb, pw, ph) {
+    var cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2, sl = Math.max(bb[2] - bb[0], 14), sa = Math.max(bb[3] - bb[1], 9);
+    var k = Math.cos(Math.max(-70, Math.min(70, cy)) * Math.PI / 180), pad = 1.3;
+    var s = Math.min(pw / (sl * pad * k), ph / (sa * pad));
+    return { cx: cx, cy: cy, s: s, k: k };
+  }
+  function vzMap(ctx, W, H, v, t, dur) {
+    var G = vzWorld(), b = vzBox(W, H), P = v._plan || (v._plan = vzMapPlan(v)), cam0 = v._cam || (v._cam = vzCamera(P.bb, b.w, b.h));
+    var zt = vzEase(t / Math.min(1.2, dur)), z = 0.72 + 0.28 * zt, s = cam0.s * z, k = cam0.k, cx = b.x + b.w / 2, cy = b.y + b.h * 0.5;
+    var X = function (lon) { return cx + (lon - cam0.cx) * s * k; }, Y = function (lat) { return cy - (lat - cam0.cy) * s; };
+    ctx.save(); vzPanel(ctx, b, W); ctx.clip();
+    var og = ctx.createLinearGradient(0, b.y, 0, b.y + b.h); og.addColorStop(0, '#0a1330'); og.addColorStop(1, '#070d22'); ctx.fillStyle = og; ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = 'rgba(120,150,230,.09)'; ctx.lineWidth = Math.max(1, W * 0.0012);
+    var step = s * k > 40 ? 5 : s * k > 12 ? 10 : 30, lo, la;
+    for (lo = Math.floor((cam0.cx - 200) / step) * step; lo <= cam0.cx + 200; lo += step) { var gx = X(lo); if (gx < b.x - 2 || gx > b.x + b.w + 2) continue; ctx.beginPath(); ctx.moveTo(gx, b.y); ctx.lineTo(gx, b.y + b.h); ctx.stroke(); }
+    for (la = Math.floor((cam0.cy - 100) / step) * step; la <= cam0.cy + 100; la += step) { var gy = Y(la); if (gy < b.y - 2 || gy > b.y + b.h + 2) continue; ctx.beginPath(); ctx.moveTo(b.x, gy); ctx.lineTo(b.x + b.w, gy); ctx.stroke(); }
+    var lit = {}; P.lit.forEach(function (id, i) { lit[id] = i; });
+    var names = Object.keys(G), vis = [], hl = [];
+    names.forEach(function (nm) {
+      var g = G[nm], bb = g.bbox;
+      if (X(bb[2]) < b.x || X(bb[0]) > b.x + b.w || Y(bb[1]) < b.y || Y(bb[3]) > b.y + b.h) return;
+      (lit[nm] != null ? hl : vis).push(nm);
+    });
+    function trace(nm) { G[nm].rings.forEach(function (r) { var i, n = r.length / 2; ctx.moveTo(X(r[0]), Y(r[1])); for (i = 1; i < n; i++) { if (Math.abs(r[2 * i] - r[2 * i - 2]) > 180) { ctx.closePath(); ctx.moveTo(X(r[2 * i]), Y(r[2 * i + 1])); } else ctx.lineTo(X(r[2 * i]), Y(r[2 * i + 1])); } ctx.closePath(); }); }
+    ctx.beginPath(); vis.forEach(trace); ctx.fillStyle = '#18234a'; ctx.fill(); ctx.lineWidth = Math.max(1, W * 0.0016); ctx.strokeStyle = 'rgba(140,160,220,.30)'; ctx.lineJoin = 'round'; ctx.stroke();
+    var pulse = 0.5 + 0.5 * Math.sin(t * 4);
+    hl.forEach(function (nm) {
+      var col = VZ_COL[lit[nm] % 4], a = vzEase((t - 0.15 * lit[nm]) / 0.5);
+      ctx.beginPath(); trace(nm); ctx.save(); ctx.globalAlpha = 0.28 + 0.5 * a; ctx.fillStyle = col; ctx.fill(); ctx.restore();
+      ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = W * 0.02 * a; ctx.lineWidth = Math.max(2, W * 0.004); ctx.strokeStyle = '#fff'; ctx.globalAlpha = a; ctx.stroke(); ctx.restore();
+    });
+    var fs = Math.round(W * 0.044), taken = [];
+    function label(txt, x, y, col) {
+      ctx.font = '900 ' + fs + 'px ' + VZ_FONT; var w = ctx.measureText(txt).width, tries = 0;
+      x = Math.max(b.x + w / 2 + 8, Math.min(b.x + b.w - w / 2 - 8, x)); y = Math.max(b.y + fs, Math.min(b.y + b.h - fs, y));
+      while (tries++ < 8 && taken.some(function (r) { return Math.abs(r.x - x) < (r.w + w) / 2 + 6 && Math.abs(r.y - y) < fs * 1.1; })) y += fs * 1.15;
+      taken.push({ x: x, y: y, w: w });
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = fs * 0.26; ctx.strokeStyle = 'rgba(5,8,20,.95)'; ctx.lineJoin = 'round'; ctx.strokeText(txt, x, y); ctx.fillStyle = col || '#fff'; ctx.fillText(txt, x, y);
+    }
+    P.lit.forEach(function (id, i) {
+      var f = VZ_FOCUS[id] || G[id].bbox, a = vzEase((t - 0.15 * i - 0.2) / 0.4); if (a <= 0) return;
+      if (P.pins.some(function (p) { return p.c === id && p.sp < 6; })) return;
+      ctx.save(); ctx.globalAlpha = a; label((VZ_DISPLAY[id] || id).toUpperCase(), X((f[0] + f[2]) / 2), Y((f[1] + f[3]) / 2), '#fff'); ctx.restore();
+    });
+    P.pins.forEach(function (p, i) {
+      var a = vzEase((t - 0.3 - 0.12 * i) / 0.4), x = X(p.lon), y = Y(p.lat), r = W * 0.012; if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x, y, r * (1.6 + 1.2 * pulse), 0, 7); ctx.strokeStyle = 'rgba(255,212,0,' + (0.7 - 0.5 * pulse) + ')'; ctx.lineWidth = W * 0.004; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = '#ffd400'; ctx.fill(); ctx.lineWidth = W * 0.003; ctx.strokeStyle = '#0a1330'; ctx.stroke();
+      label(p.nm.toUpperCase(), x, y - r * 2.6, '#ffd400'); ctx.restore();
+    });
+    P.regs.forEach(function (r, i) { if (P.lit.length || P.pins.length) return; ctx.save(); ctx.globalAlpha = vzEase(t / 0.5); label(r.nm.toUpperCase(), (r.bb[0] + r.bb[2]) / 2 > -999 ? X((r.bb[0] + r.bb[2]) / 2) : cx, Y((r.bb[1] + r.bb[3]) / 2), '#ffd400'); ctx.restore(); });
+    ctx.restore();
+    vzPanel(ctx, b, W); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
+  }
+  function vzFmt(v, p) { // animated figure text
+    var x = v.val * p, d = v.dec; if (d === 0) x = Math.round(x); var s = x.toFixed(d);
+    if (v.big || (!d && x >= 10000)) s = String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (v.cur || '') + s + (v.pct ? '%' : '');
+  }
+  function vzFit(ctx, txt, maxW, size, weight) { ctx.font = weight + ' ' + size + 'px ' + VZ_FONT; var w = ctx.measureText(txt).width; return w > maxW ? Math.max(10, Math.floor(size * maxW / w)) : size; }
+  function vzWrap(ctx, txt, maxW, maxLines) {
+    var words = txt.split(/\s+/), lines = [], cur = '';
+    words.forEach(function (w) { var tt = cur ? cur + ' ' + w : w; if (cur && ctx.measureText(tt).width > maxW) { lines.push(cur); cur = w; } else cur = tt; });
+    if (cur) lines.push(cur); return lines.slice(0, maxLines);
+  }
+  function vzNumber(ctx, W, H, v, t, dur) {
+    var b = vzBox(W, H), p = vzEase(t / 1.1), a = vzEase(t / 0.25), txt = vzFmt(v, p), full = vzFmt(v, 1), cy = b.y + b.h * 0.44;
+    ctx.save(); ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.78)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
+    var size = vzFit(ctx, full, b.w * 0.86, Math.round(W * 0.26), 900), magSz = Math.round(W * 0.07);
+    ctx.font = '900 ' + size + 'px ' + VZ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    ctx.lineWidth = size * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(txt, W / 2, cy); ctx.fillStyle = '#ffd400'; ctx.fillText(txt, W / 2, cy);
+    var y = cy + size * 0.55;
+    if (v.mag) { ctx.font = '800 ' + magSz + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(v.mag.toUpperCase(), W / 2, y + magSz * 0.4); y += magSz * 1.1; }
+    if (v.label) {
+      var ls = Math.round(W * 0.05); ctx.font = '800 ' + ls + 'px ' + VZ_FONT; var lines = vzWrap(ctx, v.label, b.w * 0.82, 2);
+      ctx.fillStyle = '#cfd8ff'; lines.forEach(function (l, i) { ctx.fillText(l, W / 2, Math.min(b.y + b.h - ls, y + ls * 0.7 + i * ls * 1.15)); });
+    }
+    ctx.fillStyle = '#ffd400'; rrect(ctx, W / 2 - W * 0.07, b.y + b.h - W * 0.035, W * 0.14, W * 0.012, W * 0.006); ctx.fill();
+    ctx.restore();
+  }
+  function vzCompare(ctx, W, H, v, t, dur) {
+    var b = vzBox(W, H), items = [v.a, v.b], mx = Math.max(v.a.val, v.b.val), a = vzEase(t / 0.25);
+    ctx.save(); ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.78)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
+    var rowH = b.h / 2, bx = b.x + b.w * 0.06, bw = b.w * 0.88;
+    items.forEach(function (it, i) {
+      var top = b.y + i * rowH, p = vzEase((t - 0.12 * i) / 0.9), col = VZ_COL[i], full = vzFmt(it, 1), txt = vzFmt(it, p);
+      var fs = vzFit(ctx, full + (it.mag ? ' ' + it.mag.toUpperCase() : ''), bw, Math.round(W * 0.12), 900), barY = top + rowH * 0.56, barH = rowH * 0.16;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '900 ' + fs + 'px ' + VZ_FONT; ctx.fillStyle = col;
+      ctx.fillText(txt + (it.mag ? ' ' + it.mag.toUpperCase() : ''), bx, top + rowH * 0.32);
+      rrect(ctx, bx, barY, bw, barH, barH / 2); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill();
+      var w = Math.max(barH, bw * (it.val / mx) * p); rrect(ctx, bx, barY, w, barH, barH / 2); ctx.fillStyle = col; ctx.fill();
+      if (it.label) { var ls = Math.round(W * 0.036); ctx.font = '800 ' + ls + 'px ' + VZ_FONT; ctx.fillStyle = '#cfd8ff'; ctx.fillText(vzWrap(ctx, it.label, bw, 1)[0] || '', bx, barY + barH + ls * 0.95); }
+    });
+    ctx.restore();
+  }
+  function vzQuoteDraw(ctx, W, H, v, t, dur) {
+    var b = vzBox(W, H), a = vzEase(t / 0.3);
+    ctx.save(); ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.8)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
+    var words = v.text.split(/\s+/), size = Math.round(W * (words.length > 18 ? 0.05 : words.length > 10 ? 0.06 : 0.075)), maxW = b.w * 0.82, lines;
+    ctx.font = '800 ' + size + 'px ' + VZ_FONT; lines = vzWrap(ctx, v.text, maxW, 7);
+    var lh = size * 1.22, total = lines.length * lh, y0 = b.y + b.h * 0.5 - total / 2 + lh / 2 + (v.who ? -size * 0.4 : 0), shown = Math.ceil(words.length * Math.min(1, t / Math.max(0.8, dur * 0.7))), cnt = 0;
+    ctx.font = '900 ' + Math.round(W * 0.2) + 'px Georgia,serif'; ctx.fillStyle = 'rgba(255,212,0,.9)'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText('“', b.x + b.w * 0.05, b.y + W * 0.17);
+    ctx.font = '800 ' + size + 'px ' + VZ_FONT; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    lines.forEach(function (l, i) {
+      var ws = l.split(' '), vis = ws.filter(function () { return cnt++ < shown; }).join(' '); if (!vis) return;
+      ctx.fillStyle = '#fff'; ctx.fillText(l === vis ? vis : vis, W / 2 - (l === vis ? 0 : (ctx.measureText(l).width - ctx.measureText(vis).width) / 2), y0 + i * lh);
+    });
+    if (v.who) { var fs = Math.round(W * 0.045); ctx.font = '800 ' + fs + 'px ' + VZ_FONT; ctx.fillStyle = '#ffd400'; ctx.globalAlpha = a * vzEase((t - 0.5) / 0.4); ctx.fillText('— ' + v.who.toUpperCase(), W / 2, b.y + b.h - fs * 1.2); }
+    ctx.restore();
+  }
+  function vzTimeline(ctx, W, H, v, t, dur) {
+    var b = vzBox(W, H), n = v.items.length, a = vzEase(t / 0.25), railX = b.x + b.w * 0.14, y0 = b.y + b.h * 0.14, y1 = b.y + b.h * 0.86, gap = (y1 - y0) / Math.max(1, n - 1);
+    ctx.save(); ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.8)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
+    var prog = Math.min(1, t / Math.max(0.8, dur * 0.8));
+    ctx.lineWidth = W * 0.008; ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.beginPath(); ctx.moveTo(railX, y0); ctx.lineTo(railX, y1); ctx.stroke();
+    ctx.strokeStyle = '#ffd400'; ctx.beginPath(); ctx.moveTo(railX, y0); ctx.lineTo(railX, y0 + (y1 - y0) * Math.min(1, prog * 1.1)); ctx.stroke();
+    var wf = Math.round(W * 0.05), tf = Math.round(W * 0.052);
+    v.items.forEach(function (it, i) {
+      var y = y0 + gap * i, p = vzEase((prog - i / n * 0.85) / 0.25); if (p <= 0) return;
+      ctx.save(); ctx.globalAlpha = p; ctx.beginPath(); ctx.arc(railX, y, W * 0.02, 0, 7); ctx.fillStyle = '#ffd400'; ctx.fill();
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '900 ' + wf + 'px ' + VZ_FONT; ctx.fillStyle = '#ffd400'; ctx.fillText(it.when, railX + W * 0.05, y - tf * 0.55);
+      ctx.font = '800 ' + tf + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(vzWrap(ctx, it.what, b.x + b.w - railX - W * 0.08, 1)[0] || '', railX + W * 0.05, y + tf * 0.6); ctx.restore();
+    });
+    ctx.restore();
+  }
+  function vzDraw(ctx, W, H, v, t, dur) {
+    if (!v) return;
+    try {
+      if (v.type === 'map') vzMap(ctx, W, H, v, t, dur);
+      else if (v.type === 'number') vzNumber(ctx, W, H, v, t, dur);
+      else if (v.type === 'compare') vzCompare(ctx, W, H, v, t, dur);
+      else if (v.type === 'quote') vzQuoteDraw(ctx, W, H, v, t, dur);
+      else if (v.type === 'timeline') vzTimeline(ctx, W, H, v, t, dur);
+    } catch (e) { /* a broken visual must never stop the render */ }
+  }
+  /* ===== END VISUAL ENGINE ===== */
 
   /* ---------- rendering ---------- */
   // Formats to try, best first. Encoders differ per browser and computer (a codec level that is too low rejects 720x1280),
@@ -4652,6 +5102,7 @@
     var r = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.9);
     r.addColorStop(0, 'hsla(' + hue + ',80%,55%,.28)'); r.addColorStop(1, 'hsla(' + hue + ',80%,55%,0)');
     ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(160,180,255,.07)'; var gs = Math.round(W / 18), gx, gy; for (gy = gs / 2; gy < H; gy += gs) for (gx = gs / 2; gx < W; gx += gs) ctx.fillRect(gx, gy, 2, 2);
   }
   function drawCaption(ctx, W, H, chunk, now) {
     var size = Math.round(W * 0.078), maxW = W * 0.86, gap = size * 0.28;
@@ -4822,9 +5273,10 @@
         ctx.fillStyle = g; ctx.fillRect(0, H * 0.35, W, H * 0.65);
         var g2 = ctx.createLinearGradient(0, 0, 0, H * 0.18); g2.addColorStop(0, 'rgba(0,0,0,.4)'); g2.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H * 0.18);
+        if (sc.visual) vzDraw(ctx, W, H, sc.visual, now - (sc.start || 0), Math.max(0.5, (sc.end || now + 2) - (sc.start || 0)));
         var ch = chunkAt(now); if (ch) drawCaption(ctx, W, H, ch, now);
-        if (opts.banner) drawBanner(ctx, W, H, opts.banner, now);
-        (opts.callouts || []).forEach(function (c) { drawCallout(ctx, W, H, c, now); });
+        if (opts.banner && !sc.visual) drawBanner(ctx, W, H, opts.banner, now);
+        if (!sc.visual) (opts.callouts || []).forEach(function (c) { drawCallout(ctx, W, H, c, now); });
         if (opts.endcard) drawEndcard(ctx, W, H, tl, now);
         if (usedVideo && opts.tag) {
           ctx.font = '600 ' + Math.round(W * 0.028) + 'px system-ui,Arial,sans-serif'; ctx.textBaseline = 'top'; ctx.fillStyle = 'rgba(255,255,255,.85)';
@@ -4969,7 +5421,10 @@
     fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [bc, 'Headline banner in the first seconds']));
     var mc = el('input', { type: 'checkbox', id: 'asg-vid-motion' }); mc.checked = o.motion !== false;
     fr2.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [mc, 'Zoom beat every 2.4 s (keeps the picture moving)']));
-    box.appendChild(fr2);
+    var fr3 = el('div', { class: 'asg-vid-row' });
+    var vc = el('input', { type: 'checkbox', id: 'asg-vid-visuals' }); vc.checked = o.visuals !== false;
+    fr3.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [vc, 'Drawn scenes: maps, figures, comparisons and quotes (instead of stock footage where the sentence has one)']));
+    box.appendChild(fr3);
     var keyNote = el('p', { class: 'asg-vid-note' });
     var syncKey = function () {
       var p = STOCK[stockProvider()];
@@ -4986,7 +5441,7 @@
     var save = function () {
       var v = vopt();
       v.voice = voiceSel.value || v.voice; v.speed = Math.min(1.3, Math.max(0.7, parseFloat($('#asg-vid-speed').value) || 1));
-      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked; v.callouts = cc.checked; v.endcard = ec.checked; v.banner = bc.checked; v.motion = mc.checked;
+      v.res = res.value; v.engine = eng.value; v.footage = fc.checked; v.tag = tc.checked; v.callouts = cc.checked; v.endcard = ec.checked; v.banner = bc.checked; v.motion = mc.checked; v.visuals = vc.checked;
       persistSettings();
     };
     box.addEventListener('change', save);
@@ -5014,13 +5469,13 @@
     var head = el('div', { class: 'asg-plan-head' });
     var ht = el('div', {});
     ht.appendChild(el('h4', { text: 'Edit scenes' }));
-    ht.appendChild(el('p', { text: 'Each line of the script is a scene. Change the footage search or turn a scene into a plain caption card, then re-record. The voice is reused, so this takes less time than starting over.' }));
+    ht.appendChild(el('p', { text: 'Each line of the script is a scene. Change the footage search, switch a scene to a drawn map, figure or quote, or make it a plain caption card, then re-record. The voice is reused, so this takes less time than starting over.' }));
     head.appendChild(ht);
     var go = el('button', { class: 'asg-btn asg-btn-primary asg-plan-go', type: 'button' });
     var go2 = el('button', { class: 'asg-btn asg-btn-primary asg-plan-go', type: 'button' });
     head.appendChild(go);
     wrap.appendChild(head);
-    var edits = scenes.map(function (s) { return { query: s.query || '', alt: s.alt || '', kind: s.kind || 'footage' }; });
+    var edits = scenes.map(function (s) { return { query: s.query || '', alt: s.alt || '', kind: s.kind || 'footage', visual: s.visual || null }; });
     var orig = edits.map(function (e) { return { query: e.query, kind: e.kind }; });
     var changed = 0;
     function count() {
@@ -5035,28 +5490,29 @@
       body.appendChild(el('p', { class: 'asg-plan-text', text: s.text }));
       var ctl = el('div', { class: 'asg-plan-ctl' });
       var tg = el('div', { class: 'asg-plan-tg', role: 'group', 'aria-label': 'Scene ' + (i + 1) + ' shows' });
-      var bF = el('button', { type: 'button', text: 'Footage' }), bC = el('button', { type: 'button', text: 'Caption card' });
-      tg.appendChild(bF); tg.appendChild(bC);
+      var bF = el('button', { type: 'button', text: 'Footage' }), bV = el('button', { type: 'button', text: edits[i].visual ? vzLabel(edits[i].visual) : 'Drawn scene' }), bC = el('button', { type: 'button', text: 'Caption card' });
+      tg.appendChild(bF); if (edits[i].visual) tg.appendChild(bV); tg.appendChild(bC);
       var q = el('input', { type: 'text', value: edits[i].query, placeholder: 'Search words, for example crowd outside parliament', 'aria-label': 'Footage search words for scene ' + (i + 1) });
       function paint() {
-        var isCard = edits[i].kind === 'card';
-        bF.className = isCard ? '' : 'is-on'; bC.className = isCard ? 'is-on' : '';
-        bF.setAttribute('aria-pressed', String(!isCard)); bC.setAttribute('aria-pressed', String(isCard));
-        q.disabled = isCard; row.classList.toggle('is-card', isCard);
+        var k = edits[i].kind, isCard = k === 'card', isVis = k === 'visual';
+        bF.className = (isCard || isVis) ? '' : 'is-on'; bC.className = isCard ? 'is-on' : ''; bV.className = isVis ? 'is-on' : '';
+        bF.setAttribute('aria-pressed', String(!isCard && !isVis)); bC.setAttribute('aria-pressed', String(isCard)); bV.setAttribute('aria-pressed', String(isVis));
+        q.disabled = isCard || isVis; row.classList.toggle('is-card', isCard || isVis);
         row.classList.toggle('is-edited', edits[i].query !== orig[i].query || edits[i].kind !== orig[i].kind);
         count();
       }
       bF.addEventListener('click', function () { edits[i].kind = 'footage'; paint(); });
       bC.addEventListener('click', function () { edits[i].kind = 'card'; paint(); });
+      bV.addEventListener('click', function () { edits[i].kind = 'visual'; paint(); });
       q.addEventListener('input', function () { edits[i].query = q.value; paint(); });
       ctl.appendChild(tg); ctl.appendChild(q); body.appendChild(ctl);
-      if (s.usedQuery && s.kind !== 'card' && s.usedQuery !== edits[i].query) body.appendChild(el('p', { class: 'asg-plan-used', text: 'Showing footage for: ' + s.usedQuery }));
+      if (s.usedQuery && s.kind !== 'card' && s.kind !== 'visual' && s.usedQuery !== edits[i].query) body.appendChild(el('p', { class: 'asg-plan-used', text: 'Showing footage for: ' + s.usedQuery }));
       row.appendChild(body); list.appendChild(row); paint();
     });
     wrap.appendChild(list);
     var foot = el('div', { class: 'asg-plan-foot' }); foot.appendChild(go2); wrap.appendChild(foot);
     function rerec() {
-      sc.vplan = { hash: rec.sceneHash, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind }; }) };
+      sc.vplan = { hash: rec.sceneHash, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind, visual: edits[i].visual || null }; }) };
       persistScripts(); makeVideo(sc, card, { keepPlan: true });
     }
     go.addEventListener('click', rerec); go2.addEventListener('click', rerec);
@@ -5149,15 +5605,24 @@
       var hash = sceneHash(tl.scenes);
       setStage('footage'); setBar(0.5);
       var havePlan = opts.keepPlan && sc.vplan && sc.vplan.hash === hash && sc.vplan.scenes.length === tl.scenes.length;
-      if (!useFootage) { plan = tl.scenes.map(function () { return { query: '', alt: '', kind: 'card' }; }); return null; }
-      var planP = havePlan ? Promise.resolve(sc.vplan.scenes) : (setStatus(card, 'Planning the footage…'), planScenes(tl.scenes, sc.title || sc.storyTitle || ''));
-      return planP.then(function (p) {
-        plan = p; sc.vplan = { hash: hash, scenes: p }; persistScripts();
-        return attachFootage(tl, plan, sc.title || sc.storyTitle || '', provider, stockKey(), W, function (i, n, q) { setStatus(card, 'Footage for scene ' + (i + 1) + ' of ' + n + (q ? ': "' + q + '"' : '')); setBar(0.5 + 0.3 * i / n); }, run);
+      var cards = function () { return tl.scenes.map(function () { return { query: '', alt: '', kind: 'card' }; }); };
+      var baseP = havePlan ? Promise.resolve(sc.vplan.scenes) : !useFootage ? Promise.resolve(cards()) : (setStatus(card, 'Planning the footage…'), planScenes(tl.scenes, sc.title || sc.storyTitle || ''));
+      return baseP.then(function (p) {
+        var fresh = o.visuals !== false && !havePlan, title = sc.title || sc.storyTitle || '';
+        return (fresh ? (setStatus(card, 'Looking for maps, figures and quotes…'), vzPlanTimelines(tl.scenes)) : Promise.resolve(null)).then(function (tlm) {
+          if (fresh) { try { p = vzMerge(p, tl.scenes, title, useFootage, tlm); } catch (e) { LOG('visual scenes skipped', e); } }
+          if (o.visuals === false) p = p.map(function (x) { return x.kind === 'visual' ? Object.assign({}, x, { kind: useFootage ? 'footage' : 'card' }) : x; });
+          if (!useFootage) p = p.map(function (x) { return x.kind === 'visual' ? x : Object.assign({}, x, { kind: 'card' }); });
+          plan = p; sc.vplan = { hash: hash, scenes: p }; persistScripts();
+          p.forEach(function (x, i) { if (x.kind === 'visual' && x.visual) tl.scenes[i].visual = x.visual; });
+          if (!useFootage) return null;
+          return attachFootage(tl, plan, title, provider, stockKey(), W, function (i, n, q) { setStatus(card, 'Footage for scene ' + (i + 1) + ' of ' + n + (q ? ': "' + q + '"' : '')); setBar(0.5 + 0.3 * i / n); }, run);
+        });
       }).then(function (r) {
+        if (!r) return;
         info.plain = r.plain; info.credits = r.credits;
         if (r.error) toast(r.error.message, 'error');
-        if (r.plain === tl.scenes.length) info.footage = 'plain';
+        if (r.plain + tl.scenes.filter(function (s) { return s.visual; }).length === tl.scenes.length) info.footage = 'plain';
       });
     }).then(function () {
       if (run.cancelled) throw cancelError();
@@ -5169,7 +5634,7 @@
         id: id, title: sc.title || '', video: res.blob, ext: res.ext, mime: res.mime, duration: res.duration, w: res.w, h: res.h,
         audio: wavBlob(timelineSamples(tl), tl.rate), srt: buildSrt(tl), credits: info.credits, provider: info.provider, footage: info.footage, plain: info.plain,
         madeAt: new Date().toISOString(), sceneHash: sceneHash(tl.scenes),
-        scenes: tl.scenes.map(function (s, i) { return { text: s.text, start: s.start, usedQuery: s.usedQuery || '', query: (plan[i] && plan[i].query) || '', alt: (plan[i] && plan[i].alt) || '', kind: (plan[i] && plan[i].kind) || 'card' }; })
+        scenes: tl.scenes.map(function (s, i) { return { text: s.text, start: s.start, usedQuery: s.usedQuery || '', query: (plan[i] && plan[i].query) || '', alt: (plan[i] && plan[i].alt) || '', kind: (plan[i] && plan[i].kind) || 'card', visual: (plan[i] && plan[i].visual) || null }; })
       };
       return dbPut('media', rec).then(function () { showVideoResult(sc, card, rec); setStatus(card, 'Done. Saved in this browser.', 'is-ok'); refreshStorageNote(); });
     }).catch(function (e) {
