@@ -1724,10 +1724,15 @@
     lines.push('HOOK CRAFT (the first two seconds decide everything)');
     lines.push('- The hook is frame one: no greeting, no setup, no outlet, no time marker ("On Tuesday", "Earlier today", "In recent days", "This week") and no reporting verb ("officials said", "it was reported"). The viewer already knows it is new.');
     lines.push('- Do not open with a date range, a list of names, delegates or cities, a decimal statistic, or the story headline word for word. Lead with what it MEANS or what is at stake, and keep the exact figure for a later beat.');
-    lines.push('- Under 14 words. One specific thing (a name, a number, a place) and one gap the viewer needs closed. A stranger must understand who did what and why they should care.');
-    lines.push('- Pick the strongest formula the facts allow: (a) consequence first, (b) a contradiction between two things the facts state, (c) a question the facts answer that names the subject, (d) what it costs ordinary people, only when the facts state that link. Patterns only: never reuse example wording, and use only the facts above. Shapes, with placeholders: "[Actor] just closed the door on [thing]." / "[A] says X. [B] says the opposite." / "Why would [actor] do [surprising thing] now?"');
+    lines.push('- Under 11 words, 14 at the very most. One specific thing (a name, a number, a place) and ONE gap the viewer needs closed. A stranger must understand who is involved and why they should care.');
+    lines.push('- A hook that packs the whole event into a question ("Why did [actor] do [A] after [B], including [C]?") leaves nothing to find out, so viewers swipe in one second. Say the single most striking fact, short, and WITHHOLD the reason, the detail or the consequence for the next sentence.');
+    lines.push('- THE SECOND SENTENCE is the other half of the hook: it must pay off the gap with the next most surprising fact, within about three seconds. It never starts with an outlet ("X reports"), a recap of the hook, a definition or background. Escalate: new fact, new number, a reversal.');
+    lines.push('- Pick the strongest formula the facts allow: (a) CONSEQUENCE FIRST: the biggest concrete result, stated flat ("[Company] lost a tenth of its value before lunch."); (b) CONTRADICTION: two facts that should not both be true ("[A] says X. The numbers say Y."); (c) HIDDEN LINK: what the headline is really about, only when the facts state the link ("This is not about [headline topic]. It is about [thing]."); (d) STAKES: who pays or who is exposed, only when the facts state it; (e) a SHORT open question of at most 9 words that the facts answer later and that does not already contain the answer. Patterns only: never reuse example wording, and use only the facts above.');
+    lines.push('- WORKED EXAMPLE of the difference, on an invented story (copy the technique, never the words). Facts: Brightline Rail\'s chief of 33 years resigned Thursday; shares fell 12% before the open; the board named an interim chief. WEAK hook: "Why did Brightline Rail\'s chief step down after 33 years?" (it just restates the headline as a question, nothing is withheld). STRONG hook: "Brightline Rail lost 12% of its value before the market opened." Then the SECOND sentence pays it off with the next fact: "The reason: the chief who built it over 33 years resigned overnight." Then each later sentence adds one NEW fact or turn, and the last beat before the closing question is the sharpest fact.');
+    lines.push('- THE STRONGEST HOOK IS THE STRONGEST TRUE ONE. Drama comes from choosing the most striking fact, never from a bigger word. Use the fact\'s own verb and noun: "stepping down" is not "forced out"; "dominates the market" is not "controls the world\'s chips"; "had Trump\'s ear" is not "a direct line"; something the Times reported is not something a person "admitted"; an allegation stays "allegedly" or "reportedly" and keeps who alleged it. A line a fact-checker would mark "overstated" or "unsupported" is rewritten, and the same rule holds for every body sentence.');
+    lines.push('- A body sentence that only defines or describes something the viewer already knows ("[Company] is an AI giant.") is deleted.');
     lines.push('- The hook promises something the body delivers. No clickbait, no "you will not believe", no fake urgency. Withhold the answer: the hook opens a question, the middle builds it, the last beats close it.');
-    lines.push('- "alt_hooks": also give two OTHER opening lines in the two formulas you did not use for "hook", each under 14 words, built only from the facts, no outlet names, each one a real alternative a viewer might stop for.');
+    lines.push('- "alt_hooks": also give FOUR OTHER opening lines, each in a different formula from the list above and from "hook", each under 12 words, built only from the facts, no outlet names, each one a real alternative a viewer might stop for.');
     lines.push('');
     lines.push('VOICE: PUNCHY, CONCRETE, HUMAN');
     lines.push('- One idea per sentence. Mostly 5 to 12 words, none above 18. Follow a longer sentence with a short punch. A fragment is fine for emphasis.');
@@ -1788,7 +1793,7 @@
     lines.push('TITLE RULES: 35 to 60 characters. Make a stranger need the answer: name the main actor and one tension, contradiction or consequence, using only the facts. Formulas that work (give each option a different one): a contradiction ("X Says A. Y Says B."), a named question with an open outcome ("Is X Ready For Y?"), a consequence for people ("What X Means For Your Y") only when the facts state it, the hidden layer ("What X Is Not Saying"). Plain words a stranger understands, no unexplained product names, jargon or metaphors (stalemate, chess, tightrope). Every number, name and place must come from the facts. Never a vague label ("Latest update", "What we know", "Situation in X"). No all caps, no emoji, no "shocking", no promise the video does not keep. The title is NOT the hook: do not reuse the hook sentence. "alt_titles" are three options, each built on a different formula from the main title and from each other.');
     lines.push('');
     lines.push('Return STRICT JSON only:');
-    lines.push('{"angle":"the one tension of this Short in one sentence","hook":"...","alt_hooks":[{"style":"consequence|question|hidden","text":"..."},{"style":"consequence|question|hidden","text":"..."}],"body":"the beats as one flowing narration, one new thing per sentence","analysis":"","cta":"...","title":"the strongest title: 35 to 60 characters, a named actor plus a tension, contradiction or consequence, built only from the facts","banner":"...","pinned_comment":"...","callouts":[{"text":"...","at":"..."}],"alt_titles":[{"style":"match","text":"plain and factual, in the channel tone"},{"style":"engaging","text":"a contradiction or a named open question the facts support"},{"style":"engaging","text":"a consequence or hidden-layer framing the facts support"}],"description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
+    lines.push('{"angle":"the one tension of this Short in one sentence","hook":"...","alt_hooks":[{"style":"consequence","text":"..."},{"style":"contradiction","text":"..."},{"style":"hidden","text":"..."},{"style":"stakes","text":"..."}],"body":"the beats as one flowing narration, one new thing per sentence","analysis":"","cta":"...","title":"the strongest title: 35 to 60 characters, a named actor plus a tension, contradiction or consequence, built only from the facts","banner":"...","pinned_comment":"...","callouts":[{"text":"...","at":"..."}],"alt_titles":[{"style":"match","text":"plain and factual, in the channel tone"},{"style":"engaging","text":"a contradiction or a named open question the facts support"},{"style":"engaging","text":"a consequence or hidden-layer framing the facts support"}],"description":"2-3 lines summarising the story","tags":["5-8 tags"]}');
     return lines.join('\n');
   }
 
@@ -2502,7 +2507,8 @@
   // Rubric for an opening line, from Shorts retention guidance: short, specific, real stakes, a curiosity gap, never the outlet first.
   function hookScore(h) {
     var t = String(h || '').trim(), w = wordCount(t), pts = 50, why = [];
-    if (w <= 9) { pts += 14; why.push('short'); } else if (w <= 13) { pts += 8; why.push('tight'); } else if (w > 16) { pts -= 12; why.push('long'); }
+    if (w <= 9) { pts += 14; why.push('short'); } else if (w <= 13) { pts += 8; why.push('tight'); } else if (w > 14) { pts -= 20; why.push('long'); }
+    if (w > 11 && (t.match(/,/g) || []).length >= 1 && /\b(after|including|despite|while|amid)\b/i.test(t)) { pts -= 10; why.push('gives it all away'); }
     if (/\d/.test(t)) { pts += 6; why.push('a number'); }
     if (/\s[A-Z][a-z]{2,}/.test(t)) { pts += 6; why.push('names who'); }
     if (/\?\s*$/.test(t)) { pts += 8; why.push('open question'); }
@@ -2516,7 +2522,7 @@
     var out = [], seen = {}; seen[normText(mainHook)] = 1;
     (Array.isArray(arr) ? arr : []).forEach(function (a) {
       var t = String((a && (a.text || a.hook)) || (typeof a === 'string' ? a : '')).trim();
-      if (!t || out.length >= 2) return;
+      if (!t || out.length >= 4) return;
       var w = wordCount(t), k = normText(t);
       if (w < 4 || w > 16 || seen[k]) return;
       if (unsupportedNumbers(t, articleText).length) return;
@@ -2687,13 +2693,16 @@
     if (corr && corr.outlet) normText(corr.outlet).replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).forEach(function (w) { if (w) words.push(w); });
     return words;
   }
-  function sanitizeAnalysis(parsed, articleText, allow, facts) {
+  function sanitizeAnalysis(parsed, articleText, allow, facts, lenient) {
     var a = str(parsed.analysis).replace(/\s+/g, ' ').trim();
     if (!a) return 0;
-    var parts = splitSentences(a);
+    var parts = splitSentences(a), artLow = String(articleText || '').toLowerCase();
+    // A motive, decision or backstage event stated as fact that the source never mentions ("they forced the board's hand").
+    var ASSERT_RE = /\b(forced|pushed out|ordered|orchestrat\w+|engineer\w+|knew|couldn['’]t let|could not let|didn['’]t drive|did not drive|the real reason|really (?:about|drove)|behind the scenes|quietly (?:decided|pushed|forced))\b/i, HEDGE_RE = /\b(looks? like|reads? as|suggests?|appears?|seems?|simplest reading|one reading|likely|probably|possibly|may have|might have)\b/i;
     var keep = parts.filter(function (x) {
-      var low = normText(x);
-      return !unsupportedNumbers(x, articleText).length && !repeatsFact(x, facts, 0.85) && !fluffIn(x).length && !/\b(everyone|nobody|guaranteed)\b/.test(low) && !forecastIssues(x, '').length;
+      var low = normText(x), am = ASSERT_RE.exec(x);
+      if (am && !HEDGE_RE.test(x) && artLow.indexOf(am[1].toLowerCase()) < 0) return false;
+      return !unsupportedNumbers(x, articleText).length && (lenient || !repeatsFact(x, facts, 0.85)) && !fluffIn(x).length && !/\b(everyone|nobody|guaranteed)\b/.test(low) && (lenient || !forecastIssues(x, '').length);
     });
     parsed.analysis = keep.join(' ').trim();
     return parts.length - keep.length;
@@ -2884,8 +2893,16 @@
     if (robo) problems.push('Robotic phrasing: "' + robo[0] + '". Rewrite that sentence the way a person would say it out loud. Never talk about the script, the sources or how many outlets there are.');
     var repeats = repeatedSentences(parsed);
     if (repeats.length) problems.push('Repetition: "' + repeats[0].later.text.slice(0, 70) + '" says what "' + repeats[0].earlier.text.slice(0, 60) + '" already said' + (repeats.length > 1 ? ' (and ' + (repeats.length - 1) + ' more like it)' : '') + '. Say each thing once: replace the repeat with a NEW fact or a new turn, or cut it.');
-    var nBeats = splitSentences(str(parsed.body)).length;
-    if (facts && facts.length && nBeats > facts.length + 2) problems.push('The body has ' + nBeats + ' sentences for only ' + facts.length + ' facts, so it is padded. Cut to at most ' + (facts.length + 1) + ' sentences, each with a new fact or turn.');
+    var hw = wordCount(parsed.hook);
+    if (/\?\s*$/.test(str(parsed.hook).trim()) && hw > 9) problems.push('The hook is a ' + hw + '-word question, so it already holds the answer. Use a flat statement of the most striking fact, or a question of 9 words or fewer that the story answers later.');
+    if (hw > 14) problems.push('The hook is ' + hw + ' words. Cut it to 11 or fewer: say the one striking fact and withhold the rest for the next sentence.');
+    var bs = splitSentences(str(parsed.body)), b0 = bs[0] || '';
+    if (/\b(reports?|reported|according to|per)\b/i.test(b0.split(' ').slice(0, 6).join(' ')) || (srcN.length >= 3 && normText(b0).indexOf(srcN) === 0)) problems.push('The first body sentence opens with the outlet. Start with the next most surprising fact instead; name the outlet later, once, only where it matters.');
+    if (bs[0] && echoesAny(bs[0], [str(parsed.hook)], 0.5)) problems.push('The first body sentence repeats the hook. It must give the next new fact.');
+    var defs = bs.filter(function (x) { return wordCount(x) <= 7 && /^[A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*)?\s+(is|are|was)\s+(an?|the)\s/.test(x); });
+    if (defs.length) problems.push('"' + defs[0] + '" only describes something the viewer knows. Delete it or replace it with a new fact.');
+    var nBeats = bs.length;
+    if (facts && facts.length && nBeats > facts.length + 1) problems.push('The body has ' + nBeats + ' sentences for only ' + facts.length + ' facts, so it is padded. Cut to at most ' + (facts.length + 1) + ' sentences, each with a new fact or turn.');
     var nm = namedPeople([parsed.hook, parsed.body, parsed.analysis, parsed.cta].map(str).join(' '));
     if (nm.length > 3) problems.push('Too many named people (' + nm.slice(0, 5).join(', ') + '). Keep the 3 who matter and refer to the rest by role ("Russia\'s envoy", "a senior aide").');
     var cta = str(parsed.cta).trim(), qn = (cta.match(/\?/g) || []).length;
@@ -2905,15 +2922,32 @@
   function majorCount(flags) { return (flags || []).filter(function (f) { return f.severity !== 'minor'; }).length; }
   function patchScript(parsed, flags) {
     var out = {}; for (var k in parsed) out[k] = parsed[k];
-    var map = { H: 'hook', B: 'body', C: 'cta', D: 'description' }, n = 0;
+    var map = { H: 'hook', B: 'body', C: 'cta', D: 'description' }, n = 0, ids = [];
     Object.keys(map).forEach(function (pre) {
       var fl = flags.filter(function (f) { return f.id.charAt(0) === pre && f.severity !== 'minor' && f.fix; });
       if (!fl.length) return;
       var sents = splitSentences(parsed[map[pre]]);
-      fl.forEach(function (f) { var i = parseInt(f.id.slice(1), 10) - 1; if (sents[i] !== undefined && sents[i] === f.sentence) { sents[i] = f.fix.trim(); n++; } });
+      fl.forEach(function (f) { var i = parseInt(f.id.slice(1), 10) - 1; if (sents[i] !== undefined && sents[i] === f.sentence) { sents[i] = f.fix.trim(); n++; ids.push(f.id); } });
       out[map[pre]] = sents.join(' ');
     });
-    return { parsed: out, n: n };
+    return { parsed: out, n: n, ids: ids };
+  }
+  // The audit's "Suggested" hook is often a long, hedged sentence. A hook has to stay short, so ask once for a tight version
+  // that says no more than the source supports. Anything that fails the checks keeps the audit's own wording.
+  function tightenHookFix(parsed, flags, facts, text) {
+    var hf = flags.filter(function (f) { return f.id === 'H1' && f.severity !== 'minor' && f.fix && wordCount(f.fix) > 13; })[0];
+    if (!hf) return Promise.resolve(flags);
+    var lines = ['Rewrite this opening line of a short news video so it claims no more than the source supports, in under 12 words.',
+      'ORIGINAL: ' + hf.sentence, 'WHAT IS WRONG WITH IT: ' + hf.problem, 'A SAFE BUT TOO LONG VERSION: ' + hf.fix, 'FACTS:'];
+    (facts || []).forEach(function (x) { lines.push('- ' + x.claim); });
+    lines.push('Rules: keep the most striking TRUE part; use the facts\' own verbs and nouns, never stronger ones; keep "allegedly", "reportedly" or the source name when the claim is only reported; no new facts, names or numbers; plain spoken words.', 'Return STRICT JSON only: {"hook":"..."}');
+    return callLLM(lines.join('\n'), 'write').then(function (r) {
+      var h = str(extractJson(r.text).hook).replace(/\s+/g, ' ').trim();
+      if (h && wordCount(h) <= 14 && wordCount(h) >= 4 && !unsupportedNumbers(h, text).length && !fluffIn(h).length) {
+        return flags.map(function (f) { return f === hf ? Object.assign({}, f, { fix: /[.!?]$/.test(h) ? h : h + '.' }) : f; });
+      }
+      return flags;
+    }).catch(function () { return flags; });
   }
   function auditScript(parsed, facts, used, corr) {
     var sentences = scriptSentences(parsed);
@@ -2959,6 +2993,7 @@
       '- Plain spoken words, contractions, a human voice. Never mention sources, outlets, the script or the word analysis.',
       '- Commit to ONE take. No "if X then Y, but if Z then W" branches and no pile of "could" and "might". State the take, give the reason, and end on the single fact or test that would prove it wrong, as a statement ("The test is whether..."), never as a question: the closing question belongs to the next line.',
       '- Name at most 2 people; use roles for everyone else.',
+      '- A reading is about meaning and consequence, not invented events. Never state as fact a motive, a decision, a pressure or anything that happened behind the scenes unless a fact reports it ("the White House forced the board\'s hand", "they knew", "it was planned"). Say what the facts show, then what it looks like ("looks like", "reads as", "the timing suggests").',
       'Good: "The interesting part is who the message is for. [Actor] is not really talking to [rival] here, it is talking to its own supporters, and that makes a quiet climb-down much harder. The tell is that no one is offering a way out, only a price."',
       'Bad: "This situation could have significant consequences for the region and global markets." (generic, fits any story)',
       '', 'Return STRICT JSON only: {"analysis":"..."}');
@@ -2966,10 +3001,10 @@
     var allow = allowWordsFor(src.story, state.profile).concat(outletAllow(corr)).concat(sigTokens(sc.hook + ' ' + sc.body));
     function ask(note) {
       return callLLM(prompt + (note ? '\n\n' + note : ''), 'write', { best: true }).then(function (r) {
-        var j = extractJson(r.text), tmp = { analysis: str(j.analysis) };
+        var j = extractJson(r.text), tmp = { analysis: str(j.analysis) }, rawA = tmp.analysis;
         sanitizeAnalysis(tmp, src.allText || src.art.text, allow, verified.ok);
         function again(why) {
-          if (note) return sc;
+          if (note) return lastResort(rawA);
           LOG('analysis step: ' + why + ', asking once more');
           return sleep(600).then(function () { return ask('Your previous analysis was rejected (' + why + '). Write a different one: a real point of view in plain words, built on this story. No digits unless they are in the facts, no restating facts, no certain forecasts.'); });
         }
@@ -2978,14 +3013,24 @@
           var bad = {}; a.flags.filter(function (x) { return x.id.charAt(0) === 'I' && x.severity !== 'minor'; }).forEach(function (x) { bad[x.sentence] = true; });
           var pool = splitSentences(str(sc.hook) + ' ' + str(sc.body));
           var sents = splitSentences(tmp.analysis).filter(function (x) { return !bad[x] && !echoesAny(x, pool, 0.6); }).slice(0, 4);
-          if (!sents.length) return again('the audit flagged every sentence or it only repeated the story');
+          if (!sents.length || (sents.length < 2 && !note)) return again('too little survived the checks: give a take AND the reason, as readings, with no invented motives or backstage events');
           sc.analysis = sents.join(' ');
           if (sc.checks) { sc.checks.analysisRepaired = true; sc.checks.words = wordCount([sc.hook, sc.body, sc.analysis, sc.cta].map(str).join(' ')); }
           return sc;
         });
       });
     }
-    return ask('').catch(function (e) { LOG('analysis step failed:', e && e.message); return sc; });
+    // A script with no analysis is only a news read-out, so after two strict tries accept what is left under the lenient checks
+    // (invented numbers and filler are still dropped), and as the very last resort the angle the writer set up.
+    function lastResort(raw) {
+      var text = src.allText || src.art.text, tmp2 = { analysis: str(raw) }, pool = splitSentences(str(sc.hook) + ' ' + str(sc.body));
+      sanitizeAnalysis(tmp2, text, allow, verified.ok, true);
+      var sents = splitSentences(tmp2.analysis).filter(function (x) { return !echoesAny(x, pool, 0.6); }).slice(0, 3);
+      if (!sents.length && sc.angle && !unsupportedNumbers(sc.angle, text).length && !fluffIn(sc.angle).length) sents = [String(sc.angle).replace(/\s+/g, ' ').trim().replace(/[.!?]*$/, '.')];
+      if (sents.length) { sc.analysis = sents.join(' '); if (sc.checks) { sc.checks.analysisRepaired = true; sc.checks.analysisLenient = true; } }
+      return sc;
+    }
+    return ask('').catch(function (e) { LOG('analysis step failed:', e && e.message); return lastResort(''); });
   }
   function rewriteAnalysis(sc) {
     var txt = (sc.facts || []).map(function (f) { return f.claim + ' ' + f.quote; }).join('\n');
@@ -3042,6 +3087,11 @@
           pickBestTitle(sc);
           sc.hookAlts = cleanAltHooks(parsed.alt_hooks, parsed.hook, src.allText || src.art.text, outletAllow(corr), src.story);
           sc.hookScore = hookScore(parsed.hook);
+          var bestAlt = (sc.hookAlts || []).slice().sort(function (x, y) { return y.score - x.score; })[0];
+          if (bestAlt && bestAlt.score >= sc.hookScore.score + 6 && wordCount(bestAlt.text) <= wordCount(sc.hook)) {
+            sc.hookAlts = sc.hookAlts.filter(function (x) { return x !== bestAlt; }).concat([{ style: 'previous', text: sc.hook, score: sc.hookScore.score, why: sc.hookScore.why }]);
+            sc.hook = bestAlt.text; sc.hookScore = hookScore(sc.hook);
+          }
           sc.pinned = cleanPinned(parsed.pinned_comment, src.allText || src.art.text);
           sc.banner = cleanBanner(parsed.banner, src.allText || src.art.text);
           sc.callouts = cleanCallouts(parsed.callouts, [parsed.hook, parsed.body, parsed.analysis].map(str).join(' '), src.allText || src.art.text);
@@ -3067,27 +3117,28 @@
         }
         var fixable = audit.ran && attempt >= 1 && audit.flags.some(function (f) { return f.severity !== 'minor' && f.id.charAt(0) !== 'I' && f.fix; });
         if (fixable) {
-          var pt = patchScript(parsed, audit.flags);
-          if (pt.n === 1) {
-            // No second LLM audit, but the code checks (numbers, names, wording, length) still run on the patched text.
-            var det1 = checkScript(pt.parsed, src.allText || src.art.text, src.story, outletAllow(corr), verified.ok);
-            if (det1.problems.length <= det.problems.length && !(det1.lengthProblem && !det.lengthProblem)) {
-              LOG('applied 1 audit correction (code checks re-run, no second audit)');
-              parsed = pt.parsed; det = det1; fixedN = 1;
-            } else { LOG('audit correction rejected: it introduced new code-check problems'); }
-            return finalize(audit);
-          }
-          if (pt.n > 1) {
-            setLabel('Applying the audit corrections and re-checking…');
-            var det2 = checkScript(pt.parsed, src.allText || src.art.text, src.story, outletAllow(corr), verified.ok);
-            return sleep(700).then(function () { return auditScript(pt.parsed, verified.ok, src.story, corr); }).then(function (a2) {
-              if (a2.ran && det2.problems.length <= det.problems.length && majorCount(a2.flags) < majorCount(audit.flags)) {
-                LOG('applied ' + pt.n + ' audit correction(s): major flags ' + majorCount(audit.flags) + ' -> ' + majorCount(a2.flags));
-                parsed = pt.parsed; det = det2; fixedN = pt.n; return finalize(a2);
-              }
-              return finalize(audit);
+          // The audit's own corrections are written from the source quotes, so they are applied (the old rule threw all of them
+          // away when one tripped a code check, which left every flagged sentence in the script). The code checks run on the
+          // patched text, a patch that makes them worse is retried without the hook, and a second audit judges the result.
+          setLabel('Applying the audit corrections…');
+          var srcText = src.allText || src.art.text;
+          return tightenHookFix(parsed, audit.flags, verified.ok, srcText).then(function (flags2) {
+            function tryPatch(fl) {
+              var p = patchScript(parsed, fl);
+              if (!p.n) return null;
+              var d = checkScript(p.parsed, srcText, src.story, outletAllow(corr), verified.ok);
+              return (d.problems.length <= det.problems.length && !(d.lengthProblem && !det.lengthProblem)) ? { p: p, d: d } : null;
+            }
+            var ok = tryPatch(flags2) || tryPatch(flags2.filter(function (f) { return f.id.charAt(0) !== 'H'; }));
+            if (!ok) { LOG('audit corrections rejected: they introduced new code-check problems'); return finalize(audit); }
+            LOG('applied ' + ok.p.n + ' audit correction(s): ' + ok.p.ids.join(', '));
+            parsed = ok.p.parsed; det = ok.d; fixedN = ok.p.n;
+            var left = audit.flags.filter(function (f) { return ok.p.ids.indexOf(f.id) < 0; });
+            setLabel('Re-checking the corrected script…');
+            return sleep(700).then(function () { return auditScript(parsed, verified.ok, src.story, corr); }).then(function (a2) {
+              return finalize(a2.ran ? a2 : Object.assign({}, audit, { flags: left }));
             });
-          }
+          });
         }
         return finalize(audit);
       });
@@ -4626,7 +4677,7 @@
     var tries = [plan.query, plan.alt], words = String(plan.query || '').split(' ');
     if (words.length > 2) tries.push(words.slice(0, 2).join(' '));
     tries.push(fallbackQuery(scene.text, title));
-    // No generic last resort ("city skyline", "city street"): unrelated footage hurts retention more than a caption card.
+    // No loose last resort: a clip that does not match the sentence (a lizard for "smear campaign") is worse than a drawn or caption scene.
     var seen = {};
     tries = tries.filter(function (q) { if (!q || seen[q]) return false; seen[q] = 1; return true; });
     var dur = scene.end - scene.start, ti = 0;
@@ -4758,6 +4809,15 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     });
     return vzGeo;
   }
+  // The narration text spells acronyms for the voice ("U S", "U K"); put them back together before matching.
+  function vzSpell(t) { return String(t || '').replace(/\b(?:[A-Z] ){1,3}[A-Z]\b(?=[^A-Za-z]|$)/g, function (m) { return m.replace(/ /g, ''); }); }
+  var VZ_GROUPS = {
+    NATO: 'Albania|Belgium|Bulgaria|Canada|Croatia|Czechia|Denmark|Estonia|Finland|France|Germany|Greece|Hungary|Iceland|Italy|Latvia|Lithuania|Luxembourg|Montenegro|Netherlands|Macedonia|Norway|Poland|Portugal|Romania|Slovakia|Slovenia|Spain|Sweden|Turkey|United Kingdom|United States of America',
+    EU: 'Austria|Belgium|Bulgaria|Croatia|Cyprus|Czechia|Denmark|Estonia|Finland|France|Germany|Greece|Hungary|Ireland|Italy|Latvia|Lithuania|Luxembourg|Netherlands|Poland|Portugal|Romania|Slovakia|Slovenia|Spain|Sweden',
+    G7: 'Canada|France|Germany|Italy|Japan|United Kingdom|United States of America'
+  };
+  var VZ_GROUP_ALIAS = { NATO: 'NATO', EU: 'EU|European Union', G7: 'G7' };
+  var VZ_GROUP_VIEW = { NATO: [-14, 34, 48, 68], EU: [-12, 34, 32, 66], G7: [-125, 22, 145, 62] };
   function vzEsc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
   function vzBuildMatcher() {
     if (vzMatcher) return vzMatcher;
@@ -4768,6 +4828,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     VZ_PINS.forEach(function (ln) {
       var f = ln.split('|'); put(f[0], { k: 'p', nm: f[0], lat: parseFloat(f[1]), lon: parseFloat(f[2]), c: f[3] || '', sp: f[4] ? parseFloat(f[4]) : 3.5 });
     });
+    Object.keys(VZ_GROUP_ALIAS).forEach(function (id) { VZ_GROUP_ALIAS[id].split('|').forEach(function (a) { put(a, { k: 'g', id: id }); }); });
     VZ_REGIONS.forEach(function (ln) { var f = ln.split('|'); put(f[0], { k: 'r', nm: f[0], bb: [parseFloat(f[1]), parseFloat(f[2]), parseFloat(f[3]), parseFloat(f[4])] }); });
     names.sort(function (a, b) { return b.length - a.length; });
     vzMatcher = { map: map, re: new RegExp('(^|[^A-Za-z0-9])(' + names.map(vzEsc).join('|') + ')(?![A-Za-z0-9])', 'g') };
@@ -4776,7 +4837,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   // Places named in the text, in order of first mention. Never more than 4 that can be drawn.
   function vzFindEntities(text) {
     var M = vzBuildMatcher(), re = M.re, m, seen = {}, out = [], drawable = 0;
-    re.lastIndex = 0; text = String(text || '');
+    re.lastIndex = 0; text = vzSpell(text);
     while ((m = re.exec(text))) {
       var ent = M.map[m[2]]; if (!ent) continue;
       var key = ent.k + ':' + (ent.id || ent.nm); if (seen[key]) continue; seen[key] = 1;
@@ -4787,7 +4848,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   }
   var VZ_MONTHS = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
   var VZ_STOP_LABEL = ' and but as while which that who after before from to with by is are was were will has have had amid though although because since so ';
-  var VZ_TRIM_END = ' on of in for the a an to at by with ';
+  var VZ_TRIM_END = ' on of in for the a an to at by with could go will would be has have is are was were may might can ';
   var VZ_MAG = { trillion: 1, billion: 1, million: 1, thousand: 1, bn: 'billion', m: 'million', k: 'thousand' };
   function vzNumbers(text) {
     var re = /([$£€¥]\s?)?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s?(%|percent|per cent|trillion|billion|million|thousand|bn\b|m\b|k\b)?/gi, m, out = [];
@@ -4802,6 +4863,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       if (/^(p\.?m\.?|a\.?m\.?|st|nd|rd|th|o'clock)$/i.test(nextWord)) continue;
       var prevWord = (text.slice(0, start).match(/([A-Za-z]+)\.?\s*$/) || [])[1] || '';
       if (VZ_MONTHS.test(prevWord) && !unit && !cur && val <= 31) continue;                                      // November 5
+      if (!cur && !unit && !dec && val < 1000 && /^[A-Z][a-z]+$/.test(prevWord) && !/^(Over|About|Nearly|Around|Almost|Some|Roughly|Another|Just|Only|Least|Under|Than|Hit|Killed|Cut|Cuts)$/.test(prevWord)) continue;   // "France 24", "Apollo 11"
       var score = 0;
       if (unit === '%' || unit === 'percent' || unit === 'per cent') score += 4;
       if (cur) score += 4;
@@ -4841,26 +4903,322 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   function vzAnchors(text) { var s = {}, m; VZ_ANCHOR.lastIndex = 0; while ((m = VZ_ANCHOR.exec(text))) s[m[0].toLowerCase()] = 1; return Object.keys(s); }
   // Everything that could be drawn for one sentence group. Only things the sentence itself says.
   function vzDetect(text, index, title) {
+    text = vzSpell(text);
     var out = [], ents = vzFindEntities(text);
     if (!ents.some(function (e) { return e.k !== 'r'; }) && index === 0) ents = vzFindEntities(title).concat(ents.filter(function (e) { return e.k === 'r'; })).slice(0, 5);
-    if (ents.some(function (e) { return e.k !== 'r'; })) out.push({ type: 'map', ents: ents, score: ents.length });
+    var drawn = ents.filter(function (e) { return e.k !== 'r'; }), usOnly = drawn.length === 1 && drawn[0].k === 'c' && drawn[0].id === 'United States of America';
+    if (drawn.length && !usOnly) out.push({ type: 'map', ents: ents, score: drawn.length === 1 && drawn[0].k === 'c' ? -9 : drawn.length, link: /\b(talks?|meets?|met|meeting|negotiat\w*|deal|agree\w*|summit|visit\w*|sanction\w*|tariffs?|trade|strik\w*|attack\w*|threat\w*|war|ultimatum|pressure)\b/i.test(text) });
     var nums = vzNumbers(text).sort(function (a, b) { return b.score - a.score || a.at - b.at; });
     if (nums.length) {
       var top = nums[0], pair = nums.filter(function (n) { return n !== top && vzNumKind(n) === vzNumKind(top) && n.score >= 2; });
-      if (pair.length && nums.length <= 3) {
+      if (pair.length && nums.length <= 3 && /\b(than|versus|vs\.?|compared|against|whereas|while|but|up from|down from)\b/i.test(text)) {
         var two = [top, pair[0]].sort(function (a, b) { return a.at - b.at; });
         if (two[0].val !== two[1].val) out.push({ type: 'compare', a: vzPick(two[0]), b: vzPick(two[1]), score: top.score + 1 });
       }
-      out.push(Object.assign({ type: 'number' }, vzPick(top)));
-    }
+      var ic = vzMoreDetect(text, nums, top, out);
+      out.push(Object.assign({ type: 'number', icon: ic }, vzPick(top)));
+    } else vzMoreDetect(text, nums, null, out);
     var q = vzQuote(text); if (q) out.push(q);
     return out;
   }
   function vzPick(n) { return { val: n.val, dec: n.dec, cur: n.cur, pct: n.pct, mag: n.mag, text: n.text, label: n.label, score: n.score, big: n.big }; }
+  /* ===== VISUAL ENGINE: wider scenes (change, share, list, flow, icons) ===== */
+  var VZ_UP = /\b(rises?|rose|rising|jump\w*|surg\w*|climb\w*|gain\w*|soar\w*|rall(?:y|ied|ies)|grew|grow\w*|increas\w*|hike\w*|boost\w*|doubl\w*|tripl\w*|record high)\b/gi;
+  var VZ_DOWN = /\b(falls?|fell|falling|drop\w*|plung\w*|slump\w*|slash\w*|cuts?|declin\w*|shed|lost|loses|sink\w*|sank|tumbl\w*|crash\w*|decreas\w*|lower\w*|shrank|shrink\w*|halv\w*)\b/gi;
+  // Direction word nearest to a figure ("shares fell 10 percent"); '' when the sentence does not say.
+  function vzDirNear(text, at) {
+    var best = '', bd = 1e9, m;
+    // "up" and "down" only count as a move when a figure follows ("up 12%", "down from 4%"), not in "give up" or "shut down".
+    var ud = /\b(up|down)\b(?=\s+(?:by\s+)?(?:more than\s+|nearly\s+|almost\s+|about\s+|around\s+|over\s+)?(?:[$£€¥]?\d|from\b))/gi;
+    while ((m = ud.exec(text))) { var pw = (text.slice(0, m.index).match(/([A-Za-z]+)\s*$/) || [])[1] || ''; if (/^(give|gave|giving|given|shut|set|break|broke|make|made|back|step|stepped|line|catch|pick|picked|speak|stand|stood|crack|wrap)$/i.test(pw)) continue; var d0 = m.index < at ? at - (m.index + m[0].length) : m.index - at; if (d0 < 48 && d0 < bd) { bd = d0; best = m[1].toLowerCase(); } }
+    [['up', VZ_UP], ['down', VZ_DOWN]].forEach(function (p) {
+      p[1].lastIndex = 0;
+      while ((m = p[1].exec(text))) { var d = m.index < at ? at - (m.index + m[0].length) : m.index - at; if (d < 48 && d < bd) { bd = d; best = p[0]; } }
+    });
+    return best;
+  }
+  var VZ_ICON_RULES = [
+    ['magnifier', /\b(investigat\w+|probe|inquiry|audit\w*|espionage|spy|spies|spying|intelligence|surveillance|leak\w*|whistleblow\w+)\b/],
+    ['scale', /\b(courts?|judges?|lawsuits?|trial|ruled|ruling|sued|indict\w*|charged|convict\w*|prosecut\w+|lawmakers?|legal)\b/],
+    ['ballot', /\b(elections?|votes?|voters?|voting|ballots?|midterms?|polls?|referendum|campaign\w*)\b/],
+    ['document', /\b(reports?|bills?|laws?|legislation|treaty|agreements?|deals?|ceasefires?|resolutions?|regulations?|sanctions?|memos?|emails?|letters?|statements?|ultimatum|plan)\b/],
+    ['chip', /\b(chips?|semiconductors?|processors?|GPUs?|CPUs?|Nvidia|TSMC|silicon|wafers?)\b/],
+    ['server', /\b(data ?cent(?:er|re)s?|servers?|hosting|compute)\b/],
+    ['cloud', /\b(cloud|SaaS)\b/],
+    ['battery', /\b(batter(?:y|ies)|lithium|charging)\b/],
+    ['bolt', /\b(power|electric\w*|grid|energy|gigawatts?|megawatts?|blackouts?|outages?|utilit\w+)\b/],
+    ['network', /\b(AI|A\.I\.|artificial intelligence|models?|algorithms?|software|network\w*|internet|broadband|telecom\w*|fib(?:er|re)|5G|apps?|platforms?|chatbots?)\b/],
+    ['lock', /\b(encrypt\w*|privacy|passwords?|ransomware|data leaks?|surveillance)\b/],
+    ['shield', /\b(security|cyber\w*|hack\w*|breach\w*|defen[cs]e|military|armed forces|troops)\b/],
+    ['bank', /\b(banks?|central banks?|Fed|ECB|Riksbank|interest rates?|rate cuts?|rate hikes?|lenders?|loans?)\b/],
+    ['home', /\b(housing|mortgages?|rents?|rental|real estate|property|homes?|apartments?)\b/],
+    ['chartDown', /\b(stocks?|shares|equit\w+|market|indices|index|S&P|Nasdaq|Dow|bitcoin|crypto\w*)\b[^.]{0,60}\b(fell|falls?|drop\w*|plung\w*|slump\w*|tumbl\w*|crash\w*|lower|down)\b/],
+    ['chartUp', /\b(stocks?|shares|equit\w+|market|indices|index|S&P|Nasdaq|Dow|bitcoin|crypto\w*|rall(?:y|ied)|earnings|profits?|revenue)\b/],
+    ['coin', /\b(savings?|pensions?|inflation|taxe?s?|wages?|salar(?:y|ies)|debt|deficit|bonds?|yields?)\b/],
+    ['dollar', /\b(dollars?|money|cash|prices?|costs?|spending|budget|funding|invest\w*|valuation|billion|trillion|million)\b|[$£€]/],
+    ['ship', /\b(ships?|vessels?|tankers?|straits?|ports?|shipping|maritime|blockade|navy|naval|canal)\b/],
+    ['plane', /\b(flights?|airlines?|airports?|aircraft|jets?|aviation|airspace|drones?)\b/],
+    ['truck', /\b(freight|logistics|supply chains?|trucks?|trade|tariffs?|exports?|imports?|shipments?)\b/],
+    ['drop', /\b(oil|crude|petroleum|pipelines?|refiner\w+|barrels?|OPEC)\b/],
+    ['flame', /\b(gas|LNG|fuel|coal|fires?|wildfires?|blaze)\b/],
+    ['factory', /\b(factor(?:y|ies)|manufactur\w*|industr\w*|plants?|production|mines?|mining|steel)\b/],
+    ['car', /\b(cars?|EVs?|vehicles?|automak\w+|Tesla|Toyota|Volkswagen)\b/],
+    ['satellite', /\b(satellites?|space|rockets?|orbit|launch\w*|missiles?)\b/],
+    ['people', /\b(voters?|workers?|jobs?|unemployment|employees?|layoffs?|population|protest\w*|citizens|migrants?|consumers?)\b/],
+    ['heart', /\b(health\w*|hospitals?|diseases?|vaccines?|medical|cancer|drugs?|pharma\w*)\b/],
+    ['warning', /\b(warns?|warning|threat\w*|risks?|crisis|emergency|alert)\b/],
+    ['globe', /\b(global|worldwide|world|international|countries|nations)\b/]
+  ];
+  function vzIconFor(text) {
+    // Three tiers: what KIND of event it is (probe, court, vote) beats the topic (chips, oil), and the topic beats the vague
+    // icons (globe, money, document, people). Inside a tier the earliest match wins.
+    var TIER = { magnifier: 0, scale: 0, ballot: 0, globe: 2, warning: 2, dollar: 2, document: 2, people: 2 }, best = '', bt = 9, at = 1e9;
+    VZ_ICON_RULES.forEach(function (r) {
+      var m = r[1].exec(text); if (!m) return;
+      var tr = TIER[r[0]] === undefined ? 1 : TIER[r[0]];
+      if (tr < bt || (tr === bt && m.index < at)) { bt = tr; at = m.index; best = r[0]; }
+    });
+    return best;
+  }
+  // Three or more named items in a row ("Washington, Moscow and Tehran"), straight from the sentence.
+  function vzList(text) {
+    var item = "[A-Z][A-Za-z0-9&.'’-]*(?:\\s+(?:of|the|and)?\\s*[A-Z][A-Za-z0-9&.'’-]*){0,2}", re = new RegExp('(' + item + '(?:,\\s+' + item + '){1,5}(?:,?\\s+(?:and|or)\\s+' + item + '))', 'g'), m, best = null;
+    while ((m = re.exec(text))) {
+      var items = m[1].split(/,\s+|,?\s+(?:and|or)\s+/).map(function (x) { return x.replace(/[.,;:!?]+$/, '').trim(); }).filter(Boolean);
+      if (items.length >= 3 && items.length <= 5 && items.every(function (x) { return x.length <= 26; }) && (!best || items.length > best.length)) best = items;
+    }
+    return best && { type: 'list', items: best, score: best.length };
+  }
+  function vzFromTo(text) {
+    var m = /\bfrom\s+(.{1,32}?)\s+(?:down |up )?to\s+(.{1,32}?)(?=[,;:]|\.(?:\s|$)|\s(?:in|as|after|on|by|amid|over|for|since|while|but)\b|$)/i.exec(text); if (!m) return null;
+    var a = vzNumbers(m[1])[0], b = vzNumbers(m[2])[0];
+    if (!a || !b || vzNumKind(a) !== vzNumKind(b) || a.val === b.val) return null;
+    return { from: vzPick(a), to: vzPick(b), dir: b.val > a.val ? 'up' : 'down' };
+  }
+  // Flows are the one wider scene a model proposes. Every step must be words copied from the scene, in the order said.
+  function vzPlanFlows(scenes) {
+    var idxs = [];
+    scenes.forEach(function (s, i) { if (/\b(then|leads? to|flows?|passes? through|routes?|supply chain|pipeline|via|through|chain of|step|first|next|finally)\b|\bfrom\b[^.]{3,40}\bto\b/i.test(s.text) && (s.text.match(/\b[A-Z][a-z]{2,}/g) || []).length >= 2) idxs.push(i); });
+    idxs = idxs.slice(0, 3);
+    if (!idxs.length) return Promise.resolve({});
+    var prompt = 'Each numbered sentence below may describe things moving from one stage to the next (a supply chain, a process, a route, a chain of events).\nFor each sentence that does, give a flow of 3 or 4 steps in the order said. Each step is 1 to 4 words copied exactly from the sentence (names or nouns). Invent nothing. If the sentence is not a sequence, give an empty list.\n\n' +
+      idxs.map(function (i) { return (i + 1) + '. ' + scenes[i].text; }).join('\n') + '\n\nReply with JSON only: {"items":[{"n":1,"steps":["..."]}]}';
+    return callLLM(prompt, 'write').then(function (r) {
+      var j = extractJson(r.text), arr = j && j.items, out = {};
+      if (!Array.isArray(arr)) return out;
+      arr.forEach(function (x) {
+        var i = (parseInt(x && x.n, 10) || 0) - 1; if (idxs.indexOf(i) < 0 || !Array.isArray(x.steps)) return;
+        var low = scenes[i].text.toLowerCase(), last = -1, steps = [];
+        x.steps.slice(0, 4).forEach(function (st) {
+          st = String(st || '').replace(/\s+/g, ' ').trim(); var at = st ? low.indexOf(st.toLowerCase()) : -1;
+          if (at < 0 || at <= last || st.split(' ').length > 4 || st.length > 30) return;
+          last = at; steps.push(st);
+        });
+        if (steps.length >= 3) out[i] = { type: 'flow', steps: steps, score: 4 };
+      });
+      return out;
+    }).catch(function () { return {}; });
+  }
+  // "China calls the allegations a smear campaign": who said it, how, and what, all copied from the sentence.
+  function vzClaim(text) {
+    var ss = splitSentences(text), i, m;
+    for (i = 0; i < ss.length; i++) {
+      m = /^((?:[A-Z][A-Za-z.'’-]+)(?:\s+(?:of\s+)?[A-Z][A-Za-z.'’-]+){0,3})\s+(says?|said|calls?|called|denies|denied|warns?|warned|claims?|claimed|accuses?|accused|rejects?|rejected|insists?|insisted|admits?|admitted|vows?|vowed|demands?|demanded|dismisses|dismissed|blames?|blamed|announces?|announced)\s+(?:that\s+)?(.{10,150}?)[.!]?$/.exec(ss[i].trim());
+      if (!m || /^(He|She|They|It|We|This|That|The|Both)$/.test(m[1])) continue;
+      var what = m[3].replace(/\s+/g, ' '); if (what.split(' ').length > 18) what = what.split(' ').slice(0, 18).join(' ').replace(/[,;:]$/, '');
+      return { type: 'claim', who: m[1], verb: m[2], what: what, score: 3 };
+    }
+    return null;
+  }
+  // A named person with a job title ("CFO Colette Kress takes over as interim CEO"): initials, name and role. Never a face.
+  var VZ_ROLE = '(?:interim |acting |new |former |deputy |vice |co-)?(?:CEO|CFO|COO|CTO|chief executive|chief financial officer|president|vice president|prime minister|foreign minister|defen[cs]e minister|finance minister|minister|secretary of state|secretary|chancellor|envoy|chair(?:man|woman)?|director|governor|senator|general|spokesperson|spokesman|ambassador|leader|founder|commander|attorney general|speaker)';
+  var VZ_ROLE_CI = VZ_ROLE.replace(/[a-z]/gi, function (c) { return '[' + c.toLowerCase() + c.toUpperCase() + ']'; });
+  function vzPerson(text) {
+    var nm = "[A-Z][a-z]+(?:\\s+[A-Z][a-z'’-]+){1,2}", m = new RegExp('\\b(' + VZ_ROLE_CI + ')\\s+(' + nm + ')\\b').exec(text), role, name, rest;
+    if (m && /^[A-Z]/.test(m[2])) { role = m[1]; name = m[2]; rest = text.slice(m.index + m[0].length); }
+    else {
+      m = new RegExp('\\b(' + nm + '),?\\s+(?:the\\s+|a\\s+)?(' + VZ_ROLE_CI + ')\\b').exec(text); if (!m) return null;
+      name = m[1]; role = m[2]; rest = text.slice(m.index + m[0].length);
+    }
+    if (/\b(Street|Times|Post|News|Bank|Council|House|Department|Ministry|Party)$/.test(name)) return null;
+    var act = (rest.match(/^\s*(?:,\s*)?((?:takes?|took|steps?|stepped|resign\w*|quits?|quit|named|appointed|announced|says?|said|warns?|warned|denies|denied|admits?|admitted|will|plans?|resigned)[^.;!?]{0,70})/i) || [])[1] || '';
+    act = act.replace(/\s+/g, ' ').replace(/[,\s]+$/, '');
+    return { type: 'person', name: name, role: role.replace(/\s+/g, ' '), action: act, score: 3.4 };
+  }
+  function vzMoreDetect(text, nums, top, out) {
+    var dir = top ? vzDirNear(text, top.at) : '', icon = vzIconFor(text), ft = vzFromTo(text), ls = vzList(text);
+    if (ft) out.push({ type: 'change', from: ft.from, to: ft.to, dir: ft.dir, icon: icon, score: 7 });
+    else if (top && dir && (top.pct || top.cur || top.mag)) out.push({ type: 'change', num: vzPick(top), dir: dir, icon: icon, score: top.score + 2 });
+    else if (top && top.pct && top.val <= 100) out.push({ type: 'ring', num: vzPick(top), icon: icon, score: top.score });
+    if (ls) out.push(ls);
+    var cl = vzClaim(text); if (cl) out.push(cl);
+    var pe = vzPerson(text); if (pe) out.push(pe);
+    if (icon) out.push({ type: 'icon', icon: icon, text: top ? top.text : '', label: top ? top.label : '', score: 1 });
+    return icon;
+  }
+  var VZ_ICONS = {
+    chip: function (c) { c.strokeRect(-22, -22, 44, 44); c.strokeRect(-9, -9, 18, 18); [-13, 0, 13].forEach(function (k) { [[k, -22, k, -34], [k, 22, k, 34], [-22, k, -34, k], [22, k, 34, k]].forEach(function (l) { c.beginPath(); c.moveTo(l[0], l[1]); c.lineTo(l[2], l[3]); c.stroke(); }); }); },
+    server: function (c) { [0, 1, 2].forEach(function (k) { c.strokeRect(-32, -36 + k * 25, 64, 19); c.beginPath(); c.arc(-21, -26.5 + k * 25, 2.5, 0, 7); c.fill(); }); },
+    cloud: function (c) { c.beginPath(); c.arc(-14, 6, 17, Math.PI * 0.5, Math.PI * 1.5); c.arc(4, -8, 20, Math.PI * 1.1, Math.PI * 1.9); c.arc(22, 6, 15, Math.PI * 1.5, Math.PI * 0.5); c.closePath(); c.stroke(); },
+    battery: function (c) { c.strokeRect(-34, -17, 60, 34); c.fillRect(26, -7, 8, 14); c.beginPath(); c.moveTo(2, -10); c.lineTo(-8, 2); c.lineTo(0, 2); c.lineTo(-4, 11); c.lineTo(8, -3); c.lineTo(0, -3); c.closePath(); c.fill(); },
+    bolt: function (c) { c.beginPath(); c.moveTo(8, -40); c.lineTo(-18, 4); c.lineTo(-2, 4); c.lineTo(-8, 40); c.lineTo(20, -8); c.lineTo(2, -8); c.closePath(); c.fill(); c.stroke(); },
+    network: function (c) { var p = [[0, -28], [-28, 18], [28, 18], [0, 2]]; c.beginPath(); [[0, 1], [0, 2], [1, 2], [3, 0], [3, 1], [3, 2]].forEach(function (e) { c.moveTo(p[e[0]][0], p[e[0]][1]); c.lineTo(p[e[1]][0], p[e[1]][1]); }); c.stroke(); p.forEach(function (q) { c.beginPath(); c.arc(q[0], q[1], 7, 0, 7); c.fill(); }); },
+    lock: function (c) { c.strokeRect(-22, -4, 44, 36); c.beginPath(); c.arc(0, -4, 14, Math.PI, 0); c.stroke(); c.beginPath(); c.arc(0, 14, 4, 0, 7); c.fill(); },
+    shield: function (c) { c.beginPath(); c.moveTo(0, -38); c.lineTo(30, -26); c.lineTo(30, 4); c.quadraticCurveTo(30, 28, 0, 40); c.quadraticCurveTo(-30, 28, -30, 4); c.lineTo(-30, -26); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(-12, 2); c.lineTo(-3, 12); c.lineTo(14, -8); c.stroke(); },
+    bank: function (c) { c.beginPath(); c.moveTo(-36, -12); c.lineTo(0, -36); c.lineTo(36, -12); c.closePath(); c.stroke(); [-24, -8, 8, 24].forEach(function (x) { c.beginPath(); c.moveTo(x, -6); c.lineTo(x, 24); c.stroke(); }); c.beginPath(); c.moveTo(-38, 32); c.lineTo(38, 32); c.stroke(); },
+    home: function (c) { c.beginPath(); c.moveTo(-36, 0); c.lineTo(0, -32); c.lineTo(36, 0); c.stroke(); c.strokeRect(-24, 0, 48, 34); c.strokeRect(-6, 14, 12, 20); },
+    chartUp: function (c) { c.beginPath(); c.moveTo(-34, 22); c.lineTo(-12, 0); c.lineTo(2, 10); c.lineTo(32, -24); c.moveTo(16, -24); c.lineTo(32, -24); c.lineTo(32, -8); c.stroke(); },
+    chartDown: function (c) { c.beginPath(); c.moveTo(-34, -22); c.lineTo(-12, 0); c.lineTo(2, -10); c.lineTo(32, 24); c.moveTo(16, 24); c.lineTo(32, 24); c.lineTo(32, 8); c.stroke(); },
+    coin: function (c) { [0, 1, 2].forEach(function (k) { c.beginPath(); c.ellipse(0, -14 + k * 15, 28, 10, 0, 0, 7); c.stroke(); }); },
+    dollar: function (c) { c.beginPath(); c.arc(0, 0, 34, 0, 7); c.stroke(); c.font = '900 46px system-ui,Arial,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('$', 0, 3); },
+    ship: function (c) { c.beginPath(); c.moveTo(-38, 6); c.lineTo(38, 6); c.lineTo(26, 28); c.lineTo(-26, 28); c.closePath(); c.stroke(); c.strokeRect(-16, -14, 30, 20); c.strokeRect(-4, -30, 10, 16); },
+    plane: function (c) { c.beginPath(); [[0, -38], [6, -10], [36, 10], [36, 18], [6, 8], [4, 28], [14, 34], [14, 38], [-14, 38], [-14, 34], [-4, 28], [-6, 8], [-36, 18], [-36, 10], [-6, -10]].forEach(function (p, i) { i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }); c.closePath(); c.fill(); },
+    truck: function (c) { c.strokeRect(-38, -18, 44, 30); c.beginPath(); c.moveTo(6, -8); c.lineTo(26, -8); c.lineTo(38, 4); c.lineTo(38, 12); c.lineTo(6, 12); c.stroke(); [-22, 24].forEach(function (x) { c.beginPath(); c.arc(x, 16, 7, 0, 7); c.fill(); }); },
+    drop: function (c) { c.beginPath(); c.moveTo(0, -38); c.bezierCurveTo(10, -18, 28, -4, 28, 12); c.arc(0, 12, 28, 0, Math.PI); c.bezierCurveTo(-28, -4, -10, -18, 0, -38); c.closePath(); c.stroke(); },
+    flame: function (c) { c.beginPath(); c.moveTo(6, -40); c.bezierCurveTo(8, -20, 32, -6, 30, 18); c.bezierCurveTo(29, 34, 16, 40, 0, 40); c.bezierCurveTo(-18, 40, -30, 30, -30, 14); c.bezierCurveTo(-30, 2, -22, -6, -16, -14); c.bezierCurveTo(-14, -4, -10, 0, -6, 2); c.bezierCurveTo(-8, -14, -2, -28, 6, -40); c.closePath(); c.stroke(); c.beginPath(); c.arc(0, 24, 9, Math.PI, 0); c.stroke(); },
+    factory: function (c) { c.beginPath(); c.moveTo(-34, 34); c.lineTo(-34, -6); c.lineTo(-14, 8); c.lineTo(-14, -6); c.lineTo(6, 8); c.lineTo(6, -6); c.lineTo(6, 34); c.closePath(); c.stroke(); c.strokeRect(18, -32, 14, 66); },
+    car: function (c) { c.beginPath(); c.moveTo(-36, 10); c.lineTo(-30, -6); c.lineTo(-14, -6); c.lineTo(-6, -20); c.lineTo(14, -20); c.lineTo(24, -6); c.lineTo(34, -6); c.lineTo(38, 10); c.closePath(); c.stroke(); [-18, 20].forEach(function (x) { c.beginPath(); c.arc(x, 14, 8, 0, 7); c.fill(); }); },
+    satellite: function (c) { c.save(); c.rotate(-0.6); c.strokeRect(-10, -10, 20, 20); c.strokeRect(-42, -7, 28, 14); c.strokeRect(14, -7, 28, 14); c.beginPath(); c.moveTo(0, 10); c.lineTo(0, 24); c.stroke(); c.restore(); },
+    people: function (c) { c.beginPath(); c.arc(-14, -16, 10, 0, 7); c.stroke(); c.beginPath(); c.arc(-14, 28, 24, Math.PI, 0); c.stroke(); c.beginPath(); c.arc(18, -10, 8, 0, 7); c.stroke(); c.beginPath(); c.arc(18, 28, 18, Math.PI * 1.05, Math.PI * 1.95); c.stroke(); },
+    heart: function (c) { c.beginPath(); c.moveTo(0, 32); c.bezierCurveTo(-44, 6, -30, -30, 0, -12); c.bezierCurveTo(30, -30, 44, 6, 0, 32); c.closePath(); c.stroke(); },
+    warning: function (c) { c.beginPath(); c.moveTo(0, -34); c.lineTo(36, 28); c.lineTo(-36, 28); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(0, -12); c.lineTo(0, 8); c.stroke(); c.beginPath(); c.arc(0, 19, 3, 0, 7); c.fill(); },
+    magnifier: function (c) { c.beginPath(); c.arc(-6, -6, 24, 0, 7); c.stroke(); c.beginPath(); c.moveTo(12, 12); c.lineTo(36, 36); c.lineWidth = 9; c.stroke(); },
+    scale: function (c) { c.beginPath(); c.moveTo(0, -34); c.lineTo(0, 32); c.moveTo(-18, 34); c.lineTo(18, 34); c.moveTo(-34, -22); c.lineTo(34, -22); c.stroke(); [-34, 34].forEach(function (x) { c.beginPath(); c.moveTo(x, -22); c.lineTo(x - 12, 6); c.lineTo(x + 12, 6); c.closePath(); c.stroke(); }); },
+    ballot: function (c) { c.strokeRect(-32, -4, 64, 38); c.beginPath(); c.moveTo(-14, -4); c.lineTo(-14, -12); c.moveTo(14, -4); c.lineTo(14, -12); c.stroke(); c.save(); c.rotate(0.15); c.strokeRect(-14, -34, 28, 26); c.restore(); c.beginPath(); c.moveTo(-8, 14); c.lineTo(8, 14); c.stroke(); },
+    document: function (c) { c.beginPath(); c.moveTo(-22, -36); c.lineTo(10, -36); c.lineTo(26, -20); c.lineTo(26, 36); c.lineTo(-22, 36); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(10, -36); c.lineTo(10, -20); c.lineTo(26, -20); c.moveTo(-12, -6); c.lineTo(16, -6); c.moveTo(-12, 6); c.lineTo(16, 6); c.moveTo(-12, 18); c.lineTo(6, 18); c.stroke(); },
+    globe: function (c) { c.beginPath(); c.arc(0, 0, 34, 0, 7); c.stroke(); c.beginPath(); c.ellipse(0, 0, 14, 34, 0, 0, 7); c.stroke(); c.beginPath(); c.moveTo(-34, 0); c.lineTo(34, 0); c.moveTo(-30, -17); c.lineTo(30, -17); c.moveTo(-30, 17); c.lineTo(30, 17); c.stroke(); }
+  };
+  function vzIconDraw(ctx, id, x, y, size, col, a) {
+    var f = VZ_ICONS[id]; if (!f) return;
+    ctx.save(); ctx.globalAlpha = a == null ? 1 : a; ctx.translate(x, y); ctx.scale(size / 50, size / 50); ctx.lineWidth = 5.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = col; ctx.fillStyle = col;
+    try { f(ctx); } catch (e) {} ctx.restore();
+  }
+  function vzCard(ctx, W, H, t) {
+    var b = vzBox(W, H), a = vzEase(t / 0.25);
+    ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.78)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
+    return b;
+  }
+  var VZ_UPC = '#3ddc97', VZ_DNC = '#ff5c6c';
+  function vzArrow(ctx, x, y, s, up, col, a) {
+    ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = col; ctx.beginPath();
+    if (up) { ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.9, y + s * 0.5); ctx.lineTo(x + s * 0.32, y + s * 0.5); ctx.lineTo(x + s * 0.32, y + s); ctx.lineTo(x - s * 0.32, y + s); ctx.lineTo(x - s * 0.32, y + s * 0.5); ctx.lineTo(x - s * 0.9, y + s * 0.5); }
+    else { ctx.moveTo(x, y + s); ctx.lineTo(x + s * 0.9, y - s * 0.5); ctx.lineTo(x + s * 0.32, y - s * 0.5); ctx.lineTo(x + s * 0.32, y - s); ctx.lineTo(x - s * 0.32, y - s); ctx.lineTo(x - s * 0.32, y - s * 0.5); ctx.lineTo(x - s * 0.9, y - s * 0.5); }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  function vzChange(ctx, W, H, v, t, dur) {
+    var b, up = v.dir === 'up', col = up ? VZ_UPC : VZ_DNC;
+    ctx.save(); b = vzCard(ctx, W, H, t); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    if (v.icon) vzIconDraw(ctx, v.icon, W / 2, b.y + b.h * 0.1, W * 0.045, 'rgba(207,216,255,.8)', vzEase(t / 0.4));
+    if (v.num) {
+      var p = vzEase(t / 1.1), full = vzFmt(v.num, 1), size = vzFit(ctx, full, b.w * 0.8, Math.round(W * 0.22), 900), slide = (1 - vzEase(t / 0.5)) * W * 0.06 * (up ? 1 : -1), cy = b.y + b.h * 0.56;
+      vzArrow(ctx, W / 2, b.y + b.h * 0.27 + slide, W * 0.09, up, col, vzEase(t / 0.3));
+      ctx.font = '900 ' + size + 'px ' + VZ_FONT; ctx.lineWidth = size * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; var txt = vzFmt(v.num, p); ctx.strokeText(txt, W / 2, cy); ctx.fillStyle = col; ctx.fillText(txt, W / 2, cy);
+      var y = cy + size * 0.55;
+      if (v.num.mag) { ctx.font = '800 ' + Math.round(W * 0.06) + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(v.num.mag.toUpperCase(), W / 2, y + W * 0.025); y += W * 0.07; }
+      if (v.num.label) { var ls = Math.round(W * 0.046); ctx.font = '800 ' + ls + 'px ' + VZ_FONT; ctx.fillStyle = '#cfd8ff'; vzWrap(ctx, v.num.label, b.w * 0.82, 2).forEach(function (l, i) { ctx.fillText(l, W / 2, Math.min(b.y + b.h - ls, y + ls * 0.8 + i * ls * 1.15)); }); }
+    } else {
+      var rows = [v.from, v.to], fs0 = Math.round(W * 0.05);
+      rows.forEach(function (r, i) {
+        var pr = vzEase((t - 0.5 * i) / 0.7), cy2 = b.y + b.h * (i ? 0.72 : 0.27), full = vzFmt(r, 1) + (r.mag ? ' ' + r.mag.toUpperCase() : ''), sz = vzFit(ctx, full, b.w * 0.8, Math.round(W * (i ? 0.17 : 0.12)), 900);
+        ctx.save(); ctx.globalAlpha = pr; ctx.font = '800 ' + fs0 + 'px ' + VZ_FONT; ctx.fillStyle = '#8f9bd0'; ctx.fillText(i ? 'NOW' : 'FROM', W / 2, cy2 - sz * 0.78);
+        ctx.font = '900 ' + sz + 'px ' + VZ_FONT; ctx.lineWidth = sz * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; var tx = vzFmt(r, i ? vzEase((t - 0.5) / 1) : 1) + (r.mag ? ' ' + r.mag.toUpperCase() : ''); ctx.strokeText(tx, W / 2, cy2); ctx.fillStyle = i ? col : '#cfd8ff'; ctx.fillText(tx, W / 2, cy2); ctx.restore();
+      });
+      vzArrow(ctx, W / 2, b.y + b.h * 0.47, W * 0.04, up, col, vzEase((t - 0.3) / 0.4));
+    }
+    ctx.restore();
+  }
+  function vzRing(ctx, W, H, v, t, dur) {
+    var b, p = vzEase(t / 1.2), cx = W / 2, cy, r;
+    ctx.save(); b = vzCard(ctx, W, H, t); r = Math.min(b.w * 0.3, b.h * 0.27); cy = b.y + b.h * 0.4;
+    ctx.lineCap = 'round'; ctx.lineWidth = r * 0.26; ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
+    ctx.save(); ctx.strokeStyle = '#ffd400'; ctx.shadowColor = '#ffd400'; ctx.shadowBlur = W * 0.02; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, v.num.val / 100) * p); ctx.stroke(); ctx.restore();
+    var txt = vzFmt(v.num, p), sz = vzFit(ctx, vzFmt(v.num, 1), r * 1.5, Math.round(r * 0.8), 900);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '900 ' + sz + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(txt, cx, cy);
+    if (v.icon) vzIconDraw(ctx, v.icon, cx, cy - r - W * 0.07, W * 0.04, 'rgba(207,216,255,.8)', vzEase(t / 0.4));
+    if (v.num.label) { var ls = Math.round(W * 0.05); ctx.font = '800 ' + ls + 'px ' + VZ_FONT; ctx.fillStyle = '#cfd8ff'; vzWrap(ctx, v.num.label, b.w * 0.84, 2).forEach(function (l, i) { ctx.fillText(l, cx, cy + r + ls * 1.5 + i * ls * 1.15); }); }
+    ctx.restore();
+  }
+  function vzListDraw(ctx, W, H, v, t, dur) {
+    var b, n = v.items.length;
+    ctx.save(); b = vzCard(ctx, W, H, t);
+    var ph = Math.min(b.h * 0.15, b.h / (n + 0.8)), gap = ph * 0.22, y0 = b.y + (b.h - (n * ph + (n - 1) * gap)) / 2, fs = Math.round(Math.min(W * 0.062, ph * 0.5));
+    v.items.forEach(function (it, i) {
+      var p = vzEase((t - 0.25 * i) / 0.4); if (p <= 0) return; var y = y0 + i * (ph + gap), x = b.x + b.w * 0.07 - (1 - p) * W * 0.1, w = b.w * 0.86;
+      ctx.save(); ctx.globalAlpha = p; rrect(ctx, x, y, w, ph, ph / 2); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = VZ_COL[i % 4]; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + ph / 2, y + ph / 2, ph * 0.32, 0, 7); ctx.fillStyle = VZ_COL[i % 4]; ctx.fill();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '900 ' + Math.round(fs * 0.9) + 'px ' + VZ_FONT; ctx.fillStyle = '#0a1330'; ctx.fillText(String(i + 1), x + ph / 2, y + ph / 2 + 1);
+      var sz = vzFit(ctx, it, w - ph * 1.4, fs, 800); ctx.font = '800 ' + sz + 'px ' + VZ_FONT; ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.fillText(it, x + ph * 1.0, y + ph / 2 + 1); ctx.restore();
+    });
+    ctx.restore();
+  }
+  function vzFlow(ctx, W, H, v, t, dur) {
+    var b, n = v.steps.length;
+    ctx.save(); b = vzCard(ctx, W, H, t);
+    var bh = Math.min(b.h * 0.19, b.h / (n * 1.55)), gap = (b.h * 0.86 - n * bh) / Math.max(1, n - 1), y0 = b.y + b.h * 0.07, fs = Math.round(Math.min(W * 0.058, bh * 0.48));
+    v.steps.forEach(function (st, i) {
+      var p = vzEase((t - 0.35 * i) / 0.4); if (p <= 0) return; var y = y0 + i * (bh + gap), x = b.x + b.w * 0.1, w = b.w * 0.8, col = VZ_COL[(i + 1) % 2 ? 1 : 0];
+      if (i > 0) { var ax = W / 2, ay = y - gap / 2; ctx.save(); ctx.globalAlpha = p; ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = W * 0.006; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(ax, y - gap + 4); ctx.lineTo(ax, y - 4); ctx.moveTo(ax - W * 0.014, y - W * 0.018); ctx.lineTo(ax, y - 4); ctx.lineTo(ax + W * 0.014, y - W * 0.018); ctx.stroke(); ctx.restore(); }
+      ctx.save(); ctx.globalAlpha = p; ctx.translate(0, (1 - p) * W * 0.03); rrect(ctx, x, y, w, bh, bh * 0.28); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = i === n - 1 ? '#ffd400' : col; ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; var sz = vzFit(ctx, st.toUpperCase(), w * 0.9, fs, 900); ctx.font = '900 ' + sz + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(st.toUpperCase(), W / 2, y + bh / 2 + 1); ctx.restore();
+    });
+    ctx.restore();
+  }
+  function vzClaimDraw(ctx, W, H, v, t, dur) {
+    var b, cx = W / 2;
+    ctx.save(); b = vzCard(ctx, W, H, t); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    var who = v.who.toUpperCase(), ws = vzFit(ctx, who, b.w * 0.86, Math.round(W * 0.11), 900), a1 = vzEase(t / 0.3), a2 = vzEase((t - 0.25) / 0.3), a3 = vzEase((t - 0.5) / 0.5);
+    ctx.globalAlpha *= 1; ctx.save(); ctx.globalAlpha = a1; ctx.font = '900 ' + ws + 'px ' + VZ_FONT; ctx.lineWidth = ws * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(who, cx, b.y + b.h * 0.15); ctx.fillStyle = '#ffd400'; ctx.fillText(who, cx, b.y + b.h * 0.15); ctx.restore();
+    var vb = v.verb.toUpperCase(), vs = Math.round(W * 0.05); ctx.save(); ctx.globalAlpha = a2; ctx.font = '900 ' + vs + 'px ' + VZ_FONT; var vw = ctx.measureText(vb).width + vs * 1.2, vy = b.y + b.h * 0.15 + ws * 0.85;
+    rrect(ctx, cx - vw / 2, vy - vs * 0.7, vw, vs * 1.4, vs * 0.7); ctx.fillStyle = '#3dd6ff'; ctx.fill(); ctx.fillStyle = '#06122b'; ctx.fillText(vb, cx, vy + 1); ctx.restore();
+    var size = Math.round(W * 0.07), lines; ctx.font = '800 ' + size + 'px ' + VZ_FONT; lines = vzWrap(ctx, v.what, b.w * 0.84, 6);
+    while (lines.length * size * 1.25 > b.h * 0.55 && size > W * 0.04) { size -= 2; ctx.font = '800 ' + size + 'px ' + VZ_FONT; lines = vzWrap(ctx, v.what, b.w * 0.84, 7); }
+    var y0 = b.y + b.h * 0.34 + (b.h * 0.6 - lines.length * size * 1.25) / 2 + size * 0.6; ctx.globalAlpha = a3; ctx.fillStyle = '#fff';
+    lines.forEach(function (l, i) { ctx.fillText(l, cx, y0 + i * size * 1.25); });
+    ctx.restore();
+  }
+  function vzPersonDraw(ctx, W, H, v, t, dur) {
+    var b, cx = W / 2, cy, r = W * 0.17, a1 = vzEase(t / 0.35), a2 = vzEase((t - 0.25) / 0.35), a3 = vzEase((t - 0.5) / 0.5);
+    ctx.save(); b = vzCard(ctx, W, H, t); cy = b.y + b.h * 0.3; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    var hue = 0, k; for (k = 0; k < v.name.length; k++) hue = (hue * 31 + v.name.charCodeAt(k)) % 360;
+    var ini = v.name.split(/\s+/).filter(Boolean).map(function (w) { return w.charAt(0); }); ini = (ini[0] || '') + (ini.length > 1 ? ini[ini.length - 1] : '');
+    ctx.save(); ctx.globalAlpha = a1; ctx.translate(cx, cy); ctx.scale(0.8 + 0.2 * a1, 0.8 + 0.2 * a1);
+    var g = ctx.createLinearGradient(-r, -r, r, r); g.addColorStop(0, 'hsl(' + hue + ',70%,45%)'); g.addColorStop(1, 'hsl(' + ((hue + 50) % 360) + ',70%,28%)');
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = W * 0.008; ctx.strokeStyle = '#ffd400'; ctx.stroke();
+    ctx.font = '900 ' + Math.round(r * 0.95) + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(ini.toUpperCase(), 0, r * 0.04); ctx.restore();
+    var nm = v.name.toUpperCase(), ns = vzFit(ctx, nm, b.w * 0.86, Math.round(W * 0.095), 900), ny = cy + r + ns * 1.0;
+    ctx.save(); ctx.globalAlpha = a2; ctx.font = '900 ' + ns + 'px ' + VZ_FONT; ctx.lineWidth = ns * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(nm, cx, ny); ctx.fillStyle = '#fff'; ctx.fillText(nm, cx, ny);
+    var rl = v.role.toUpperCase(), rs = Math.round(W * 0.048); ctx.font = '900 ' + rs + 'px ' + VZ_FONT; var rw = ctx.measureText(rl).width + rs * 1.3, ry = ny + ns * 0.95;
+    rrect(ctx, cx - rw / 2, ry - rs * 0.75, rw, rs * 1.5, rs * 0.75); ctx.fillStyle = '#3dd6ff'; ctx.fill(); ctx.fillStyle = '#06122b'; ctx.fillText(rl, cx, ry + 1); ctx.restore();
+    if (v.action) { var as = Math.round(W * 0.06); ctx.save(); ctx.globalAlpha = a3; ctx.font = '800 ' + as + 'px ' + VZ_FONT; ctx.fillStyle = '#cfd8ff'; vzWrap(ctx, v.action, b.w * 0.84, 3).forEach(function (l, i) { ctx.fillText(l, cx, ry + rs * 2.3 + i * as * 1.25); }); ctx.restore(); }
+    ctx.restore();
+  }
+  function vzIconScene(ctx, W, H, v, t, dur) {
+    var b, cx = W / 2, cy;
+    ctx.save(); b = vzCard(ctx, W, H, t); cy = b.y + b.h * (v.text ? 0.34 : 0.45);
+    var r = W * 0.17, pulse = 0.5 + 0.5 * Math.sin(t * 3), a = vzEase(t / 0.4);
+    var g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * (1.5 + 0.1 * pulse)); g.addColorStop(0, 'rgba(255,212,0,.28)'); g.addColorStop(1, 'rgba(255,212,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r * 1.7, 0, 7); ctx.fill();
+    ctx.lineWidth = W * 0.004; ctx.strokeStyle = 'rgba(255,212,0,.5)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
+    vzIconDraw(ctx, v.icon, cx, cy, r * 0.62 * (0.85 + 0.15 * a), '#ffd400', a);
+    if (v.text) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; var tx = v.text.toUpperCase(), sz = Math.round(W * (tx.length > 18 ? 0.075 : 0.13)); ctx.font = '900 ' + sz + 'px ' + VZ_FONT; var tl = vzWrap(ctx, tx, b.w * 0.84, 9);
+      while (tl.length > 4 && sz > W * 0.05) { sz -= 2; ctx.font = '900 ' + sz + 'px ' + VZ_FONT; tl = vzWrap(ctx, tx, b.w * 0.84, 9); }
+      tl = tl.slice(0, 5);
+      ctx.lineWidth = sz * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineJoin = 'round'; ctx.globalAlpha = vzEase((t - 0.3) / 0.4);
+      tl.forEach(function (l, i) { var ly = cy + r * 1.7 + i * sz * 1.2; ctx.strokeText(l, cx, ly); ctx.fillStyle = '#fff'; ctx.fillText(l, cx, ly); });
+    }
+    ctx.restore();
+  }
   /* ===== VISUAL ENGINE: choosing scenes ===== */
   function vzLabel(v) {
-    if (v.type === 'map') { var n = v.ents.filter(function (e) { return e.k !== 'r'; }).map(function (e) { return e.k === 'c' ? (VZ_DISPLAY[e.id] || e.id) : e.nm; }); return 'Map: ' + n.slice(0, 3).join(', '); }
+    if (v.type === 'map') { var n = v.ents.filter(function (e) { return e.k !== 'r'; }).map(function (e) { return e.k === 'c' ? (VZ_DISPLAY[e.id] || e.id) : e.k === 'g' ? e.id : e.nm; }); return 'Map: ' + n.slice(0, 3).join(', '); }
     if (v.type === 'number') return 'Figure: ' + v.text;
+    if (v.type === 'change') return 'Change: ' + (v.num ? (v.dir === 'up' ? 'up ' : 'down ') + v.num.text : v.from.text + ' to ' + v.to.text);
+    if (v.type === 'ring') return 'Share: ' + v.num.text;
+    if (v.type === 'person') return 'Person: ' + v.name + ' (' + v.role + ')';
+    if (v.type === 'claim') return 'Statement: ' + v.who + ' ' + v.verb;
+    if (v.type === 'list') return 'List: ' + v.items.length + ' items';
+    if (v.type === 'flow') return 'Flow: ' + v.steps.length + ' steps';
+    if (v.type === 'icon') return 'Icon: ' + v.icon + (v.text ? ' ' + v.text : '');
     if (v.type === 'compare') return 'Compare: ' + v.a.text + ' vs ' + v.b.text;
     if (v.type === 'quote') return 'Quote' + (v.who ? ': ' + v.who : '');
     if (v.type === 'timeline') return 'Timeline: ' + v.items.length + ' dates';
@@ -4897,26 +5255,28 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   }
   // Pick which scenes get a visual so the video keeps a rhythm: never the same kind twice in a row, at most three maps,
   // never the closing scene, and with footage on never more than two visuals in a row.
+  function vzMapKey(v) { return v.ents.filter(function (e) { return e.k !== 'r'; }).map(function (e) { return e.id || e.nm; }).sort().join(','); }
   function vzMerge(plan, scenes, title, useFootage, tlm) {
     var n = scenes.length, cands = scenes.map(function (s, i) {
       var c = vzDetect(s.text, i, title); if (tlm && tlm[i]) c.push(Object.assign({ score: 4 }, tlm[i]));
       return c;
     });
-    var rank = { number: 5, compare: 5, timeline: 4, quote: 3, map: 2 }, chosen = [], maps = 0, prevT = '', run = 0, i;
+    var iconN = 0, claimN = 0, personN = 0, rank = { change: 5.5, number: 5, compare: 5, ring: 4.8, timeline: 4, flow: 4, person: 3.6, claim: 3.5, quote: 4.2, list: 3, map: 2, icon: 1.5 }, chosen = [], maps = 0, prevT = '', run = 0, lastMap = '', i;
     for (i = 0; i < n; i++) {
       var c = cands[i].slice();
       if (c.length && !plan[i].visual) plan[i].visual = cands[i].slice().sort(function (a, b) { return (rank[b.type] + (b.score || 0) / 10) - (rank[a.type] + (a.score || 0) / 10); })[0];
       var pick = null;
       if (i < n - 1 && c.length) {
         c.sort(function (a, b) {
-          var pa = rank[a.type] + (a.score || 0) / 10 + (i === 0 && (a.type === 'number' || a.type === 'compare') ? 3 : 0), pb = rank[b.type] + (b.score || 0) / 10 + (i === 0 && (b.type === 'number' || b.type === 'compare') ? 3 : 0);
+          var pa = rank[a.type] + (a.score || 0) / 10 + (i === 0 && /^(number|compare|change|ring)$/.test(a.type) ? 3 : 0), pb = rank[b.type] + (b.score || 0) / 10 + (i === 0 && /^(number|compare|change|ring)$/.test(b.type) ? 3 : 0);
           return pb - pa;
         });
-        pick = c.filter(function (v) { return v.type !== prevT && (v.type !== 'map' || maps < 3); })[0] || null;
-        if (pick && useFootage && run >= 2) pick = null;
+        pick = c.filter(function (v) { return v.type !== prevT && (v.type !== 'map' || (maps < 3 && vzMapKey(v) !== lastMap)) && (v.type !== 'icon' || iconN < 2) && (v.type !== 'claim' || claimN < 2) && (v.type !== 'person' || personN < 2); })[0] || null;
+        if (pick && useFootage && run >= 4) pick = null;
         if (pick && plan[i].kind === 'card' && !useFootage) { /* captions-only video: visuals replace plain cards freely */ }
       }
-      if (pick) { chosen[i] = pick; prevT = pick.type; run++; if (pick.type === 'map') maps++; } else { prevT = ''; run = 0; }
+      if (pick && i === 0 && pick.type === 'icon' && !pick.text && title) pick = Object.assign({}, pick, { text: String(title).replace(/\s+/g, ' ').slice(0, 90) });
+      if (pick) { chosen[i] = pick; prevT = pick.type; run++; if (pick.type === 'map') { maps++; lastMap = vzMapKey(pick); } if (pick.type === 'icon') iconN++; if (pick.type === 'claim') claimN++; if (pick.type === 'person') personN++; } else { prevT = ''; run = 0; }
     }
     for (i = 0; i < n; i++) {
       if (chosen[i]) { plan[i].kind = 'visual'; plan[i].visual = chosen[i]; }
@@ -4928,21 +5288,24 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   /* ===== VISUAL ENGINE: painters ===== */
   var VZ_FONT = 'system-ui,"Segoe UI",Roboto,Arial,sans-serif', VZ_COL = ['#ffd400', '#3dd6ff', '#ff6b6b', '#b48cff'];
   function vzEase(t) { t = Math.max(0, Math.min(1, t)); return 1 - Math.pow(1 - t, 3); }
-  function vzBox(W, H) { return { x: W * 0.05, y: H * 0.10, w: W * 0.90, h: H * 0.48 }; }
+  function vzBox(W, H) { return { x: W * 0.05, y: H * 0.07, w: W * 0.90, h: H * 0.63 }; }
   function vzPanel(ctx, b, W) { rrect(ctx, b.x, b.y, b.w, b.h, W * 0.03); }
   // Which countries to light up, which pins to mark, and the area the camera must cover.
   function vzMapPlan(v) {
-    var G = vzWorld(), lit = [], pins = [], regs = [], bbs = [], seen = {};
-    function light(id) { if (!G[id] || seen[id]) return; seen[id] = 1; lit.push(id); var f = VZ_FOCUS[id], g = G[id].bbox; bbs.push(f || g); }
+    var G = vzWorld(), lit = [], pins = [], regs = [], bbs = [], seen = {}, col = {}, groups = [], ci = 0;
+    function light(id) { if (!G[id] || seen[id]) return; seen[id] = 1; lit.push(id); col[id] = ci++; var f = VZ_FOCUS[id], g = G[id].bbox; bbs.push(f || g); }
     v.ents.forEach(function (e) {
-      if (e.k === 'c') light(e.id);
+      if (e.k === 'g') {
+        var gi = ci++; groups.push({ id: e.id, bb: VZ_GROUP_VIEW[e.id] }); bbs.push(VZ_GROUP_VIEW[e.id]);
+        VZ_GROUPS[e.id].split('|').forEach(function (m) { if (G[m] && col[m] == null) col[m] = gi; });
+      } else if (e.k === 'c') light(e.id);
       else if (e.k === 'p') { pins.push(e); bbs.push([e.lon - e.sp, e.lat - e.sp * 0.8, e.lon + e.sp, e.lat + e.sp * 0.8]); if (e.c) light(e.c); }
       else regs.push(e);
     });
     if (!bbs.length && regs.length) bbs.push(regs[0].bb);
     var u = bbs.reduce(function (a, b) { return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])]; }, [1e9, 1e9, -1e9, -1e9]);
     regs.forEach(function (r) { if (bbs.length > 1 || !lit.length) u = [Math.min(u[0], r.bb[0]), Math.min(u[1], r.bb[1]), Math.max(u[2], r.bb[2]), Math.max(u[3], r.bb[3])]; });
-    return { lit: lit, pins: pins, regs: regs, bb: u };
+    return { lit: lit, pins: pins, regs: regs, bb: u, col: col, groups: groups };
   }
   function vzCamera(bb, pw, ph) {
     var cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2, sl = Math.max(bb[2] - bb[0], 14), sa = Math.max(bb[3] - bb[1], 9);
@@ -4952,7 +5315,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   }
   function vzMap(ctx, W, H, v, t, dur) {
     var G = vzWorld(), b = vzBox(W, H), P = v._plan || (v._plan = vzMapPlan(v)), cam0 = v._cam || (v._cam = vzCamera(P.bb, b.w, b.h));
-    var zt = vzEase(t / Math.min(1.2, dur)), z = 0.72 + 0.28 * zt, s = cam0.s * z, k = cam0.k, cx = b.x + b.w / 2, cy = b.y + b.h * 0.5;
+    var zt = vzEase(t / Math.min(1.2, dur)), z = 0.72 + 0.28 * zt + 0.07 * Math.min(1, t / Math.max(1, dur)), s = cam0.s * z, k = cam0.k, cx = b.x + b.w / 2, cy = b.y + b.h * 0.5;
     var X = function (lon) { return cx + (lon - cam0.cx) * s * k; }, Y = function (lat) { return cy - (lat - cam0.cy) * s; };
     ctx.save(); vzPanel(ctx, b, W); ctx.clip();
     var og = ctx.createLinearGradient(0, b.y, 0, b.y + b.h); og.addColorStop(0, '#0a1330'); og.addColorStop(1, '#070d22'); ctx.fillStyle = og; ctx.fillRect(b.x, b.y, b.w, b.h);
@@ -4960,7 +5323,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     var step = s * k > 40 ? 5 : s * k > 12 ? 10 : 30, lo, la;
     for (lo = Math.floor((cam0.cx - 200) / step) * step; lo <= cam0.cx + 200; lo += step) { var gx = X(lo); if (gx < b.x - 2 || gx > b.x + b.w + 2) continue; ctx.beginPath(); ctx.moveTo(gx, b.y); ctx.lineTo(gx, b.y + b.h); ctx.stroke(); }
     for (la = Math.floor((cam0.cy - 100) / step) * step; la <= cam0.cy + 100; la += step) { var gy = Y(la); if (gy < b.y - 2 || gy > b.y + b.h + 2) continue; ctx.beginPath(); ctx.moveTo(b.x, gy); ctx.lineTo(b.x + b.w, gy); ctx.stroke(); }
-    var lit = {}; P.lit.forEach(function (id, i) { lit[id] = i; });
+    var lit = P.col;
     var names = Object.keys(G), vis = [], hl = [];
     names.forEach(function (nm) {
       var g = G[nm], bb = g.bbox;
@@ -4971,7 +5334,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     ctx.beginPath(); vis.forEach(trace); ctx.fillStyle = '#18234a'; ctx.fill(); ctx.lineWidth = Math.max(1, W * 0.0016); ctx.strokeStyle = 'rgba(140,160,220,.30)'; ctx.lineJoin = 'round'; ctx.stroke();
     var pulse = 0.5 + 0.5 * Math.sin(t * 4);
     hl.forEach(function (nm) {
-      var col = VZ_COL[lit[nm] % 4], a = vzEase((t - 0.15 * lit[nm]) / 0.5);
+      var col = VZ_COL[lit[nm] % 4], a = vzEase((t - 0.12 * lit[nm]) / 0.5);
       ctx.beginPath(); trace(nm); ctx.save(); ctx.globalAlpha = 0.28 + 0.5 * a; ctx.fillStyle = col; ctx.fill(); ctx.restore();
       ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = W * 0.02 * a; ctx.lineWidth = Math.max(2, W * 0.004); ctx.strokeStyle = '#fff'; ctx.globalAlpha = a; ctx.stroke(); ctx.restore();
     });
@@ -4988,6 +5351,22 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       if (P.pins.some(function (p) { return p.c === id && p.sp < 6; })) return;
       ctx.save(); ctx.globalAlpha = a; label((VZ_DISPLAY[id] || id).toUpperCase(), X((f[0] + f[2]) / 2), Y((f[1] + f[3]) / 2), '#fff'); ctx.restore();
     });
+    P.groups.forEach(function (g, i) {
+      var a = vzEase((t - 0.3) / 0.4); if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha = a; label(g.id, X((g.bb[0] + g.bb[2]) / 2), Y((g.bb[1] + g.bb[3]) / 2 + (g.bb[3] - g.bb[1]) * 0.28), '#ffd400'); ctx.restore();
+    });
+    var ends = [];
+    P.lit.forEach(function (id) { if (ends.length < 2 && !P.col[id + '#g']) { var f = VZ_FOCUS[id] || G[id].bbox; ends.push([(f[0] + f[2]) / 2, (f[1] + f[3]) / 2]); } });
+    if (ends.length < 2) P.pins.forEach(function (p) { if (ends.length < 2) ends.push([p.lon, p.lat]); });
+    if (v.link && ends.length === 2) {
+      var la = vzEase((t - 0.5) / 0.6), x1 = X(ends[0][0]), y1 = Y(ends[0][1]), x2 = X(ends[1][0]), y2 = Y(ends[1][1]), mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - Math.hypot(x2 - x1, y2 - y1) * 0.22;
+      if (la > 0 && Math.hypot(x2 - x1, y2 - y1) > W * 0.06) {
+        ctx.save(); ctx.globalAlpha = la; ctx.setLineDash([W * 0.02, W * 0.014]); ctx.lineDashOffset = -t * W * 0.08; ctx.lineWidth = W * 0.006; ctx.lineCap = 'round'; ctx.strokeStyle = '#ffffff'; ctx.shadowColor = '#3dd6ff'; ctx.shadowBlur = W * 0.02;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx, my, x2, y2); ctx.stroke(); ctx.setLineDash([]);
+        var k2 = (t * 0.5) % 1, bx = (1 - k2) * (1 - k2) * x1 + 2 * (1 - k2) * k2 * mx + k2 * k2 * x2, by = (1 - k2) * (1 - k2) * y1 + 2 * (1 - k2) * k2 * my + k2 * k2 * y2;
+        ctx.beginPath(); ctx.arc(bx, by, W * 0.011, 0, 7); ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
+      }
+    }
     P.pins.forEach(function (p, i) {
       var a = vzEase((t - 0.3 - 0.12 * i) / 0.4), x = X(p.lon), y = Y(p.lat), r = W * 0.012; if (a <= 0) return;
       ctx.save(); ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x, y, r * (1.6 + 1.2 * pulse), 0, 7); ctx.strokeStyle = 'rgba(255,212,0,' + (0.7 - 0.5 * pulse) + ')'; ctx.lineWidth = W * 0.004; ctx.stroke();
@@ -5012,6 +5391,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   function vzNumber(ctx, W, H, v, t, dur) {
     var b = vzBox(W, H), p = vzEase(t / 1.1), a = vzEase(t / 0.25), txt = vzFmt(v, p), full = vzFmt(v, 1), cy = b.y + b.h * 0.44;
     ctx.save(); ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.78)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
+    if (v.icon) vzIconDraw(ctx, v.icon, W / 2, b.y + b.h * 0.1, W * 0.045, 'rgba(207,216,255,.8)', vzEase(t / 0.4));
     var size = vzFit(ctx, full, b.w * 0.86, Math.round(W * 0.26), 900), magSz = Math.round(W * 0.07);
     ctx.font = '900 ' + size + 'px ' + VZ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     ctx.lineWidth = size * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(txt, W / 2, cy); ctx.fillStyle = '#ffd400'; ctx.fillText(txt, W / 2, cy);
@@ -5055,7 +5435,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     ctx.restore();
   }
   function vzTimeline(ctx, W, H, v, t, dur) {
-    var b = vzBox(W, H), n = v.items.length, a = vzEase(t / 0.25), railX = b.x + b.w * 0.14, y0 = b.y + b.h * 0.14, y1 = b.y + b.h * 0.86, gap = (y1 - y0) / Math.max(1, n - 1);
+    var b = vzBox(W, H), n = v.items.length, a = vzEase(t / 0.25), railX = b.x + b.w * 0.14, span = Math.min(0.72, 0.26 * n), y0 = b.y + b.h * (0.5 - span / 2), y1 = b.y + b.h * (0.5 + span / 2), gap = (y1 - y0) / Math.max(1, n - 1);
     ctx.save(); ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.8)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
     var prog = Math.min(1, t / Math.max(0.8, dur * 0.8));
     ctx.lineWidth = W * 0.008; ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.beginPath(); ctx.moveTo(railX, y0); ctx.lineTo(railX, y1); ctx.stroke();
@@ -5074,6 +5454,13 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     try {
       if (v.type === 'map') vzMap(ctx, W, H, v, t, dur);
       else if (v.type === 'number') vzNumber(ctx, W, H, v, t, dur);
+      else if (v.type === 'change') vzChange(ctx, W, H, v, t, dur);
+      else if (v.type === 'ring') vzRing(ctx, W, H, v, t, dur);
+      else if (v.type === 'list') vzListDraw(ctx, W, H, v, t, dur);
+      else if (v.type === 'claim') vzClaimDraw(ctx, W, H, v, t, dur);
+      else if (v.type === 'person') vzPersonDraw(ctx, W, H, v, t, dur);
+      else if (v.type === 'flow') vzFlow(ctx, W, H, v, t, dur);
+      else if (v.type === 'icon') vzIconScene(ctx, W, H, v, t, dur);
       else if (v.type === 'compare') vzCompare(ctx, W, H, v, t, dur);
       else if (v.type === 'quote') vzQuoteDraw(ctx, W, H, v, t, dur);
       else if (v.type === 'timeline') vzTimeline(ctx, W, H, v, t, dur);
@@ -5104,7 +5491,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(160,180,255,.07)'; var gs = Math.round(W / 18), gx, gy; for (gy = gs / 2; gy < H; gy += gs) for (gx = gs / 2; gx < W; gx += gs) ctx.fillRect(gx, gy, 2, 2);
   }
-  function drawCaption(ctx, W, H, chunk, now) {
+  function drawCaption(ctx, W, H, chunk, now, cyFrac) {
     var size = Math.round(W * 0.078), maxW = W * 0.86, gap = size * 0.28;
     ctx.font = '800 ' + size + 'px system-ui,"Segoe UI",Roboto,Arial,sans-serif';
     ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
@@ -5115,7 +5502,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       lw += (line.length ? gap : 0) + ww; line.push({ w: w, ww: ww });
     });
     if (line.length) lines.push({ ws: line, w: lw });
-    var lh = size * 1.25, y0 = H * 0.64 - (lines.length * lh) / 2 + lh / 2;
+    var lh = size * 1.25, y0 = H * (cyFrac || 0.64) - (lines.length * lh) / 2 + lh / 2;
     lines.forEach(function (ln, li) {
       var x = (W - ln.w) / 2, y = y0 + li * lh;
       ln.ws.forEach(function (it) {
@@ -5274,7 +5661,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
         var g2 = ctx.createLinearGradient(0, 0, 0, H * 0.18); g2.addColorStop(0, 'rgba(0,0,0,.4)'); g2.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H * 0.18);
         if (sc.visual) vzDraw(ctx, W, H, sc.visual, now - (sc.start || 0), Math.max(0.5, (sc.end || now + 2) - (sc.start || 0)));
-        var ch = chunkAt(now); if (ch) drawCaption(ctx, W, H, ch, now);
+        var ch = chunkAt(now); if (ch) drawCaption(ctx, W, H, ch, now, sc.visual ? 0.79 : 0);
         if (opts.banner && !sc.visual) drawBanner(ctx, W, H, opts.banner, now);
         if (!sc.visual) (opts.callouts || []).forEach(function (c) { drawCallout(ctx, W, H, c, now); });
         if (opts.endcard) drawEndcard(ctx, W, H, tl, now);
@@ -5512,7 +5899,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     wrap.appendChild(list);
     var foot = el('div', { class: 'asg-plan-foot' }); foot.appendChild(go2); wrap.appendChild(foot);
     function rerec() {
-      sc.vplan = { hash: rec.sceneHash, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind, visual: edits[i].visual || null }; }) };
+      sc.vplan = { hash: rec.sceneHash, vz: 1, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind, visual: edits[i].visual || null }; }) };
       persistScripts(); makeVideo(sc, card, { keepPlan: true });
     }
     go.addEventListener('click', rerec); go2.addEventListener('click', rerec);
@@ -5604,16 +5991,17 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       tl = buildTimeline(parts);
       var hash = sceneHash(tl.scenes);
       setStage('footage'); setBar(0.5);
-      var havePlan = opts.keepPlan && sc.vplan && sc.vplan.hash === hash && sc.vplan.scenes.length === tl.scenes.length;
+      var havePlan = opts.keepPlan && sc.vplan && sc.vplan.hash === hash && sc.vplan.vz && sc.vplan.scenes.length === tl.scenes.length;
       var cards = function () { return tl.scenes.map(function () { return { query: '', alt: '', kind: 'card' }; }); };
       var baseP = havePlan ? Promise.resolve(sc.vplan.scenes) : !useFootage ? Promise.resolve(cards()) : (setStatus(card, 'Planning the footage…'), planScenes(tl.scenes, sc.title || sc.storyTitle || ''));
       return baseP.then(function (p) {
         var fresh = o.visuals !== false && !havePlan, title = sc.title || sc.storyTitle || '';
-        return (fresh ? (setStatus(card, 'Looking for maps, figures and quotes…'), vzPlanTimelines(tl.scenes)) : Promise.resolve(null)).then(function (tlm) {
+        return (fresh ? (setStatus(card, 'Looking for maps, figures and quotes…'), Promise.all([vzPlanTimelines(tl.scenes), vzPlanFlows(tl.scenes)]).then(function (r2) { return Object.assign({}, r2[1], r2[0]); })) : Promise.resolve(null)).then(function (tlm) {
           if (fresh) { try { p = vzMerge(p, tl.scenes, title, useFootage, tlm); } catch (e) { LOG('visual scenes skipped', e); } }
+          if (fresh && useFootage) p = p.map(function (x, i) { return x.kind === 'card' && i < p.length - 1 ? Object.assign({}, x, { kind: 'footage', query: x.query || fallbackQuery(tl.scenes[i].text, title) }) : x; });
           if (o.visuals === false) p = p.map(function (x) { return x.kind === 'visual' ? Object.assign({}, x, { kind: useFootage ? 'footage' : 'card' }) : x; });
           if (!useFootage) p = p.map(function (x) { return x.kind === 'visual' ? x : Object.assign({}, x, { kind: 'card' }); });
-          plan = p; sc.vplan = { hash: hash, scenes: p }; persistScripts();
+          plan = p; sc.vplan = { hash: hash, vz: 1, scenes: p }; persistScripts();
           p.forEach(function (x, i) { if (x.kind === 'visual' && x.visual) tl.scenes[i].visual = x.visual; });
           if (!useFootage) return null;
           return attachFootage(tl, plan, title, provider, stockKey(), W, function (i, n, q) { setStatus(card, 'Footage for scene ' + (i + 1) + ' of ' + n + (q ? ': "' + q + '"' : '')); setBar(0.5 + 0.3 * i / n); }, run);
