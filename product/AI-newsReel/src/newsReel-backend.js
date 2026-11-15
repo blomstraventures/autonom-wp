@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.39.0';
+  var VERSION = '1.40.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -582,8 +582,8 @@
     persistProfile(); renderProfile();
   }
   function growPanel() {
-    var p = state.profile, box = el('details', { class: 'asg-grow' });
-    box.appendChild(el('summary', { text: 'Make your feed richer' }));
+    var p = state.profile, box = el('details', { class: 'asg-grow', style: 'margin:12px 0;border:1.5px solid #f5a524;border-radius:12px;background:rgba(245,165,36,.12);padding:10px 14px;' });
+    box.appendChild(el('summary', { style: 'cursor:pointer;font-weight:700;font-size:15px;list-style-position:inside;', text: '✨ Make your feed richer: find topics and words your profile is missing (click to open)' }));
     var body = el('div', { style: 'display:grid;gap:12px;margin-top:8px;' }); box.appendChild(body);
     var done = false;
     box.addEventListener('toggle', function () { if (!box.open || done) return; done = true; build(); });
@@ -1174,13 +1174,13 @@
     var parts = Object.keys(c).sort(function (a, b) { return c[b] - c[a]; }).map(function (k) { return k + ' ' + c[k]; });
     return parts.length ? 'This scan by region: ' + parts.join(' · ') + (none ? ' · no place named ' + none : '') + '.' : '';
   }
-  var pickSkipped = 0;
+  var pickSkipped = 0, dismissed = {};
   function pickRows() {
     // Best bets are on-topic stories only: a story that does not fit the channel can be popular and still grow the wrong audience
     // (the channel's own Studio data: geopolitics held 60 to 69 percent of viewers, an off-topic tech affair held 13).
     var hasSig = (state.profile && state.profile.topics || []).some(function (t) { return (t.signals || []).length; });
     pickSkipped = 0;
-    var cands = state.stories.filter(function (x) { var h = ageHours(x); var ok = isReadableStory(x) && !usedOf(x) && !(h != null && h > 72) && (!hasSig || viralOf(x).fit >= 35); if (ok) { var d0 = dupOf(x); if (d0 && d0.kind === 'same') { pickSkipped++; return false; } } return ok; });
+    var cands = state.stories.filter(function (x) { var h = ageHours(x); var ok = isReadableStory(x) && !dismissed[x.id] && !usedOf(x) && !(h != null && h > 72) && (!hasSig || viralOf(x).fit >= 35); if (ok) { var d0 = dupOf(x); if (d0 && d0.kind === 'same') { pickSkipped++; return false; } } return ok; });
     return clusterStories(cands).map(function (g) {
       g = g.slice(0, GROUP_MAX);
       var best = g.slice().sort(function (a, b) { return pickScoreOf(b) - pickScoreOf(a); })[0];
@@ -1289,6 +1289,7 @@
     ht.appendChild(el('p', { text: 'You cannot film everything. These balance fit with your channel, public attention and room to be first.' }));
     var rmix = regionMix(); if (rmix) ht.appendChild(el('p', { class: 'asg-pick-sum', text: rmix }));
     if (pickSkipped) ht.appendChild(el('p', { class: 'asg-pick-sum', text: pickSkipped + (pickSkipped === 1 ? ' story is' : ' stories are') + ' left out of the top picks because you already made ' + (pickSkipped === 1 ? 'it' : 'them') + '. Follow-ups with new facts stay in and are marked.' }));
+    if (Object.keys(dismissed).length) { var rs = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Bring back removed picks' }); rs.addEventListener('click', function () { dismissed = {}; renderPicks(box); }); ht.appendChild(rs); }
     head.appendChild(ht);
     var all = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Select all ' + rows.length });
     all.addEventListener('click', function () { rows.forEach(function (r) { selectGroup(r.g); }); updateStepAvailability(); renderStories(); });
@@ -1298,6 +1299,9 @@
     rows.forEach(function (r, k) {
       var done = r.g.every(function (x) { return state.selectedStoryIds[x.id]; }), c = el('div', { class: 'asg-pick' + (done ? ' is-done' : '') });
       c.appendChild(el('span', { class: 'asg-pick-n', text: String(k + 1) }));
+      var xb = el('button', { type: 'button', class: 'asg-pick-x', title: 'Not this one: remove it and bring the next story into the top 3', 'aria-label': 'Remove this pick', style: 'position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;opacity:.7;', text: '✕' });
+      xb.addEventListener('click', function () { r.g.forEach(function (x) { dismissed[x.id] = true; delete state.selectedStoryIds[x.id]; }); updateStepAvailability(); renderPicks(box); renderStories(); });
+      c.style.position = 'relative'; c.appendChild(xb);
       c.appendChild(el('div', { class: 'asg-pick-title', text: r.s.title }));
       var sm = String(r.s.summary || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&amp;/g, ' ').replace(/\s+/g, ' ').trim();
       if (sm && sm.toLowerCase().indexOf(String(r.s.title || '').toLowerCase().slice(0, 30)) !== 0) c.appendChild(el('div', { class: 'asg-pick-sum', text: sm.length > 170 ? sm.slice(0, 168).replace(/\s+\S*$/, '') + '…' : sm }));
