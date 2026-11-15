@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.32.0';
+  var VERSION = '1.39.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -47,7 +47,7 @@
     stories: [],
     selectedStoryIds: {},
     scripts: [],
-    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, madeWith: true, autoLen: true, publishWebhook: '', publishSecret: '', publishPlatforms: ['youtube', 'instagram', 'facebook', 'tiktok', 'x', 'linkedin', 'telegram'], autoLens: true, autoHook: true, strategy: 'value', writeBest: true, lens: 'between', hook: 'event', fallbackProviders: true, pixabayKey: '', pexelsKey: '', stockProvider: 'pixabay', groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
+    settings: { youtubeKey: '', llmProvider: 'gemini', geminiKey: '', geminiModel: '', openaiKey: '', deepseekKey: '', requireSecond: false, geminiWriteModel: '', depth: true, madeWith: true, autoLen: true, autoLens: true, autoHook: true, strategy: 'value', writeBest: true, lens: 'between', hook: 'event', fallbackProviders: true, pixabayKey: '', pexelsKey: '', stockProvider: 'pixabay', groqKey: '', groqModel: '', groqWriteModel: '', openrouterKey: '', openrouterModel: '', openrouterWriteModel: '' },
     counters: { apiCalls: 0, llmCalls: 0 },
     feedReadable: true,
     feedHideUsed: true,
@@ -167,7 +167,11 @@
     try { renderProfileBar(); } catch (e2) {}
   }
   function persistSettings() { try { var j = JSON.stringify(state.settings); localStorage.setItem(settingsKey(), j); localStorage.setItem(LS.settings, j); } catch (e) {} }
-  function persistScripts() { try { var j = JSON.stringify(state.scripts); localStorage.setItem(scriptsKey(), j); localStorage.setItem(LS.scripts, j); } catch (e) {} }
+  function persistScripts() {
+    try { var j = JSON.stringify(state.scripts); localStorage.setItem(scriptsKey(), j); localStorage.setItem(LS.scripts, j); } catch (e) {}
+    // Safety copy in IndexedDB: localStorage is small and silently refuses writes when full.
+    try { if (typeof dbPut === 'function' && state.profile) dbPut('library', { id: '_current_' + scriptsKey(), t: Date.now(), scripts: JSON.parse(JSON.stringify(state.scripts)) }); } catch (e1) {}
+  }
 
   function updateCounters() {
     var a = $('#asg-stat-api'); if (a) a.textContent = state.counters.apiCalls;
@@ -198,7 +202,7 @@
     setTimeout(function () { t.classList.remove('is-on'); setTimeout(function () { t.remove(); }, 320); }, ms || (kind === 'error' ? 9000 : 5000));
   }
   function setStep(step) {
-    var order = ['channel', 'feed', 'consolidate', 'generate', 'scripts', 'video', 'publish', 'export'];
+    var order = ['channel', 'feed', 'consolidate', 'generate', 'scripts', 'video', 'export'];
     state.step = step;
     $$('.asg-panel').forEach(function (p) { p.hidden = p.dataset.panel !== step; });
     $$('.asg-step').forEach(function (s) {
@@ -210,7 +214,6 @@
     if (step === 'consolidate') renderConsolidate();
     if (step === 'generate') renderGenerateStatus();
     if (step === 'video') renderVideoPanel();
-    if (step === 'publish') renderPublish();
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
   }
   function updateStepAvailability() {
@@ -225,7 +228,6 @@
       else if (st === 'generate') s.disabled = !hasStories;
       else if (st === 'scripts') s.disabled = !state.scripts.length;
       else if (st === 'video') s.disabled = !hasScripts;
-      else if (st === 'publish') s.disabled = !hasScripts;
       else if (st === 'export') s.disabled = !hasScripts;
     });
   }
@@ -564,6 +566,99 @@
     toast('Profile deleted', 'success');
   }
 
+  // ---- Make the feed richer: what the profile is missing, found in today's scan, plus optional AI ideas. ----
+  function editDist(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 9;
+    var m = [], i, j; for (i = 0; i <= a.length; i++) m[i] = [i];
+    for (j = 1; j <= b.length; j++) m[0][j] = j;
+    for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++) m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return m[a.length][b.length];
+  }
+  function scanText() { return state.stories.map(function (x) { return String(x.title || '') + '. ' + String(x.summary || '').replace(/<[^>]*>/g, ' '); }); }
+  function allSignals() { var o = []; (state.profile.topics || []).forEach(function (t) { (t.signals || []).forEach(function (g) { if (o.indexOf(g) === -1) o.push(g); }); }); return o; }
+  function addSignal(topicIdx, term) {
+    var t = state.profile.topics[topicIdx]; if (!t) return;
+    t.signals = t.signals || []; if (t.signals.map(function (x) { return x.toLowerCase(); }).indexOf(term.toLowerCase()) < 0) t.signals.push(term);
+    persistProfile(); renderProfile();
+  }
+  function growPanel() {
+    var p = state.profile, box = el('details', { class: 'asg-grow' });
+    box.appendChild(el('summary', { text: 'Make your feed richer' }));
+    var body = el('div', { style: 'display:grid;gap:12px;margin-top:8px;' }); box.appendChild(body);
+    var done = false;
+    box.addEventListener('toggle', function () { if (!box.open || done) return; done = true; build(); });
+    function chipRow(items, onPick, label) {
+      var row = el('div', { class: 'asg-chips' });
+      items.forEach(function (it) { var b = el('button', { type: 'button', class: 'asg-chip', style: 'cursor:pointer;border:1px dashed currentColor;', title: it.title || '', text: '+ ' + it.text }); b.addEventListener('click', function () { onPick(it); b.remove(); }); row.appendChild(b); });
+      return row;
+    }
+    function build() {
+      var sel = el('select', { 'aria-label': 'Add to topic' });
+      (p.topics || []).forEach(function (t, i) { sel.appendChild(el('option', { value: String(i), text: t.name })); });
+      body.appendChild(el('label', { class: 'asg-field' }, [el('span', { class: 'asg-label', text: 'New words go into topic' }), sel]));
+      var texts = scanText();
+      if (!texts.length) { body.appendChild(el('p', { class: 'asg-hint', text: 'Run a news scan first: this panel then shows what today\'s news talks about that your profile does not mention yet.' })); }
+      else {
+        // 1. Words that look like typos: not in today\'s news, one or two letters away from a word that is.
+        var freq = {}; texts.join(' ').toLowerCase().replace(/[^a-z\s'-]/g, ' ').split(/\s+/).forEach(function (w) { if (w.length >= 5) freq[w] = (freq[w] || 0) + 1; });
+        var typos = [];
+        allSignals().forEach(function (sg) { sg.toLowerCase().split(/\s+/).forEach(function (w) {
+          if (w.length < 6 || freq[w]) return;
+          var best = null; Object.keys(freq).forEach(function (v) { if (v[0] === w[0] && editDist(w, v) <= 2 && freq[v] >= 2 && (!best || freq[v] > freq[best])) best = v; });
+          if (best) typos.push({ sig: sg, from: w, to: best });
+        }); });
+        if (typos.length) {
+          body.appendChild(el('strong', { text: 'Possible typos in your topic words' }));
+          var tr = el('div', { class: 'asg-chips' });
+          typos.slice(0, 6).forEach(function (t) {
+            var b = el('button', { type: 'button', class: 'asg-chip', style: 'cursor:pointer;border:1px dashed currentColor;', text: t.sig + ' → ' + t.sig.toLowerCase().replace(t.from, t.to) });
+            b.addEventListener('click', function () { p.topics.forEach(function (tp) { tp.signals = (tp.signals || []).map(function (x) { return x === t.sig ? t.sig.toLowerCase().replace(t.from, t.to) : x; }); }); persistProfile(); renderProfile(); });
+            tr.appendChild(b);
+          }); body.appendChild(tr);
+        }
+        // 2. Names that keep coming up in the scan and are not in the profile.
+        var have = allSignals().join(' ').toLowerCase(), cnt = {}, skip = ' monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december said says this that after before with from over about into amid will would could their there which while where when what ' + have + ' ';
+        texts.forEach(function (t) { var seen = {}; (String(t).match(/\b[A-Z][a-z]{3,}(?:\s[A-Z][a-z]{3,})?\b/g) || []).forEach(function (w, i) {
+          var k = w.toLowerCase(); if (seen[k] || skip.indexOf(' ' + k + ' ') >= 0 || have.indexOf(k) >= 0) return; seen[k] = 1; cnt[w] = (cnt[w] || 0) + 1; }); });
+        var top = Object.keys(cnt).filter(function (w) { return cnt[w] >= 2; }).sort(function (a, b) { return cnt[b] - cnt[a]; }).slice(0, 14);
+        if (top.length) {
+          body.appendChild(el('strong', { text: 'In today\'s scan, not in your profile yet' }));
+          body.appendChild(el('p', { class: 'asg-hint', text: 'Places, people and organisations that several stories mention. Add the ones your channel should cover, and matching stories rank higher in Best bets.' }));
+          body.appendChild(chipRow(top.map(function (w) { return { text: w, title: cnt[w] + ' stories' }; }), function (it) { addSignalKeep(parseInt(sel.value, 10), it.text.toLowerCase()); }));
+        }
+      }
+      // 3. Ideas from the AI, from the profile alone.
+      var ai = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Suggest more with AI' }), out = el('div', { style: 'display:grid;gap:8px;' });
+      ai.addEventListener('click', function () {
+        ai.disabled = true; ai.textContent = 'Thinking…'; out.innerHTML = '';
+        var lines = ['A news-video channel scans headlines for stories that fit it. Suggest scan words to add to its profile so the feed finds more of the right stories.',
+          'CHANNEL: ' + p.name, 'POSITIONING: ' + (p.identity.positioning || p.identity.oneLiner || ''), 'TOPICS: ' + (p.topics || []).map(function (t) { return t.name + ' (' + (t.signals || []).join(', ') + ')'; }).join(' | '),
+          'Return STRICT JSON only: {"topics":[{"topic":"existing topic name","add":["20 short words or 2-word phrases that appear in headlines of this niche: countries and hot spots, recurring newsmakers, organisations, events, jargon"]}],"new_topics":[{"name":"an adjacent topic the channel could cover","why":"one short reason","add":["8 words"]}]}',
+          'Rules: lowercase; no generic words like news, world, today; do not repeat words already listed; include places and actors that are in the news now, not only evergreen terms.'];
+        callLLM(lines.join('\n'), 'write').then(function (r) {
+          var j = extractJson(r.text); out.innerHTML = '';
+          (j.topics || []).forEach(function (t) {
+            var idx = (p.topics || []).map(function (x) { return x.name.trim().toLowerCase(); }).indexOf(String(t.topic || '').trim().toLowerCase()); if (idx < 0) idx = 0;
+            var items = (t.add || []).map(function (x) { return String(x).trim().toLowerCase(); }).filter(function (x) { return x && x.length < 30 && allSignals().map(function (g) { return g.toLowerCase(); }).indexOf(x) < 0; });
+            if (!items.length) return;
+            out.appendChild(el('strong', { text: 'More for ' + p.topics[idx].name }));
+            out.appendChild(chipRow(items.map(function (x) { return { text: x }; }), function (it) { addSignalKeep(idx, it.text); }));
+          });
+          (j.new_topics || []).forEach(function (t) {
+            if (!t || !t.name) return;
+            var b = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: '+ New topic: ' + String(t.name).slice(0, 40), title: String(t.why || '') });
+            b.addEventListener('click', function () { p.topics.push({ name: String(t.name).slice(0, 40), weight: 0.15, subtopics: [], signals: (t.add || []).map(function (x) { return String(x).trim().toLowerCase(); }).filter(Boolean).slice(0, 10) }); persistProfile(); renderProfile(); toast('Topic added. Adjust its weight in the profile editor.', 'success'); });
+            out.appendChild(el('div', {}, [b, el('small', { style: 'display:block;opacity:.75;', text: String(t.why || '') })]));
+          });
+          if (!out.childNodes.length) out.appendChild(el('p', { text: 'No new ideas came back. Try again.' }));
+        }).catch(function (e) { out.innerHTML = ''; out.appendChild(el('p', { text: 'The AI could not answer: ' + (e && e.message ? e.message : e) })); }).then(function () { ai.disabled = false; ai.textContent = 'Suggest more with AI'; });
+      });
+      body.appendChild(ai); body.appendChild(out);
+    }
+    // adding keeps the panel open (renderProfile would rebuild it), so write straight to the profile
+    function addSignalKeep(idx, term) { var t = p.topics[idx]; if (!t) return; t.signals = t.signals || []; if (t.signals.map(function (x) { return x.toLowerCase(); }).indexOf(term.toLowerCase()) < 0) t.signals.push(term); persistProfile(); toast('Added "' + term + '" to ' + t.name, 'success'); }
+    return box;
+  }
   function renderProfile() {
     renderProfileBar();
     if (!state.profile) return;
@@ -589,6 +684,7 @@
     dl.appendChild(el('dt', { text: 'Format' })); dl.appendChild(el('dd', { text: p.format.targetDurationSec + 's · ' + p.format.wordCountMin + '–' + p.format.wordCountMax + ' words' }));
     dl.appendChild(el('dt', { text: 'Cadence' })); dl.appendChild(el('dd', { text: p.cadence.videosPerDay + ' / day · ' + p.cadence.preferredTimes.join(', ') }));
     view.appendChild(dl);
+    view.appendChild(growPanel());
     updateApiStatus();
   }
   function textInput(v, on) { var i = el('input', { type: 'text', value: v || '' }); i.addEventListener('input', function () { on(i.value); }); return i; }
@@ -727,10 +823,17 @@
   }
   function scoreStory(s, profile) {
     var text = (s.title + ' ' + s.summary).toLowerCase();
-    var score = 0;
+    var score = 0, topic = 0, tl0 = String(s.title || '').toLowerCase();
     profile.topics.forEach(function (t) {
-      (t.signals || []).forEach(function (sig) { if (sig && hasWord(text, sig)) score += t.weight * 10; });
+      (t.signals || []).forEach(function (sig) {
+        if (!sig) return;
+        if (hasWord(text, sig)) score += t.weight * 10;
+        // Fit to the channel is topical match only (freshness and readability must not make an off-topic story look on-topic):
+        // a signal in the headline counts in full, one only in the summary counts half.
+        if (hasWord(tl0, sig)) topic += t.weight * 10; else if (hasWord(text, sig)) topic += t.weight * 5;
+      });
     });
+    s.topicScore = topic;
     if (s.publishedAt) {
       var ageH = (Date.now() - new Date(s.publishedAt).getTime()) / 3.6e6;
       if (ageH < 6) score += 4; else if (ageH < 24) score += 2;
@@ -863,7 +966,7 @@
       });
       state.stories.sort(function (a, b) { return b.score - a.score; });
       state.stories = state.stories.slice(0, 30);
-      renderStories();
+      renderStories(); autoSignals();
       fill.style.width = '100%';
       setTimeout(function () { prog.hidden = true; }, 300);
       if (!state.stories.length) toast('No stories found. Try different signals.', 'error');
@@ -878,7 +981,7 @@
   // ---------- Virality estimate ----------
   // Real signal: views of similar short videos from the last 30 days (YouTube Data API, needs your key).
   // Without a key the score is an estimate from coverage, freshness and channel fit. It is not a prediction.
-  var VIRAL_KEY = 'asg_viral_cache_v1';
+  var VIRAL_KEY = 'asg_viral_cache_v2';
   var viralCache = (function () { try { return JSON.parse(localStorage.getItem(VIRAL_KEY) || '{}'); } catch (e) { return {}; } })();
   function viralSave() { try { localStorage.setItem(VIRAL_KEY, JSON.stringify(viralCache)); } catch (e) {} }
   function clampN(n, a, b) { return Math.max(a, Math.min(b, n)); }
@@ -924,21 +1027,36 @@
   }
   function viralOf(s) {
     var maxScore = Math.max.apply(null, state.stories.map(function (x) { return x.score; }).concat([1]));
-    var fit = Math.round(clampN(s.score / maxScore * 100, 0, 100)), fresh = freshScore(s);
+    var fit = s.topicScore != null ? Math.round(clampN(s.topicScore / 8 * 100, 0, 100)) : Math.round(clampN(s.score / maxScore * 100, 0, 100)), fresh = freshScore(s);
     var cn = 1 + relatedStories(s, 20).length, cov = coverageScore(cn);
     var d = (s.demand && s.demand.ok) ? s.demand : cachedDemand(s);
-    var dem = d ? demandScore(d) : null;
-    var score = d ? 0.45 * dem + 0.2 * cov + 0.15 * fresh + 0.2 * fit : 0.4 * cov + 0.3 * fresh + 0.3 * fit;
+    // Attention outside YouTube (Wikipedia page views, Hacker News). A topic with few or no Shorts yet is NOT penalised: with
+    // fewer than 3 similar Shorts the YouTube number is too thin to judge, and an empty field with real attention is an opening.
+    var at = attnScore(cachedAttention(s)), dd = d && d.n >= 3 ? d : null, dem = dd ? demandScore(dd) : null;
+    var score = dd ? 0.4 * dem + 0.15 * cov + 0.15 * fresh + 0.15 * fit + 0.15 * (at == null ? cov : at)
+      : at == null ? 0.4 * cov + 0.3 * fresh + 0.3 * fit : 0.3 * cov + 0.25 * fresh + 0.25 * fit + 0.2 * at;
+    var untapped = !!(d && d.n <= 2 && (cn >= 3 || (at != null && at >= 60)));
     var stk = stakesOf(s);
     score = stk.score === 0 ? score * 0.78 : stk.score === 2 ? Math.min(100, score * 1.05) : score;
     // Hook angle: what Shorts viewers stay for (a hidden layer, a tangible consequence) and what they swipe past (procedure).
     var ang = (stk.unseen ? 6 : 0) + (stk.conseq ? 5 : 0) - (stk.proc ? 8 : 0);
-    score = clampN(score + ang, 0, 100);
+    score = clampN(score + ang + (untapped ? 8 : 0), 0, 100);
     var angLabel = [stk.unseen ? 'hidden layer' : '', stk.conseq ? 'tangible consequence' : '', stk.proc ? 'procedural story' : ''].filter(Boolean).join(' + ');
-    return { score: Math.round(score), fit: fit, fresh: fresh, cn: cn, dem: dem, d: d, real: !!d, stakes: stk.score, ang: ang, angLabel: angLabel };
+    return { score: Math.round(score), fit: fit, fresh: fresh, cn: cn, dem: dem, d: d, real: !!d, attn: at, a: cachedAttention(s), untapped: untapped, stakes: stk.score, ang: ang, angLabel: angLabel };
   }
   function viralLevel(n) { return n >= 70 ? 'high' : n >= 45 ? 'mid' : 'low'; }
   function fmtViews(n) { return n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
+  // YouTube's relevanceLanguage is only a hint: a story about a Senegalese event returned French and Wolof Shorts with millions of views,
+  // which said nothing about demand for an English channel. Keep only Shorts in the channel's language.
+  function sameLang(v, lang) {
+    lang = String(lang || 'en').slice(0, 2).toLowerCase();
+    var l = String(v.lang || '').slice(0, 2).toLowerCase();
+    if (l && l !== 'un' && l !== lang) return false;
+    if (lang !== 'en') return true;
+    var t = String(v.title || ''), letters = t.replace(/[^A-Za-zÀ-￿]/g, '');
+    if (letters.length && t.replace(/[^A-Za-z]/g, '').length / letters.length < 0.9) return false;
+    return !/\b(le|la|les|des|du|une|est|el|los|del|por|para|yang|dan|dengan|und|der|das|ist|nicht|och|är|het|een|pour|dans|avec|sur|nous|sono|della|não|uma|dos|và|của)\b/.test(t);
+  }
   function fetchDemand(s) {
     var q = storyQuery(s);
     var c = cachedDemand(s); if (c) return Promise.resolve(c);
@@ -949,7 +1067,9 @@
       var ids = (r.items || []).map(function (i) { return i.id && i.id.videoId; }).filter(Boolean);
       if (!ids.length) return { n: 0, median: 0, top: [] };
       return ytFetch('videos', { part: 'statistics,snippet', id: ids.join(',') }).then(function (v) {
-        var vids = (v.items || []).map(function (x) { return { id: x.id, title: x.snippet.title, channel: x.snippet.channelTitle, views: parseInt((x.statistics || {}).viewCount || '0', 10) }; })
+        var plang = (state.profile && state.profile.source && state.profile.source.language) || 'en';
+        var vids = (v.items || []).map(function (x) { return { id: x.id, title: x.snippet.title, channel: x.snippet.channelTitle, lang: x.snippet.defaultAudioLanguage || x.snippet.defaultLanguage || '', views: parseInt((x.statistics || {}).viewCount || '0', 10) }; })
+          .filter(function (x) { return sameLang(x, plang); })
           .sort(function (a, b) { return b.views - a.views; });
         var arr = vids.map(function (x) { return x.views; }).sort(function (a, b) { return a - b; });
         var med = arr.length ? (arr.length % 2 ? arr[(arr.length - 1) / 2] : (arr[arr.length / 2 - 1] + arr[arr.length / 2]) / 2) : 0;
@@ -957,19 +1077,237 @@
       });
     }).then(function (d) { viralCache[q] = { t: Date.now(), d: d }; viralSave(); return Object.assign({ ok: true }, d); });
   }
+  // ---- Attention beyond YouTube ----
+  // YouTube is the only platform with a free, official search API. TikTok and Instagram offer no open data, so they cannot be scored
+  // honestly. What is free and works from the browser: Wikipedia page views (public attention, any platform) and Hacker News.
+  function attnKey(s) { return 'A|' + storyQuery(s); }
+  function cachedAttention(s) { var c = viralCache[attnKey(s)]; return c && Date.now() - c.t < 6 * 3600 * 1000 ? c.d : null; }
+  function attnScore(a) {
+    if (!a) return null;
+    var w = a.wiki && a.wiki.recent >= 300 ? clampN((a.wiki.spike - 1) / 3 * 100, 0, 100) : 0, h = a.hn ? clampN(a.hn.top / 3, 0, 100) : 0;
+    return Math.round(Math.max(w, h));
+  }
+  function fetchJson(url, ms) { return fetchWithTimeout(url, {}, ms || 8000).then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }); }
+  function ymd(d) { return d.getUTCFullYear() + ('0' + (d.getUTCMonth() + 1)).slice(-2) + ('0' + d.getUTCDate()).slice(-2); }
+  function fetchAttention(s) {
+    var c = cachedAttention(s); if (c) return Promise.resolve(c);
+    var q = storyQuery(s), tl = String(s.title || '').toLowerCase(), base = sigTokens(cleanTitle(s.title));
+    if (!q) return Promise.resolve({});
+    var wiki = fetchJson('https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&format=json&origin=*&srsearch=' + encodeURIComponent(q), 8000).then(function (j) {
+      var hit = j && j.query && j.query.search && j.query.search[0];
+      if (!hit || !hit.title.toLowerCase().split(/\W+/).some(function (w) { return w.length > 3 && tl.indexOf(w) !== -1; })) return null;
+      var end = new Date(Date.now() - 864e5), start = new Date(Date.now() - 38 * 864e5);
+      return fetchJson('https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/' + encodeURIComponent(hit.title.replace(/ /g, '_')) + '/daily/' + ymd(start) + '/' + ymd(end), 8000).then(function (p) {
+        var v = (p.items || []).map(function (x) { return x.views; }); if (v.length < 10) return null;
+        var recent = v.slice(-3).reduce(function (a, b) { return a + b; }, 0) / 3, bs = v.slice(0, -3).sort(function (a, b) { return a - b; }), med = bs[Math.floor(bs.length / 2)] || 1;
+        return { title: hit.title, recent: Math.round(recent), spike: Math.round(recent / Math.max(med, 20) * 10) / 10 };
+      });
+    }).catch(function () { return null; });
+    var hn = fetchJson('https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=8&query=' + encodeURIComponent(q) + '&numericFilters=' + encodeURIComponent('created_at_i>' + Math.floor((Date.now() - 7 * 864e5) / 1000)), 8000).then(function (j) {
+      var hs = (j.hits || []).filter(function (h) { var tt = sigTokens(cleanTitle(h.title || '')); return tt.filter(function (w) { return base.indexOf(w) !== -1; }).length >= 2; });
+      if (!hs.length) return null;
+      return { n: hs.length, top: hs.reduce(function (m, h) { return Math.max(m, h.points || 0); }, 0) };
+    }).catch(function () { return null; });
+    return Promise.all([wiki, hn]).then(function (r) { var d = { wiki: r[0], hn: r[1] }; viralCache[attnKey(s)] = { t: Date.now(), d: d }; viralSave(); return d; });
+  }
+  // Runs by itself after a scan (free, no key): attention for the best matches, so the picks below are informed from the start.
+  function autoSignals() {
+    if (state._sigRun) return; state._sigRun = true;
+    var list = state.stories.slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 12), i = 0;
+    function next() { if (i >= list.length) return Promise.resolve(); var st = list[i++]; return fetchAttention(st).catch(function () {}).then(function () { return sleep(150).then(next); }); }
+    next().then(function () { state._sigRun = false; renderStories(); }, function () { state._sigRun = false; });
+  }
   function scoreVirality(btn) {
-    if (!state.settings.youtubeKey) { toast('Add a YouTube key under API keys to get real demand data. Showing the estimate until then.', 'error'); return; }
-    var list = state.stories.slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 10), i = 0;
+    var list = state.stories.slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 10), i = 0, hasKey = !!state.settings.youtubeKey, ytDead = false;
     btn.disabled = true;
     function next() {
       if (i >= list.length) return Promise.resolve();
-      var s = list[i++]; btn.textContent = 'Scoring ' + i + ' of ' + list.length + '…';
-      return fetchDemand(s).then(function (d) { s.demand = d; }).catch(function (e) { if (/quota|exceeded|forbidden|key/i.test(e.message)) throw e; s.demand = null; })
-        .then(function () { renderStories(); return sleep(120).then(next); });
+      var st = list[i++]; btn.textContent = 'Checking ' + i + ' of ' + list.length + '…';
+      return fetchAttention(st).catch(function () { return null; }).then(function () {
+        if (!hasKey || ytDead) return;
+        return fetchDemand(st).then(function (d) { st.demand = d; }).catch(function (e) {
+          if (/quota|exceeded|forbidden|key/i.test(e.message)) { ytDead = true; toast('YouTube said: ' + e.message + ' Carrying on with the other signals.', 'error'); } else st.demand = null;
+        });
+      }).then(function () { renderStories(); return sleep(120).then(next); });
     }
-    next().then(function () { state.feedSort = 'viral'; toast('Virality scored from similar Shorts. Sorted by virality.', 'success'); })
-      .catch(function (e) { toast('YouTube said: ' + e.message, 'error'); })
+    next().then(function () { state.feedSort = 'viral'; toast(hasKey ? 'Checked YouTube Shorts and public attention. Sorted by virality.' : 'Checked public attention. Add a YouTube key in Settings to include Shorts demand.', 'success'); })
       .then(function () { btn.disabled = false; renderStories(); });
+  }
+  // ---- Best bets: which stories to turn into videos today ----
+  // You cannot film everything. A pick mixes virality (demand, attention, coverage, freshness, hook angle) with fit to the channel,
+  // because on-topic stories are what build an audience that stays. Same-event stories from several outlets come as one pick.
+  function pickScoreOf(s) { var v = viralOf(s); return 0.45 * v.score + 0.55 * v.fit; }
+  // Region of a story, from the first place its headline (then summary) names. The map data already holds every country's outline,
+  // so the continent comes from where that outline sits, not from a hand-written list.
+  function geoRegion(lat, lon, id) {
+    if (id === 'Russia') return 'Europe';
+    if (lon < -30) return 'Americas';
+    if (lat < -10 && lon > 105) return 'Oceania';
+    if (lat >= 12 && lat <= 42 && lon >= 34 && lon <= 63) return 'Middle East';
+    if (lon > 63) return 'Asia';
+    if (lat >= 36) return 'Europe';
+    return 'Africa';
+  }
+  function storyRegion(s) {
+    if (s._region !== undefined) return s._region;
+    var r = '';
+    [s.title, s.summary].some(function (t) {
+      return vzFindEntities(String(t || '').replace(/<[^>]*>/g, ' ')).some(function (e) {
+        if (e.k === 'c') {
+          var g = vzWorld()[e.id];
+          if (g) {
+            // the main landmass only: the whole outline of France or the United States also holds territories on the far side of the world
+            var big = g.rings.slice().sort(function (x, y) { return y.length - x.length; })[0], x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+            for (var q = 0; q < big.length; q += 2) { if (big[q] < x0) x0 = big[q]; if (big[q] > x1) x1 = big[q]; if (big[q + 1] < y0) y0 = big[q + 1]; if (big[q + 1] > y1) y1 = big[q + 1]; }
+            r = geoRegion((y0 + y1) / 2, (x0 + x1) / 2, e.id); return true;
+          }
+        }
+        if (e.k === 'p') { r = geoRegion(e.lat, e.lon, e.c); return true; }
+        return false;
+      });
+    });
+    return (s._region = r);
+  }
+  function regionMix() {
+    var c = {}, none = 0;
+    state.stories.forEach(function (x) { var r = storyRegion(x); if (r) c[r] = (c[r] || 0) + 1; else none++; });
+    var parts = Object.keys(c).sort(function (a, b) { return c[b] - c[a]; }).map(function (k) { return k + ' ' + c[k]; });
+    return parts.length ? 'This scan by region: ' + parts.join(' · ') + (none ? ' · no place named ' + none : '') + '.' : '';
+  }
+  var pickSkipped = 0;
+  function pickRows() {
+    // Best bets are on-topic stories only: a story that does not fit the channel can be popular and still grow the wrong audience
+    // (the channel's own Studio data: geopolitics held 60 to 69 percent of viewers, an off-topic tech affair held 13).
+    var hasSig = (state.profile && state.profile.topics || []).some(function (t) { return (t.signals || []).length; });
+    pickSkipped = 0;
+    var cands = state.stories.filter(function (x) { var h = ageHours(x); var ok = isReadableStory(x) && !usedOf(x) && !(h != null && h > 72) && (!hasSig || viralOf(x).fit >= 35); if (ok) { var d0 = dupOf(x); if (d0 && d0.kind === 'same') { pickSkipped++; return false; } } return ok; });
+    return clusterStories(cands).map(function (g) {
+      g = g.slice(0, GROUP_MAX);
+      var best = g.slice().sort(function (a, b) { return pickScoreOf(b) - pickScoreOf(a); })[0];
+      var dpf = dupOf(best); return { g: g, s: best, v: viralOf(best), score: pickScoreOf(best) + (g.length >= 2 ? 4 : 0) + (dpf && dpf.kind === 'follow' ? 8 : 0) };
+    }).sort(function (a, b) { return b.score - a.score; }).reduce(function (acc, r, i, all) {
+      // A channel that covers the world should not get three picks from one region: at most two per region while others exist.
+      if (acc.length >= 3) return acc;
+      var reg = storyRegion(r.s), n = acc.filter(function (x) { return reg && storyRegion(x.s) === reg; }).length;
+      if (reg && n >= 2 && all.some(function (o, j) { return j > i && acc.indexOf(o) === -1 && storyRegion(o.s) !== reg; })) return acc;
+      acc.push(r); return acc;
+    }, []);
+  }
+  // ---- Already covered? Compare a story with the channel's last 30 uploads (needs the YouTube key). ----
+  var ownRecent = null, ownTried = false;
+  function loadOwnRecent(then) {
+    var cid = state.profile && state.profile.source && state.profile.source.channelId;
+    if (ownRecent || ownTried || !cid || !state.settings.youtubeKey) return;
+    ownTried = true;
+    var uploads = 'UU' + String(cid).slice(2);
+    ytFetch('playlistItems', { part: 'snippet', playlistId: uploads, maxResults: 30 }).then(function (r) {
+      ownRecent = (r.items || []).map(function (i) {
+        var sn = i.snippet || {}, txt = (sn.title || '') + ' ' + String(sn.description || '').slice(0, 300);
+        return { title: sn.title || '', when: sn.publishedAt || '', tokens: dupTokens(txt) };
+      });
+      LOG('own uploads loaded for the duplicate check: ' + ownRecent.length);
+      if (then) then();
+    }).catch(function (e) { LOG('duplicate check unavailable: ' + (e && e.message)); });
+  }
+  function dupTokens(t) { return stemList(sigTokens(t)).concat((String(t).match(/\d[\d,.]*\d|\d/g) || []).map(function (n) { return n.replace(/[,.]/g, ''); }).filter(function (n) { return n.length >= 3; })); }
+  function stemList(a) { return uniq(a.map(function (w) { return /\d/.test(w) ? w : w.slice(0, 5); })); }
+  // Everything the channel already made: its last 30 YouTube uploads, plus videos made and saved with this tool.
+  function madeRecords() {
+    var recs = (ownRecent || []).map(function (o) { return { title: o.title, when: o.when ? new Date(o.when).getTime() : 0, tokens: o.tokens }; });
+    var seen = {};
+    state.scripts.concat.apply(state.scripts.slice(), libLoad().map(function (e) { return e.scripts || []; })).forEach(function (sc) {
+      if (!sc || !(sc.mediaId || sc.reviewed) || seen[sc.id]) return; seen[sc.id] = 1;
+      var txt = [sc.storyTitle, sc.title, sc.hook, sc.body].join(' ');
+      recs.push({ title: sc.title || sc.storyTitle || '', when: sc.createdAt ? new Date(sc.createdAt).getTime() : 0, tokens: dupTokens(txt) });
+    });
+    return recs;
+  }
+  function agoText(t) { var d = t ? Math.max(0, Math.round((Date.now() - t) / 86400000)) : null; return d == null ? '' : d === 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago'; }
+  // 'same': the channel already told this story, so repeating it looks like spam.
+  // 'follow': same running story, but with new numbers or names since the last video: that is a series, worth making.
+  function dupOf(story) {
+    if (!story) return null;
+    if (story._dup !== undefined && story._dupN === (ownRecent ? ownRecent.length : 0) + libLoad().length + state.scripts.length) return story._dup;
+    var recs = madeRecords(), res = null;
+    var raw = cleanTitle(story.title || '') + ' ' + (story._mates || []).map(function (m) { return cleanTitle(m.title); }).join(' ');
+    var mine = uniq(dupTokens(raw));
+    if (mine.length >= 3 && recs.length) {
+      var best = null, bestN = 0;
+      recs.forEach(function (o) {
+        var common = mine.filter(function (w) { return o.tokens.indexOf(w) !== -1; });
+        var strong = common.filter(function (w) { return w.length >= 5 || /\d/.test(w); });
+        if (common.length >= 3 && strong.length >= 2 && common.length / Math.min(mine.length, 6) >= 0.4 && common.length > bestN) { best = o; bestN = common.length; }
+      });
+      if (best) {
+        var fresh = mine.filter(function (w) { return best.tokens.indexOf(w) === -1 && (/\d/.test(w) || w.length >= 5); });
+        var pub = story.publishedAt ? new Date(story.publishedAt).getTime() : Date.now();
+        var later = !best.when || pub - best.when >= 6 * 3.6e6;
+        var nums = fresh.filter(function (w) { return /^\d/.test(w) && !/^(19|20)\d\d$/.test(w); }).length;
+        var words = fresh.map(function (st) { var m = raw.split(/\s+/).filter(function (w) { return w.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) === st || w.replace(/[^0-9]/g, '') === st; })[0]; return m ? m.replace(/[^A-Za-z0-9$%£€.,'’-]/g, '') : ''; }).filter(Boolean);
+        var firstW = raw.trim().split(/\s+/)[0];
+        var names = words.filter(function (w) { return /^[A-Z]/.test(w) && !VZ_MONTHS.test(w) && w !== firstW; }).length;
+        var follow = later && ((nums >= 1 && fresh.length >= 2) || names >= 2);
+        words = words.slice(0, 3);
+        res = { title: best.title, ago: agoText(best.when), kind: follow ? 'follow' : 'same', fresh: words };
+      }
+    }
+    story._dup = res; story._dupN = (ownRecent ? ownRecent.length : 0) + libLoad().length + state.scripts.length;
+    return res;
+  }
+  function dupChipText(d) { return d.kind === 'follow' ? 'Follow-up: new since your video ' + d.ago + (d.fresh.length ? ' (' + d.fresh.join(', ') + ')' : '') : 'Already made ' + d.ago + ': same story'; }
+  function pickWhy(r) {
+    var v = r.v, out = [], h = ageHours(r.s);
+    var dp = dupOf(r.s); if (dp) out.push(dupChipText(dp));
+    if (v.fit >= 75) out.push('On your topics');
+    if (r.g.length >= 2) out.push(r.g.length + ' outlets, one script');
+    if (v.untapped) out.push('Be first: few Shorts on it yet');
+    else if (v.real && v.dem != null && v.dem >= 60) out.push('Proven demand');
+    if (v.attn != null && v.attn >= 60) out.push('Attention rising');
+    if (h != null && !isNaN(h) && h < 6) out.push('Fresh');
+    if (v.angLabel) out.push(v.angLabel.replace(/ \+ .*/, ''));
+    out = out.slice(0, 4);
+    if (!v.untapped && !(v.attn != null && v.attn >= 60) && !(v.real && v.dem != null && v.dem >= 60)) out.push(v.d && v.d.n > 0 && v.d.n < 3 ? 'No proof of demand either way' : 'Demand not measured');
+    return out;
+  }
+  function selectGroup(g) {
+    g.forEach(function (x) { if (!state.selectedStoryIds[x.id]) { state.selectedStoryIds[x.id] = true; if (!x.verified && x.readable !== 'paywalled' && x.readable !== 'thin') probeStory(x, null); } });
+  }
+  function renderPicks(box) {
+    var host = document.getElementById('asg-picks');
+    if (!host) { host = el('div', { id: 'asg-picks', class: 'asg-picks' }); box.parentNode.insertBefore(host, box); }
+    host.innerHTML = '';
+    loadOwnRecent(function () { renderPicks(box); });
+    var rows = state.stories.length ? pickRows() : [];
+    if (!rows.length && state.stories.length) {
+      host.hidden = false;
+      host.appendChild(el('div', { class: 'asg-picks-head' }, [el('div', {}, [el('strong', { text: 'Best bets today' }), el('p', { text: 'No story in this scan fits your channel topics strongly enough to recommend. Add more signals to your topics (Channel, Edit) or scan again later.' })])]));
+      return;
+    }
+    host.hidden = !rows.length; if (!rows.length) return;
+    var head = el('div', { class: 'asg-picks-head' }), ht = el('div', {});
+    ht.appendChild(el('strong', { text: 'Best bets today' }));
+    ht.appendChild(el('p', { text: 'You cannot film everything. These balance fit with your channel, public attention and room to be first.' }));
+    var rmix = regionMix(); if (rmix) ht.appendChild(el('p', { class: 'asg-pick-sum', text: rmix }));
+    if (pickSkipped) ht.appendChild(el('p', { class: 'asg-pick-sum', text: pickSkipped + (pickSkipped === 1 ? ' story is' : ' stories are') + ' left out of the top picks because you already made ' + (pickSkipped === 1 ? 'it' : 'them') + '. Follow-ups with new facts stay in and are marked.' }));
+    head.appendChild(ht);
+    var all = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Select all ' + rows.length });
+    all.addEventListener('click', function () { rows.forEach(function (r) { selectGroup(r.g); }); updateStepAvailability(); renderStories(); });
+    head.appendChild(all); host.appendChild(head);
+    if (!host.querySelector('.asg-grow') && state.profile) host.appendChild(growPanel());
+    var grid = el('div', { class: 'asg-picks-grid' });
+    rows.forEach(function (r, k) {
+      var done = r.g.every(function (x) { return state.selectedStoryIds[x.id]; }), c = el('div', { class: 'asg-pick' + (done ? ' is-done' : '') });
+      c.appendChild(el('span', { class: 'asg-pick-n', text: String(k + 1) }));
+      c.appendChild(el('div', { class: 'asg-pick-title', text: r.s.title }));
+      var sm = String(r.s.summary || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&amp;/g, ' ').replace(/\s+/g, ' ').trim();
+      if (sm && sm.toLowerCase().indexOf(String(r.s.title || '').toLowerCase().slice(0, 30)) !== 0) c.appendChild(el('div', { class: 'asg-pick-sum', text: sm.length > 170 ? sm.slice(0, 168).replace(/\s+\S*$/, '') + '…' : sm }));
+      c.appendChild(el('div', { class: 'asg-pick-src', text: r.s.source + (r.g.length > 1 ? ' + ' + (r.g.length - 1) + ' more' : '') + (storyRegion(r.s) ? ' · ' + storyRegion(r.s) : '') + ' · virality ' + r.v.score + ' · fit ' + r.v.fit }));
+      var chips = el('div', { class: 'asg-plan-meta' }); pickWhy(r).forEach(function (t) { chips.appendChild(el('span', { class: 'asg-chip ' + (/^(No proof|Demand not)/.test(t) ? 'is-muted' : /^Already made/.test(t) ? 'is-bad' : 'is-ok'), text: t })); }); c.appendChild(chips);
+      var b = el('button', { type: 'button', class: 'asg-btn ' + (done ? 'asg-btn-ghost' : 'asg-btn-primary'), text: done ? 'Selected ✓' : 'Select' });
+      b.addEventListener('click', function () { if (done) { r.g.forEach(function (x) { delete state.selectedStoryIds[x.id]; }); } else selectGroup(r.g); updateStepAvailability(); renderStories(); });
+      c.appendChild(b); grid.appendChild(c);
+    });
+    host.appendChild(grid);
   }
   function renderFeedTools() {
     var box = document.getElementById('asg-feed-tools'); if (!box) return;
@@ -996,11 +1334,12 @@
     ug.appendChild(ucb); ug.appendChild(el('span', { class: 'asg-switch-ui' })); ug.appendChild(el('span', { text: 'Hide used' }));
     row.appendChild(ug);
     var any = state.stories.some(function (s) { return viralOf(s).real; });
-    var sb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: any ? 'Re-score virality' : 'Score virality with YouTube' });
+    var sb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: any ? 'Re-check demand' : 'Check demand and attention' });
     sb.addEventListener('click', function () { scoreVirality(sb); });
     row.appendChild(sb);
     box.appendChild(row);
-    box.appendChild(el('p', { class: 'asg-hint', text: 'Match ★ is how well a story fits your channel topics, plus a freshness boost. Virality estimates how much audience the topic already has: coverage, freshness and fit, and with a YouTube key, the views of similar Shorts from the last 30 days (about 100 quota units per story, top 10 stories). It is a guide, not a promise.' }));
+    box.appendChild(el('p', { class: 'asg-hint', text: 'Match ★ is how well a story fits your channel topics. Virality blends coverage, freshness, fit and public attention (Wikipedia page views, Hacker News), and with a YouTube key the views of similar Shorts from the last 30 days. Few or no Shorts on a topic is not held against it: that can mean nobody has made it yet. TikTok and Instagram offer no open data, so they are not scored. It is a guide, not a promise.' }));
+    renderPicks(box);
   }
 
   // ---- Stories that cannot be used (checked, not guessed) ----
@@ -1040,13 +1379,24 @@
   // ---- Recommended options per story ----
   // Rules of thumb from Shorts retention data: shorter holds viewers better; a question that the facts answer
   // opens well when the outcome is still open; analysis should fit what the story actually is.
-  function recommendFor(s) {
+  var planBatch = null;   // the stories being planned together, so two openings in one batch are not the same
+  // The opening is chosen from what the headline gives, not by default. Order of preference:
+  //  1. a concrete figure in the headline: lead with it (an event-first hook, which is also what the channel profile asks for)
+  //  2. a contrast the story turns on: set it up
+  //  3. an outcome that is genuinely still open (a vote, talks, a threat): a question the facts answer
+  //  4. everything else: lead with the event. A question is never the fallback, and never twice in a row in one batch.
+  function recommendFor(s, batch) {
     var ttl = String(s.title || '').toLowerCase();
     var h = ageHours(s), cn = viralOf(s).cn || 1;
-    var fwd = /\b(will|could|would|may|might|ready|plans?|planning|set to|expected|expects?|ahead of|talks?|deadline|threat\w*|warns?|weighs?|considers?|eyes|next|vote|summit|election|negotiat\w*|ceasefire|strikes?)\b|\?/.test(ttl);
+    // "What do we know?" and "explained" are generic explainer tags, not an open outcome.
+    var ttlq = ttl.replace(/[:–-]\s*(what|why|how|who)\b[^?]*\?\s*$/, '').replace(/\bexplained\b/g, '');
+    var fwd = /\b(will|could|would|may|might|ready|plans?|planning|set to|expected|expects?|ahead of|talks?|deadline|threat\w*|warns?|weighs?|considers?|eyes|next|vote|summit|election|negotiat\w*|ceasefire|strikes?)\b|\?/.test(ttlq);
     var contrast = /\b(despite|even as|denies|denied|rejects?|disputes?|contradicts?|but|yet|however|although)\b/.test(ttl);
     var done = /\b(dies|died|killed|kills|wins|won|signs|signed|approves?|approved|announces?|announced|falls?|fell|rises?|rose|hits|surges?|drops?|jumps?|tops?|reaches|passes)\b/.test(ttl);
-    var hook = fwd ? 'question' : contrast ? 'contrast' : done ? 'event' : 'question';
+    var hasNum = /\b\d[\d,.]*\s*(%|percent|million|billion|trillion|thousand)?/.test(ttl);
+    var hook = hasNum ? 'event' : contrast ? 'contrast' : fwd && !done ? 'question' : 'event';
+    var bt = batch || planBatch, bi = bt ? bt.indexOf(s) : -1;
+    if (hook === 'question' && bi > 0 && recommendFor(bt[bi - 1], bt).hook === 'question') hook = 'event';
     var lens = /\b(claims?|alleg\w*|accus\w*|reportedly|unconfirmed|rumou?rs?|denies|denied|disputed?)\b/.test(ttl) ? 'skeptic'
       : /\b(sanctions?|tariffs?|deal|merger|acquir\w*|ban|subsid\w*|prices?|market|stocks?|oil|rates?|trade|budget|donations?|funding|hunger|aid|billion|million)\b/.test(ttl) ? 'winners'
       : fwd ? 'watch'
@@ -1127,6 +1477,8 @@
       var rdLabel = unW ? '✕ can\'t use for video' : s.verified ? '✓ readable (checked)' : s.readable === 'open' ? '✓ likely readable' : s.readable === 'metered' ? '◐ maybe readable' : s.readable === 'paywalled' ? '🔒 paywalled: topic only' : s.readable === 'thin' ? 'live/video page: topic only' : 'aggregator link';
       var rdChip = el('span', { class: 'asg-chip ' + (unW ? 'is-bad' : s.verified ? 'is-ok' : 'is-muted'), text: rdLabel, title: unW || (s.verified ? 'The article text was fetched.' : 'The feed gives open access. The article is fetched and confirmed when you tick the story.') });
       meta.appendChild(rdChip);
+      if (viralOf(s).untapped) meta.appendChild(el('span', { class: 'asg-chip is-ok', text: 'Open field', title: 'Few or no similar Shorts in the last 30 days, but people are paying attention. A video here would not compete with many others.' }));
+      var dpx = dupOf(s); if (dpx) meta.appendChild(el('span', { class: 'asg-chip ' + (dpx.kind === 'follow' ? 'is-ok' : 'is-bad'), text: dupChipText(dpx), title: 'Your earlier video: ' + dpx.title + (dpx.kind === 'follow' ? '. New facts since then, so a follow-up makes a series.' : '. Same facts as before: skip it unless you have a new angle.') }));
       if (viralOf(s).stakes === 0) meta.appendChild(el('span', { class: 'asg-chip is-muted', text: 'Narrow audience', title: 'No major power, market or supply angle in the headline. Regional stories rarely reach a wide audience unless the facts tie them to a global stake.' }));
       var uk = usedOf(s);
       if (uk) meta.appendChild(el('span', { class: 'asg-chip is-warn', text: uk === 'script' ? 'Used · script made' : 'Same story already used', title: 'A script for this story exists. Delete that script to free it.' }));
@@ -1134,7 +1486,10 @@
       body.appendChild(meta);
       var v = viralOf(s);
       var parts = [];
-      if (v.real) parts.push('Demand ' + v.dem + ' (median ' + fmtViews(v.d.median) + ' views across ' + v.d.n + ' similar Shorts, 30 days)');
+      if (v.real && v.dem != null) parts.push('Demand ' + v.dem + ' (median ' + fmtViews(v.d.median) + ' views across ' + v.d.n + ' similar Shorts, 30 days)');
+      else if (v.real) parts.push(v.d.n ? 'Only ' + v.d.n + ' similar Short' + (v.d.n === 1 ? '' : 's') + ' in 30 days' : 'No similar Shorts in 30 days');
+      if (v.a && v.a.wiki && v.a.wiki.recent >= 300) parts.push('Wikipedia "' + v.a.wiki.title + '" ' + v.a.wiki.recent + '/day' + (v.a.wiki.spike >= 1.5 ? ' (×' + v.a.wiki.spike + ' its usual)' : ''));
+      if (v.a && v.a.hn) parts.push('Hacker News top ' + v.a.hn.top + ' points');
       parts.push('Coverage ' + v.cn + (v.cn === 1 ? ' outlet' : ' outlets'));
       var h = ageHours(s); if (h != null && !isNaN(h)) parts.push(h < 1 ? 'under 1 h old' : h < 48 ? Math.round(h) + ' h old' : Math.round(h / 24) + ' days old');
       parts.push('Fit ' + v.fit);
@@ -1276,15 +1631,35 @@
     });
   }
   function numbersIn(text) {
-    var out = [];
-    (String(text || '').match(/\d[\d,]*(?:\.\d+)?/g) || []).forEach(function (n) {
+    var out = [], t = String(text || '');
+    (t.match(/\d[\d,]*(?:\.\d+)?/g) || []).forEach(function (n) {
       n = n.replace(/,/g, '').replace(/\.$/, '');
       if (out.indexOf(n) === -1) out.push(n);
     });
+    // A number written in words is still a number: "half a million dead" said 500,000 when the source said at least 450,000.
+    if (/\bhalf[- ](?:an? )?million\b/i.test(t) && out.indexOf('500000') === -1) out.push('500000');
+    if (/\bhalf[- ](?:an? )?billion\b/i.test(t) && out.indexOf('500000000') === -1) out.push('500000000');
+    return out;
+  }
+  // A headline that states what the source only expects ("Iran war drives UK inflation to 5%" when the source says it is expected to
+  // reach 5% next spring) is the kind of claim viewers push back on.
+  function forecastAsFact(text, facts) {
+    var out = [], t = String(text || ''), HEDGE = /\b(expect\w*|forecast\w*|project\w*|predict\w*|likely|could|may|might|would|estimate\w*|set to|poised|on track|warns?|fears?|plans?|aims?)\b/i;
+    if (!t || HEDGE.test(t)) return out;
+    var re = /(\d[\d,]*(?:\.\d+)?)(\s?%|\s?percent)?/g, m;
+    while ((m = re.exec(t))) {
+      var n = m[1].replace(/,/g, '').replace(/\.$/, ''); if (!m[2] && parseFloat(n) <= 5) continue;
+      for (var i = 0; i < (facts || []).length; i++) {
+        var c = String(facts[i].claim || '') + ' ' + String(facts[i].quote || '');
+        if (numbersIn(c).indexOf(n) !== -1 && HEDGE.test(c)) { out.push('"' + m[0].trim() + '" is only expected or forecast in the source, but it is worded as fact. Say "expected", "forecast" or "could".'); break; }
+      }
+    }
     return out;
   }
   function unsupportedNumbers(scriptText, articleText) {
     var have = numbersIn(articleText);
+    // Outlet names that contain a number (France 24, News 24, i24) are names, not figures.
+    scriptText = String(scriptText || '').replace(/\b(?:France|News|Channel|Canal|Euro|Sky|i|TV|Rai|NRK|SVT)\s?24\b/gi, ' ');
     return numbersIn(scriptText).filter(function (n) { return !/^[1-5]$/.test(n) && have.indexOf(n) === -1; });
   }
   var COUNTRY_DEMONYM = { poland: 'polish', germany: 'german', france: 'french', spain: 'spanish', finland: 'finnish', sweden: 'swedish', denmark: 'danish', ireland: 'irish', britain: 'british', england: 'english', scotland: 'scottish', turkey: 'turkish', netherlands: 'dutch', greece: 'greek', switzerland: 'swiss', israel: 'israeli', ukraine: 'ukrainian', russia: 'russian', china: 'chinese', japan: 'japanese', lebanon: 'lebanese', iran: 'iranian', iraq: 'iraqi', syria: 'syrian', america: 'american', europe: 'european', cuba: 'cuban', india: 'indian', pakistan: 'pakistani', taiwan: 'taiwanese', vietnam: 'vietnamese', thailand: 'thai', norway: 'norwegian', estonia: 'estonian', latvia: 'latvian', lithuania: 'lithuanian', hungary: 'hungarian', romania: 'romanian', bulgaria: 'bulgarian', serbia: 'serbian', croatia: 'croatian', italy: 'italian', portugal: 'portuguese', belgium: 'belgian', austria: 'austrian', canada: 'canadian', mexico: 'mexican', brazil: 'brazilian', egypt: 'egyptian', yemen: 'yemeni', qatar: 'qatari', kuwait: 'kuwaiti', oman: 'omani', singapore: 'singaporean', azerbaijan: 'azerbaijani', armenia: 'armenian', venezuela: 'venezuelan', korea: 'korean', afghanistan: 'afghan', australia: 'australian', africa: 'african' };
@@ -1656,6 +2031,7 @@
     return 'CHANNEL LENS: this channel is about ' + (pos ? '"' + String(pos).slice(0, 200) + '"' : '') + (tops.length ? (pos ? ', covering ' : '') + tops.join(', ') : '') + '. Choose the angle through which this story matters to THAT audience (for example what it changes for the subject areas above), using only the facts. A personal-scandal or gossip angle is the weakest choice unless the facts tie it to those areas; if the facts do not connect to them at all, take the strongest general angle.';
   }
   function writePrompt(story, profile, facts, feedback, corr) {
+    var fu = dupOf(story), followLine = fu && fu.kind === 'follow' ? '\n- This is a FOLLOW-UP to a Short the channel already published ("' + clipText(fu.title, 80) + '", ' + fu.ago + '). Viewers may have seen it. Open with what is NEW (' + (fu.fresh.join(', ') || 'the latest development') + '), do not re-explain the background at length, and say once that this is an update.' : '';
     var topics = profile.topics.map(function (t) { return t.name; }).join(', ');
     var f = profile.format;
     var two = corr && (corr.status === 'corroborated' || corr.status === 'partial' || corr.status === 'conflict');
@@ -1729,7 +2105,8 @@
     lines.push('- THE SECOND SENTENCE is the other half of the hook: it must pay off the gap with the next most surprising fact, within about three seconds. It never starts with an outlet ("X reports"), a recap of the hook, a definition or background. Escalate: new fact, new number, a reversal.');
     lines.push('- Pick the strongest formula the facts allow: (a) CONSEQUENCE FIRST: the biggest concrete result, stated flat ("[Company] lost a tenth of its value before lunch."); (b) CONTRADICTION: two facts that should not both be true ("[A] says X. The numbers say Y."); (c) HIDDEN LINK: what the headline is really about, only when the facts state the link ("This is not about [headline topic]. It is about [thing]."); (d) STAKES: who pays or who is exposed, only when the facts state it; (e) a SHORT open question of at most 9 words that the facts answer later and that does not already contain the answer. Patterns only: never reuse example wording, and use only the facts above.');
     lines.push('- WORKED EXAMPLE of the difference, on an invented story (copy the technique, never the words). Facts: Brightline Rail\'s chief of 33 years resigned Thursday; shares fell 12% before the open; the board named an interim chief. WEAK hook: "Why did Brightline Rail\'s chief step down after 33 years?" (it just restates the headline as a question, nothing is withheld). STRONG hook: "Brightline Rail lost 12% of its value before the market opened." Then the SECOND sentence pays it off with the next fact: "The reason: the chief who built it over 33 years resigned overnight." Then each later sentence adds one NEW fact or turn, and the last beat before the closing question is the sharpest fact.');
-    lines.push('- THE STRONGEST HOOK IS THE STRONGEST TRUE ONE. Drama comes from choosing the most striking fact, never from a bigger word. Use the fact\'s own verb and noun: "stepping down" is not "forced out"; "dominates the market" is not "controls the world\'s chips"; "had Trump\'s ear" is not "a direct line"; something the Times reported is not something a person "admitted"; an allegation stays "allegedly" or "reportedly" and keeps who alleged it. A line a fact-checker would mark "overstated" or "unsupported" is rewritten, and the same rule holds for every body sentence.');
+    lines.push('- THE STRONGEST HOOK IS THE STRONGEST TRUE ONE. Drama comes from choosing the most striking fact, never from a bigger word. Use the fact\'s own verb and noun: "stepping down" is not "forced out"; "dominates the market" is not "controls the world\'s chips"; "had Trump\'s ear" is not "a direct line"; something the Times reported is not something a person "admitted"; an allegation stays "allegedly" or "reportedly" and keeps who alleged it. A line a fact-checker would mark "overstated" or "unsupported" is rewritten, and the same rule holds for the title, the on-screen headline and every body sentence ("blocks" is not "insists on a different order"). Never link two facts with "meanwhile" or "at the same time" unless a fact says they happened together.');
+    lines.push('- EVERYTHING THE FRAMING LEANS ON IS SAID IN THE VIDEO. If the title, headline, closing question or pinned comment relies on a claim (for example "Moscow blames Kyiv"), the body states that claim before the take. A closing question about something the viewer was never told is a defect. Years-old background gets at most one sentence and comes after the news.');
     lines.push('- A body sentence that only defines or describes something the viewer already knows ("[Company] is an AI giant.") is deleted.');
     lines.push('- The hook promises something the body delivers. No clickbait, no "you will not believe", no fake urgency. Withhold the answer: the hook opens a question, the middle builds it, the last beats close it.');
     lines.push('- "alt_hooks": also give FOUR OTHER opening lines, each in a different formula from the list above and from "hook", each under 12 words, built only from the facts, no outlet names, each one a real alternative a viewer might stop for.');
@@ -1744,6 +2121,8 @@
     lines.push('- Name the source once and briefly, at the point it matters ("CBS says...", "per CBS..."), never in the hook, and never how many outlets there are.');
     lines.push('- Where a figure is the point of the story, say it plainly and let it land.');
     lines.push('- Forbidden filler: "amid", "raises questions", "sparking concerns", "remains to be seen", "only time will tell", "sends a message", "highlights", "underscores", "serves as a reminder", "sheds light", "in the wake of", "game changer", "at the end of the day", "needless to say", "it is no secret".');
+    if (followLine) lines.push(followLine.replace(/^\n/, ''));
+    lines.push('- Sentences: short and simple. Most are 6 to 14 words, none over 20. One idea per sentence. No semicolons, no stacked clauses, no sentence that needs a second read. Plain everyday words.');
     lines.push('- Forbidden robot talk: "from one outlet", "single source", "this story", "this report", "the article", "it is worth noting", "in conclusion", "in summary", "delve", "landscape", "moreover", "furthermore".');
     lines.push('- Bad: "CBS News reports from one outlet; the ministry says the ships are not allowed." Good: "The ministry just told foreign ships to stay out, under any circumstance. That is CBS\'s reporting, and no one else has confirmed it yet." (only if the facts say no one else has confirmed it).');
     lines.push('');
@@ -2386,70 +2765,21 @@
     if (note) c.appendChild(el('p', { class: 'asg-o-note', html: note }));
     r.appendChild(c); return r;
   }
+  // Length, angle and opening are always chosen per story (see recommendFor); the old pickers were removed on purpose.
+  function forceAuto() {
+    var st = state.settings;
+    if (st.autoLen === false || st.autoLens === false || st.autoHook === false || st.depth === false) { st.autoLen = st.autoLens = st.autoHook = true; st.depth = true; persistSettings(); }
+  }
   function renderScriptOptions() {
     var box = $('#asg-script-options'); if (!box) return;
     box.innerHTML = '';
-    var p = state.profile; if (!p || !p.format) return;
-    var depthOn = state.settings.depth !== false;
-    var card = el('div', { class: 'asg-opts' });
-
-    // Length: a simple timeline
-    var cur = p.format.targetDurationSec, ci = 0, best = 1e9;
-    LEN_CHOICES.forEach(function (sec, k) { if (Math.abs(sec - cur) < best) { best = Math.abs(sec - cur); ci = k; } });
-    var autoLen = state.settings.autoLen !== false, autoLens = state.settings.autoLens !== false, autoHook = state.settings.autoHook !== false;
-    var dial = el('div', { class: 'asg-dial' + (autoLen ? ' is-auto' : ''), role: 'group', 'aria-label': 'Video length' });
-    function autoBtn(on, field, label) {
-      var b = el('button', { type: 'button', class: 'asg-opt asg-opt-auto' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false', text: label || 'Auto · recommended' });
-      b.addEventListener('click', function () { state.settings[field] = true; persistSettings(); renderScriptOptions(); renderGenerateStatus(); });
-      return b;
-    }
-    dial.appendChild(el('div', { class: 'asg-dial-track' }, [el('div', { class: 'asg-dial-fill', style: 'width:' + (ci / (LEN_CHOICES.length - 1) * 100) + '%' })]));
-    var stops = el('div', { class: 'asg-dial-stops' });
-    LEN_CHOICES.forEach(function (sec, k) {
-      var f = formatFor(sec), on = !autoLen && cur === sec;
-      var b = el('button', { type: 'button', class: 'asg-dial-stop' + (on ? ' is-on' : '') + (k < ci ? ' is-passed' : ''), 'aria-pressed': on ? 'true' : 'false' }, [el('span', { class: 'asg-dot' }), el('strong', { text: sec + ' s' })]);
-      b.addEventListener('click', function () {
-        p.format.targetDurationSec = f.targetDurationSec; p.format.wordCountMin = f.wordCountMin; p.format.wordCountMax = f.wordCountMax; p.format.lengthV2 = true;
-        state.settings.autoLen = false; persistSettings();
-        persistProfile(); renderProfile(); renderScriptOptions(); renderGenerateStatus();
-      });
-      stops.appendChild(b);
-    });
-    dial.appendChild(stops);
-    var bd = budgetFor(p.format, depthOn);
-    var anat = el('div', { class: 'asg-anat' });
-    [['hook', bd.hook], ['body', bd.body], ['analysis', bd.analysis], ['cta', bd.cta]].forEach(function (x) { if (x[1]) anat.appendChild(el('i', { class: 'is-' + x[0], style: 'flex-grow:' + x[1] + ';' })); });
-    var lenNote = 'About ' + bd.total + ' words: hook ' + bd.hook + ', story ' + bd.body + (bd.analysis ? ', analysis ' + bd.analysis : '') + ', question ' + bd.cta + '.';
-    card.appendChild(optRow('Length', [autoBtn(autoLen, 'autoLen'), dial, anat], autoLen ? 'Chosen per story: 45 s for most, 60 s when several outlets cover it or there is a lot of detail. Shorter shorts hold viewers better. Pick a length to override.' : lenNote));
-
-    // Lens: one line of choices, one line of explanation
-    var lensKeys = Object.keys(LENSES);
-    var chips = el('div', { class: 'asg-chipset', role: 'group', 'aria-label': 'Analysis lens' });
-    chips.appendChild(autoBtn(autoLens, 'autoLens'));
-    lensKeys.forEach(function (k) {
-      var on = !autoLens && baseLens() === k;
-      var b = el('button', { type: 'button', class: 'asg-opt' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false', text: LENSES[k].label });
-      b.disabled = !depthOn;
-      b.addEventListener('click', function () { state.settings.lens = k; state.settings.autoLens = false; persistSettings(); renderScriptOptions(); renderGenerateStatus(); });
-      chips.appendChild(b);
-    });
-    var tog = el('label', { class: 'asg-switch' });
-    var cb = el('input', { type: 'checkbox' }); cb.checked = depthOn;
-    cb.addEventListener('change', function () { state.settings.depth = cb.checked; persistSettings(); renderScriptOptions(); });
-    tog.appendChild(cb); tog.appendChild(el('span', { class: 'asg-switch-ui' })); tog.appendChild(el('span', { text: 'Include analysis' }));
-    var lensNote = !depthOn ? 'Analysis is off. The script is a plain explainer.' : autoLens ? 'Picked per story from its headline: claims, money, what comes next, technical topics. Pick an angle to override.' : LENSES[baseLens()].desc + ' <em>' + LENS_EX[baseLens()] + '</em>';
-    card.appendChild(optRow('Angle', [chips, tog], lensNote));
-
-    // Hook
-    var hc = el('div', { class: 'asg-chipset', role: 'group', 'aria-label': 'Hook style' });
-    hc.appendChild(autoBtn(autoHook, 'autoHook'));
-    Object.keys(HOOKS).forEach(function (k) {
-      var on = !autoHook && baseHook() === k;
-      var b = el('button', { type: 'button', class: 'asg-opt' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false', text: HOOKS[k].label });
-      b.addEventListener('click', function () { state.settings.hook = k; state.settings.autoHook = false; persistSettings(); renderScriptOptions(); renderGenerateStatus(); });
-      hc.appendChild(b);
-    });
-    card.appendChild(optRow('Opening', hc, autoHook ? 'A question when the outcome is open, a contrast when the headline turns on one, the event when it is finished. Pick one to override.' : '<em>' + HOOK_EX[baseHook()] + '</em>'));
+    forceAuto();
+    var card = el('div', { class: 'asg-autoplan' });
+    card.appendChild(el('span', { class: 'asg-autoplan-dot', 'aria-hidden': 'true' }));
+    var t = el('div', {});
+    t.appendChild(el('strong', { text: 'Planned for you' }));
+    t.appendChild(el('p', { text: 'Each story gets its own length, angle and opening, chosen from its headline and how widely it is covered. Every script includes analysis.' }));
+    card.appendChild(t);
     box.appendChild(card);
   }
   var generating = false;
@@ -2460,10 +2790,21 @@
     var sel = state.stories.filter(function (x) { return state.selectedStoryIds[x.id]; });
     var provider = state.settings.llmProvider;
     var llmReady = provider !== 'none' && !!keyFor(provider);
-    var wrap = el('div', { class: 'asg-hint', style: 'margin:0 0 14px;padding:12px;background:#f4f6fa;border:1px solid #dfe4ee;border-radius:8px;color:#1f2a44;' });
-    wrap.appendChild(el('strong', { text: sel.length + (sel.length === 1 ? ' story selected' : ' stories selected') }));
-    var ul = el('ul', { style: 'margin:8px 0 8px 18px;padding:0;' });
-    sel.forEach(function (x) { var rl = recLabel(x); var li = el('li', { text: x.title + ' (' + x.source + ')' }); if (rl) li.appendChild(el('span', { class: 'asg-rec', text: ' → ' + rl, title: recommendFor(x).why })); ul.appendChild(li); });
+    var wrap = el('div', { class: 'asg-plan' });
+    var planGroups = groupsFor(sel);
+    wrap.appendChild(el('div', { class: 'asg-plan-head', text: planGroups.length + (planGroups.length === 1 ? ' story' : ' stories') + ' ready to write' + (planGroups.length !== sel.length ? ' (' + sel.length + ' articles merged)' : '') }));
+    var ul = el('div', { class: 'asg-plan-list' });
+    planBatch = planGroups.map(function (g) { return g[0]; });
+    planGroups.forEach(function (g) {
+      var x = g[0];
+      var r = recommendFor(x), c = el('div', { class: 'asg-plan-card', title: r.why });
+      c.appendChild(el('div', { class: 'asg-plan-title', text: x.title }));
+      var meta = el('div', { class: 'asg-plan-meta' });
+      meta.appendChild(el('span', { class: 'asg-plan-src', text: g.length > 1 ? g.map(function (m) { return m.source; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(' + ') + ' · one script' : x.source }));
+      [r.sec + ' s', LENSES[r.lens].label, HOOKS[r.hook].label].forEach(function (t) { meta.appendChild(el('span', { class: 'asg-chip is-muted', text: t })); });
+      var dpg = dupOf(x); if (dpg) c.appendChild(el('div', { class: 'asg-hint', style: 'margin-top:4px;color:' + (dpg.kind === 'follow' ? '#1b5e20' : '#8a1f1f') + ';', text: dpg.kind === 'follow' ? 'Follow-up to "' + clipText(dpg.title, 60) + '" (' + dpg.ago + '). The script will open with what is new.' : 'Your channel already has "' + clipText(dpg.title, 70) + '" (' + dpg.ago + '). Publish this only with a new angle.' }));
+      c.appendChild(meta); ul.appendChild(c);
+    });
     wrap.appendChild(ul);
     if (sel.length > 1) {
       var cg = groupsFor(sel).filter(function (g) { return g.length > 1; });
@@ -2698,7 +3039,7 @@
     if (!a) return 0;
     var parts = splitSentences(a), artLow = String(articleText || '').toLowerCase();
     // A motive, decision or backstage event stated as fact that the source never mentions ("they forced the board's hand").
-    var ASSERT_RE = /\b(forced|pushed out|ordered|orchestrat\w+|engineer\w+|knew|couldn['’]t let|could not let|didn['’]t drive|did not drive|the real reason|really (?:about|drove)|behind the scenes|quietly (?:decided|pushed|forced))\b/i, HEDGE_RE = /\b(looks? like|reads? as|suggests?|appears?|seems?|simplest reading|one reading|likely|probably|possibly|may have|might have)\b/i;
+    var ASSERT_RE = /\b(forced|pushed out|ordered|orchestrat\w+|engineer\w+|knew|couldn['’]t let|could not let|didn['’]t drive|did not drive|the real reason|really (?:about|drove)|behind the scenes|quietly (?:decided|pushed|forced)|bargaining chip|cheap propaganda|is (?:really |actually )?(?:trying|aiming|hoping|seeking|using)|calculat\w+|deliberate\w*|outsourc\w+|insulat\w+ (?:the|its|their|domestic)|serves? (?:their|its|his|her|the) (?:own )?(?:interests?|ends)|(?:gets?|gains?|secures?|wins?) (?:a |an |the )?(?:buyer|market|foothold|leverage|capability|cover|veto)|are trading|is trading|to force (?:the|them|it)|forces? (?:the|them|it) (?:to|into))\b/i, HEDGE_RE = /\b(looks? like|reads? as|suggests?|appears?|seems?|simplest reading|one reading|likely|probably|possibly|may have|might have)\b/i;
     var keep = parts.filter(function (x) {
       var low = normText(x), am = ASSERT_RE.exec(x);
       if (am && !HEDGE_RE.test(x) && artLow.indexOf(am[1].toLowerCase()) < 0) return false;
@@ -2838,15 +3179,19 @@
     if (len >= 35 && len <= 60) pts += 8; else if (len > 70) pts -= 12; else if (len < 25) pts -= 8;
     if (/\d/.test(t)) pts += 5;
     if ((t.match(/\b[A-Z][a-z]{2,}/g) || []).length >= 2) pts += 6;
-    if (/\?\s*$/.test(t)) pts += 4;
+    if (/\?\s*$/.test(t)) pts += 8;
     if (/\b(but|despite|while|yet|instead|not|no one|nobody|without|quietly|secret|hidden|really|says|say)\b/i.test(t)) pts += 8;
     if (/\b(your|bills?|prices?|jobs?|oil|gas|war|strikes?|sanctions?|bans?|banned|shut\w*|blockade|nuclear|cuts?|rises?|jump\w*|drop\w*|spy|spying|arrest\w*)\b/i.test(t)) pts += 6;
     if (/\b(update|latest|news|what we know|situation|developments?|explained|overview|report)\b/i.test(t)) pts -= 14;
     return pts;
   }
   function pickBestTitle(sc) {
-    var opts = [{ style: 'match', text: sc.title }].concat(sc.altTitles || []), best = opts[0], bs = titleScore(best.text);
-    opts.forEach(function (o) { var v = titleScore(o.text); if (v >= bs + 6) { best = o; bs = v; } });
+    // The model labels one alternative "most engaging". It is used when it scores at least as well on the rubric (a question
+    // title also wins ties): the title is the main reason people click, and the facts are checked separately.
+    var opts = [{ style: 'match', text: sc.title }].concat(sc.altTitles || []);
+    function val(o) { return titleScore(o.text) + (o.style === 'engaging' ? 6 : 0); }
+    var best = opts[0], bs = val(best);
+    opts.forEach(function (o) { var v = val(o); if (v > bs) { best = o; bs = v; } });
     if (best.text !== sc.title) {
       var old = sc.title;
       sc.altTitles = (sc.altTitles || []).filter(function (x) { return x.text !== best.text; }).concat([{ style: 'match', text: old }]).slice(0, 3);
@@ -2872,6 +3217,9 @@
     var allowTerms = allowWordsFor(used, state.profile).concat(extraAllow || []);
     var badTerms = unsupportedTerms(factual, articleText, allowTerms);
     var wording = wordingIssues(factual, all, articleText);
+    [['the title', parsed.title], ['the hook', parsed.hook], ['the on-screen headline', parsed.banner]].forEach(function (pr) {
+      forecastAsFact(str(pr[1]), facts).forEach(function (mm) { wording.push(pr[0] + ': ' + mm); });
+    });
     var problems = [];
     if (ana) {
       var rp = splitSentences(ana).filter(function (x) { return repeatsFact(x, facts, 0.85); });
@@ -2885,11 +3233,11 @@
     if (/^(according to|per )/i.test(hk) || (srcN.length >= 3 && hn.indexOf(srcN) === 0 && /\b(reports?|says?|said|writes|according)\b/.test(hn.slice(0, srcN.length + 14)))) {
       problems.push('The hook starts with the outlet. Open with the event and why it matters to someone who has never heard of the story. Name the source later, once, briefly.');
     }
-    var robo = (main + '\n' + str(parsed.title)).match(/\b(from one outlet|single[- ]source|one outlet|this (script|video|short|report|story)|the (article|report) (states|says|notes|mentions)|both [^.,;]{2,50} (?:and [^.,;]{2,40} )?report|it is worth noting|it(?:'s| is) important to note|in conclusion|in summary|delve|tapestry|landscape of|moreover|furthermore)\b/i);
+    var robo = (main + '\n' + str(parsed.title)).match(/\b(from one outlet|single[- ]source|one outlet|this (script|video|short|report|story)|the (article|report) (states|says|notes|mentions)|both [^.,;]{2,50} (?:and [^.,;]{2,40} )?(?:report|confirm|say|said|agree)|it is worth noting|it(?:'s| is) important to note|in conclusion|in summary|delve|tapestry|landscape of|moreover|furthermore)\b/i);
     var bye = str(parsed.cta).match(/\b(thanks for watching|thank you for watching|follow for more|see you|like and subscribe|subscribe for|smash)\b/i);
     if (bye) problems.push('The closing line is a goodbye ("' + bye[0] + '"). End on the question that echoes the hook instead, so the video loops.');
-    var longS = splitSentences([parsed.hook, parsed.body, parsed.analysis].map(str).join(' ')).filter(function (x) { return wordCount(x) > 28; });
-    if (longS.length) problems.push('A sentence is too long for a Short (' + wordCount(longS[0]) + ' words: "' + longS[0].slice(0, 60) + '…"). Split it into short spoken sentences.');
+    var longS = splitSentences([parsed.hook, parsed.body, parsed.analysis].map(str).join(' ')).filter(function (x) { return wordCount(x) > 22; });
+    if (longS.length) problems.push('A sentence is too long for a Short (' + wordCount(longS[0]) + ' words: "' + longS[0].slice(0, 60) + '…"). Split it into short, simple spoken sentences of about 6 to 14 words, one idea each.');
     if (robo) problems.push('Robotic phrasing: "' + robo[0] + '". Rewrite that sentence the way a person would say it out loud. Never talk about the script, the sources or how many outlets there are.');
     var repeats = repeatedSentences(parsed);
     if (repeats.length) problems.push('Repetition: "' + repeats[0].later.text.slice(0, 70) + '" says what "' + repeats[0].earlier.text.slice(0, 60) + '" already said' + (repeats.length > 1 ? ' (and ' + (repeats.length - 1) + ' more like it)' : '') + '. Say each thing once: replace the repeat with a NEW fact or a new turn, or cut it.');
@@ -2899,6 +3247,14 @@
     var bs = splitSentences(str(parsed.body)), b0 = bs[0] || '';
     if (/\b(reports?|reported|according to|per)\b/i.test(b0.split(' ').slice(0, 6).join(' ')) || (srcN.length >= 3 && normText(b0).indexOf(srcN) === 0)) problems.push('The first body sentence opens with the outlet. Start with the next most surprising fact instead; name the outlet later, once, only where it matters.');
     if (bs[0] && echoesAny(bs[0], [str(parsed.hook)], 0.5)) problems.push('The first body sentence repeats the hook. It must give the next new fact.');
+    // Framing that leans on something the viewer was never told ("Is Kyiv behind it, or is Moscow blaming the wrong side?" when the
+    // script never says Moscow blamed Kyiv). A word in the title or closing question that the facts contain but the spoken script never says.
+    (function () {
+      function stems(t) { var o = {}; (String(t).toLowerCase().match(/[a-z]{4,}/g) || []).forEach(function (w) { if (STOPWORDS.indexOf(w) === -1) o[w.slice(0, 5)] = w; }); return o; }
+      var said = stems([parsed.hook, parsed.body, parsed.analysis].map(str).join(' ')), inFacts = stems((facts || []).map(function (f) { return f.claim; }).join(' '));
+      var lean = stems(str(parsed.cta) + ' ' + str(parsed.title)), miss = Object.keys(lean).filter(function (k) { return inFacts[k] && !said[k]; });
+      if (miss.length) problems.push('The closing question or title leans on "' + lean[miss[0]] + '", which the spoken script never says. State that fact in the body before the take (it is in the facts), or change the question.');
+    })();
     var defs = bs.filter(function (x) { return wordCount(x) <= 7 && /^[A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*)?\s+(is|are|was)\s+(an?|the)\s/.test(x); });
     if (defs.length) problems.push('"' + defs[0] + '" only describes something the viewer knows. Delete it or replace it with a new fact.');
     var nBeats = bs.length;
@@ -2920,14 +3276,19 @@
     return { badNums: badNums, badTerms: badTerms, wording: wording, problems: problems, words: words, lengthProblem: lengthProblem };
   }
   function majorCount(flags) { return (flags || []).filter(function (f) { return f.severity !== 'minor'; }).length; }
-  function patchScript(parsed, flags) {
+  function patchScript(parsed, flags, includeMinor) {
     var out = {}; for (var k in parsed) out[k] = parsed[k];
     var map = { H: 'hook', B: 'body', C: 'cta', D: 'description' }, n = 0, ids = [];
+    var norm = function (t) { return String(t || '').replace(/[\s"'“”‘’]/g, '').toLowerCase(); };
     Object.keys(map).forEach(function (pre) {
-      var fl = flags.filter(function (f) { return f.id.charAt(0) === pre && f.severity !== 'minor' && f.fix; });
+      var fl = flags.filter(function (f) { return f.id.charAt(0) === pre && (includeMinor || f.severity !== 'minor') && f.fix; });
       if (!fl.length) return;
       var sents = splitSentences(parsed[map[pre]]);
-      fl.forEach(function (f) { var i = parseInt(f.id.slice(1), 10) - 1; if (sents[i] !== undefined && sents[i] === f.sentence) { sents[i] = f.fix.trim(); n++; ids.push(f.id); } });
+      fl.forEach(function (f) {
+        var i = parseInt(f.id.slice(1), 10) - 1;
+        if (sents[i] === undefined || norm(sents[i]) !== norm(f.sentence)) { i = -1; for (var q = 0; q < sents.length; q++) if (norm(sents[q]) === norm(f.sentence)) { i = q; break; } }
+        if (i >= 0) { sents[i] = f.fix.trim(); n++; ids.push(f.id); }
+      });
       out[map[pre]] = sents.join(' ');
     });
     return { parsed: out, n: n, ids: ids };
@@ -2989,6 +3350,7 @@
       '- Say what the story does not say: what the move is really for, who gains and who pays, what the timing or wording gives away, what is conspicuously missing, how situations like this have usually played out. Use what an informed person knows about these actors and this kind of situation.',
       '- Frame readings as readings ("looks like", "reads as", "suggests", "the simplest reading is"), never as proven intent. No forecasts stated as certain.',
       '- No invented numbers, dates, statistics or quotes. Do not repeat what the body already says.',
+      '- Never state who sells, buys, supplies, funds, owns or profits unless a fact says so ("X gets a buyer for its drones" is an invented fact). Say what the facts leave undefined or unsaid, and what to watch, instead of who gains what.',
       '- It must be about THIS story. If the paragraph would fit any story on the topic, rewrite it.',
       '- Plain spoken words, contractions, a human voice. Never mention sources, outlets, the script or the word analysis.',
       '- Commit to ONE take. No "if X then Y, but if Z then W" branches and no pile of "could" and "might". State the take, give the reason, and end on the single fact or test that would prove it wrong, as a statement ("The test is whether..."), never as a question: the closing question belongs to the next line.',
@@ -3027,6 +3389,8 @@
       sanitizeAnalysis(tmp2, text, allow, verified.ok, true);
       var sents = splitSentences(tmp2.analysis).filter(function (x) { return !echoesAny(x, pool, 0.6); }).slice(0, 3);
       if (!sents.length && sc.angle && !unsupportedNumbers(sc.angle, text).length && !fluffIn(sc.angle).length) sents = [String(sc.angle).replace(/\s+/g, ' ').trim().replace(/[.!?]*$/, '.')];
+      var ang = sc.angle ? String(sc.angle).replace(/\s+/g, ' ').trim().replace(/[.!?]*$/, '.') : '';
+      if (sents.length === 1 && ang && !unsupportedNumbers(ang, text).length && !fluffIn(ang).length && !echoesAny(ang, pool.concat(sents), 0.6)) sents.unshift(ang);
       if (sents.length) { sc.analysis = sents.join(' '); if (sc.checks) { sc.checks.analysisRepaired = true; sc.checks.analysisLenient = true; } }
       return sc;
     }
@@ -3040,11 +3404,29 @@
   function writeAndCheck(story, src, verified, extractedCount, feedback, attempt, setLabel) {
     return writeAndCheckCore(story, src, verified, extractedCount, feedback, attempt, setLabel).then(function (sc) { return repairAnalysis(sc, src, verified, verified.corr || { status: 'none' }, setLabel); });
   }
-  function writeAndCheckCore(story, src, verified, extractedCount, feedback, attempt, setLabel) {
+  // A weak model sometimes closes no string and the rest of its answer lands inside one field (the angle of one script held the
+  // hook, the title and the model's own thinking, while hook and body were empty). That is not a script, so it is never kept.
+  function scriptStructure(p) {
+    var bad = [], leak = /['"]\s*,\s*['"]?(hook|body|analysis|cta|title|alt_hooks|alt_titles|banner|pinned_comment|callouts|description|tags|angle)['"]?\s*:|<\/?tool_call|<\/?think|\{\s*['"](hook|body)['"]\s*:/i;
+    ['hook', 'body', 'cta', 'title'].forEach(function (k) { if (!str(p[k]).trim()) bad.push('the "' + k + '" field is empty'); });
+    if (wordCount(str(p.hook)) < 3 && str(p.hook).trim()) bad.push('the hook is too short to be a hook');
+    if (wordCount(str(p.body)) < 12 && str(p.body).trim()) bad.push('the body is too short');
+    ['hook', 'body', 'analysis', 'cta', 'title', 'angle', 'banner', 'description', 'pinned_comment'].forEach(function (k) {
+      var v = str(p[k]); if (v && (leak.test(v) || (k === 'angle' && v.length > 400) || (k !== 'description' && k !== 'body' && k !== 'analysis' && v.length > 700))) bad.push('the "' + k + '" field contains other fields or raw model text');
+    });
+    return bad;
+  }
+  function writeAndCheckCore(story, src, verified, extractedCount, feedback, attempt, setLabel, tries) {
     var corr = verified.corr || { status: 'none', conflicts: [] };
     setLabel('Writing script' + (attempt ? ' (revision)' : '') + '…');
     return callLLM(writePrompt(src.story, state.profile, verified.ok, feedback, corr), 'write', { best: true }).then(function (res) {
       var parsed = extractJson(res.text);
+      var sbad = scriptStructure(parsed);
+      if (sbad.length) {
+        LOG('the model returned a malformed script: ' + sbad.join('; '));
+        if ((tries || 0) < 2) return writeAndCheckCore(story, src, verified, extractedCount, ['Your last answer was malformed (' + sbad.join('; ') + '). Return ONE valid JSON object. Every field is its own separate, properly closed string. Fill hook, body and cta. No text before or after the JSON.'], attempt, setLabel, (tries || 0) + 1);
+        throw new Error('The AI model returned a broken script three times (' + sbad[0] + '), so nothing was kept. Run it again, or choose another model in Settings.');
+      }
       var dropped = 0;
       dropped += dedupeParsed(parsed);
       if (state.settings.depth === false) parsed.analysis = '';
@@ -3123,15 +3505,32 @@
           setLabel('Applying the audit corrections…');
           var srcText = src.allText || src.art.text;
           return tightenHookFix(parsed, audit.flags, verified.ok, srcText).then(function (flags2) {
-            function tryPatch(fl) {
-              var p = patchScript(parsed, fl);
-              if (!p.n) return null;
-              var d = checkScript(p.parsed, srcText, src.story, outletAllow(corr), verified.ok);
-              return (d.problems.length <= det.problems.length && !(d.lengthProblem && !det.lengthProblem)) ? { p: p, d: d } : null;
+            // One correction at a time: a correction that trips a code check is skipped, the others still go in.
+            function greedy(fl) {
+              var cur = parsed, curDet = det, ids = [];
+              fl.filter(function (f) { return f.fix; }).forEach(function (f) {
+                var pp = patchScript(cur, [f], true); if (!pp.n) return;
+                var d = checkScript(pp.parsed, srcText, src.story, outletAllow(corr), verified.ok);
+                if (d.problems.length <= curDet.problems.length && !(d.lengthProblem && !curDet.lengthProblem)) { cur = pp.parsed; curDet = d; ids = ids.concat(pp.ids); }
+              });
+              return { parsed: cur, d: curDet, ids: ids };
             }
-            var ok = tryPatch(flags2) || tryPatch(flags2.filter(function (f) { return f.id.charAt(0) !== 'H'; }));
-            if (!ok) { LOG('audit corrections rejected: they introduced new code-check problems'); return finalize(audit); }
-            LOG('applied ' + ok.p.n + ' audit correction(s): ' + ok.p.ids.join(', '));
+            var g1 = greedy(flags2);
+            // A made-up line the audit cannot correct (a "race to set the agenda" the facts never mention) is cut, as long as the body stays whole.
+            var curBody = splitSentences(g1.parsed.body), dropN = 0, dropIds = [];
+            flags2.forEach(function (f) {
+              if (f.id.charAt(0) !== 'B' || f.severity === 'minor' || g1.ids.indexOf(f.id) >= 0) return;
+              if (!/unsupported|invent|fabricat|not in the facts|not supported/i.test(f.type + ' ' + f.problem)) return;
+              var idx = -1; curBody.forEach(function (x, q) { if (x.replace(/\W+/g, '').toLowerCase() === String(f.sentence).replace(/\W+/g, '').toLowerCase()) idx = q; });
+              if (idx < 0 || curBody.length <= 3) return;
+              var rest = curBody.filter(function (x, q) { return q !== idx; });
+              if (wordCount(rest.join(' ')) < 35) return;
+              curBody = rest; dropN++; dropIds.push(f.id);
+            });
+            if (dropN) g1.parsed = Object.assign({}, g1.parsed, { body: curBody.join(' ') });
+            var ok = (g1.ids.length || dropN) ? { p: { parsed: g1.parsed, n: g1.ids.length + dropN, ids: g1.ids.concat(dropIds) }, d: checkScript(g1.parsed, srcText, src.story, outletAllow(corr), verified.ok) } : null;
+            if (!ok) { LOG('audit corrections could not be applied'); return finalize(audit); }
+            LOG('applied ' + g1.ids.length + ' audit correction(s) (' + g1.ids.join(', ') + ') and cut ' + dropN + ' unsupported sentence(s) (' + dropIds.join(', ') + ')');
             parsed = ok.p.parsed; det = ok.d; fixedN = ok.p.n;
             var left = audit.flags.filter(function (f) { return ok.p.ids.indexOf(f.id) < 0; });
             setLabel('Re-checking the corrected script…');
@@ -3180,7 +3579,7 @@
   function autoSecFor(facts, textWords, outlets, rec) {
     var byFacts = 20 + 4 * facts.length + (outlets > 1 ? 4 : 0);
     var byText = 0.55 * textWords / LEN.wps;
-    var sec = Math.min(byFacts, byText, rec && rec.breaking ? 60 : 90);   // Studio data: 35-60 s holds viewers best; 105 s only by manual choice
+    var sec = Math.min(byFacts, byText, rec && rec.breaking ? 60 : 90);   // length follows the substance; fluff is cut by the checks, not by a hard cap
     var best = LEN_CHOICES[0];
     LEN_CHOICES.forEach(function (c) { if (Math.abs(c - sec) < Math.abs(best - sec)) best = c; });
     return best;
@@ -3268,28 +3667,34 @@
     return { facts: merged, corr: corr };
   }
   function consolidateGroup(g, say) {
-    var primary = g[0], mates = g.slice(1, 3);
+    var primary = g[0], mates = g.slice(1, GROUP_MAX);
     say('Reading ' + primary.source + '…');
     var pP = primary._srcP || (primary._srcP = resolveSource(primary));
     return pP.then(function (srcA) {
       if (!srcA) { primary._srcP = null; throw new Error('The main article (' + primary.source + ') could not be read.'); }
       return extractFactsFor(srcA.story, srcA.art, say).then(function (ex) {
         var results = [], texts = [srcA.art.text], urls = [cleanUrl(srcA.story.url)], skipped = [], noMatch = [], i = 0;
-        function nextMate() {
-          if (i >= mates.length) return Promise.resolve();
-          var m = mates[i++];
+        // Outlets are compared two at a time. The old loop did them one by one, which is why a group of three took minutes.
+        function doMate(m) {
           say('Reading ' + m.source + '…');
           return (m._srcP || (m._srcP = resolveSource(m))).then(function (srcB) {
             if (!srcB || !srcB.art || String(srcB.art.text || '').length < 600) { m._srcP = null; skipped.push(m.source); return null; }
             var nameB = srcB.story.source || m.source;
             if (rootHost(hostOf(srcB.story.url)) === rootHost(hostOf(srcA.story.url))) { skipped.push(nameB + ' (same outlet)'); return null; }
             say('Comparing ' + nameB + ' with ' + primary.source + '…');
-            return sleep(700).then(function () { return callLLM(corroboratePrompt(srcA.story, ex.facts, srcB.art, nameB), 'write'); }).then(function (r) {
+            return sleep(300 + 500 * mates.indexOf(m) % 1000).then(function () { return callLLM(corroboratePrompt(srcA.story, ex.facts, srcB.art, nameB), 'write'); }).then(function (r) {
               var out = applyCorroboration(ex.facts, extractJson(r.text), srcB.art, nameB, cleanUrl(srcB.art.finalUrl || srcB.story.url));
               LOG('consolidation with ' + nameB + ': ' + out.corr.status + ' · confirmed ' + out.corr.confirmed + '/' + out.corr.total + ' · extra ' + out.corr.extra);
               if (out.corr.status === 'none') { noMatch.push(nameB); return null; }
-              results.push({ out: out }); texts.push(srcB.art.text); urls.push(cleanUrl(srcB.art.finalUrl || srcB.story.url));
-            }).catch(function (e) { if (e.fatal || e.code === 'QUOTA') throw e; LOG('consolidation compare failed:', e.message); skipped.push(nameB); });
+              return { out: out, text: srcB.art.text, url: cleanUrl(srcB.art.finalUrl || srcB.story.url) };
+            }).catch(function (e) { if (e.fatal || e.code === 'QUOTA') throw e; LOG('consolidation compare failed:', e.message); skipped.push(nameB); return null; });
+          });
+        }
+        function nextMate() {
+          if (i >= mates.length) return Promise.resolve();
+          var batch = mates.slice(i, i + 2); i += 2;
+          return Promise.all(batch.map(doMate)).then(function (rs) {
+            rs.forEach(function (r) { if (r) { results.push({ out: r.out }); texts.push(r.text); urls.push(r.url); } });
           }).then(nextMate);
         }
         return nextMate().then(function () {
@@ -3299,8 +3704,9 @@
       });
     });
   }
-  // Groups: stories ticked together that cover the same event (at most three outlets per group). The user can move a
-  // story to another group or let it stand alone.
+  // Groups: stories ticked together that cover the same event (up to GROUP_MAX outlets per group; each extra outlet costs one more
+  // comparison call, and past about five the facts stop changing). The user can move a story to another group or let it stand alone.
+  var GROUP_MAX = 5;
   function sigOf(g) { return g.map(function (x) { return x.id; }).join(','); }
   function groupsFor(list) {
     var ids = list.map(function (x) { return x.id; }), byId = {};
@@ -3313,9 +3719,9 @@
     });
     var rest = list.filter(function (x) { return !placed[x.id]; });
     if (rest.length) {
-      if (!out.length) clusterStories(rest).forEach(function (g) { out.push(g.slice(0, 3)); g.slice(3).forEach(function (x) { out.push([x]); }); });
+      if (!out.length) clusterStories(rest).forEach(function (g) { out.push(g.slice(0, GROUP_MAX)); g.slice(GROUP_MAX).forEach(function (x) { out.push([x]); }); });
       else rest.forEach(function (x) {
-        var g = out.filter(function (g0) { return g0.length < 3 && sameStory(g0[0], x) && rootHost(hostOf(g0[0].url)) !== rootHost(hostOf(x.url)); })[0];
+        var g = out.filter(function (g0) { return g0.length < GROUP_MAX && sameStory(g0[0], x) && rootHost(hostOf(g0[0].url)) !== rootHost(hostOf(x.url)); })[0];
         if (g) g.push(x); else out.push([x]);
       });
     }
@@ -3350,7 +3756,7 @@
       head.appendChild(el('strong', { text: g.length > 1 ? 'One story · ' + g.length + ' outlets' : 'One outlet' }));
       if (g.length === 1) {
         var twin = groups.filter(function (g0) { return g0 !== g && g0.length > 1 && sameStory(g0[0], g[0]); })[0];
-        if (twin) head.appendChild(el('span', { class: 'asg-chip is-bad', text: 'Looks like the same story as "' + twin[0].title.slice(0, 40) + (twin[0].title.length > 40 ? '…' : '') + '"' + (twin.length >= 3 ? ', which already has 3 outlets' : '') + '. Remove it to avoid a second script.' }));
+        if (twin) head.appendChild(el('span', { class: 'asg-chip is-bad', text: 'Looks like the same story as "' + twin[0].title.slice(0, 40) + (twin[0].title.length > 40 ? '…' : '') + '"' + (twin.length >= GROUP_MAX ? ', which already has ' + GROUP_MAX + ' outlets' : '') + '. Remove it to avoid a second script.' }));
       }
       if (res) head.appendChild(el('span', { class: 'asg-chip is-ok', text: 'Consolidated · ' + res.facts.length + ' facts' + (res.corr.confirmed ? ' · ' + res.corr.confirmed + ' confirmed by 2+' : '') + (res.corr.conflicts && res.corr.conflicts.length ? ' · ' + res.corr.conflicts.length + ' conflict' : '') }));
       card.appendChild(head);
@@ -3367,7 +3773,7 @@
           var sel = el('select', { class: 'asg-cons-move', 'aria-label': 'Move this story' });
           sel.appendChild(el('option', { value: '', text: 'Move…' }));
           if (g.length > 1) sel.appendChild(el('option', { value: 'own', text: 'Stand alone' }));
-          groups.forEach(function (g2, gj) { if (gj !== gi && g2.length < 3) sel.appendChild(el('option', { value: String(gj), text: 'Group with: ' + g2[0].title.slice(0, 44) + (g2[0].title.length > 44 ? '…' : '') })); });
+          groups.forEach(function (g2, gj) { if (gj !== gi && g2.length < GROUP_MAX) sel.appendChild(el('option', { value: String(gj), text: 'Group with: ' + g2[0].title.slice(0, 44) + (g2[0].title.length > 44 ? '…' : '') })); });
           sel.addEventListener('change', function () {
             if (!sel.value) return;
             var ids = state.consGroups.map(function (a) { return a.slice(); });
@@ -3446,6 +3852,7 @@
       var groups = groupsFor(stories);
       stories = groups.map(function (g) { g[0]._mates = g.slice(1); g[0]._cons = consFor(g); mergedCount += g.length - 1; return g[0]; });
     } else stories.forEach(function (s) { s._mates = []; s._cons = null; });
+    planBatch = stories.slice();
     LOG('generateScripts start', { stories: stories.length, llmReady: llmReady, provider: state.settings.llmProvider });
     var list = $('#asg-script-list'); list.innerHTML = '';
     // Keep every script whose story is NOT being regenerated. Only the stories
@@ -3923,6 +4330,22 @@
       '.asg-chip.is-warn{background:var(--asg-warn-soft,#fff5e6);color:var(--asg-warn,#c47a00);border-color:transparent;}',
       '.asg-story:has(input:disabled){opacity:.6;}',
       '.asg-opt-auto{border-style:dashed;}',
+      '.asg-picks{margin:0 0 16px;padding:16px 18px;border:1px solid var(--asg-border,#dde1ea);border-radius:16px;background:linear-gradient(135deg,var(--asg-accent-soft,#edf1ff),var(--asg-bg,#fff));}',
+      '.asg-picks-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin:0 0 12px;}.asg-picks-head strong{font-size:16px;}.asg-picks-head p{margin:3px 0 0;font-size:13px;color:var(--asg-text-muted,#5b6471);max-width:52ch;}',
+      '.asg-picks-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}',
+      '.asg-pick{position:relative;display:grid;gap:8px;align-content:start;padding:14px 14px 14px 16px;border:1px solid var(--asg-border,#e1e4e9);border-radius:14px;background:var(--asg-bg,#fff);}',
+      '.asg-pick.is-done{border-color:var(--asg-ok,#17864a);}.asg-pick-n{position:absolute;top:-9px;left:-9px;width:24px;height:24px;border-radius:50%;background:var(--asg-text,#141a2a);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;}',
+      '.asg-pick-title{font-size:14.5px;font-weight:600;line-height:1.35;}.asg-pick-src{font-size:12.5px;color:var(--asg-text-dim,#8a94a3);}.asg-pick-sum{font-size:13px;line-height:1.4;color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-step[data-step="publish"],.asg-panel[data-panel="publish"]{display:none!important;}',
+      '.asg-autoplan{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;margin:0 0 14px;border-radius:14px;background:linear-gradient(135deg,var(--asg-accent-soft,#edf1ff),var(--asg-bg-soft,#f7f8fa));border:1px solid var(--asg-border,#dde1ea);}',
+      '.asg-autoplan strong{font-size:15px;}.asg-autoplan p{margin:4px 0 0;font-size:13.5px;line-height:1.5;color:var(--asg-text-muted,#5b6471);}',
+      '.asg-autoplan-dot{flex:none;width:10px;height:10px;margin-top:6px;border-radius:50%;background:var(--asg-accent,#3157f0);box-shadow:0 0 0 5px rgba(49,87,240,.15);}',
+      '.asg-plan{margin:0 0 14px;}.asg-plan-head{font-size:13px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--asg-text-dim,#8a94a3);margin:0 0 10px;}',
+      '.asg-plan-list{display:grid;gap:10px;}',
+      '.asg-plan-card{padding:14px 16px;border:1px solid var(--asg-border,#e1e4e9);border-radius:14px;background:var(--asg-bg,#fff);transition:border-color .15s,box-shadow .15s;}',
+      '.asg-plan-card:hover{border-color:var(--asg-accent,#3157f0);box-shadow:0 4px 14px rgba(20,26,42,.06);}',
+      '.asg-plan-title{font-size:15px;font-weight:600;line-height:1.35;color:var(--asg-text,#141a2a);}',
+      '.asg-plan-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}.asg-plan-src{font-size:12.5px;color:var(--asg-text-dim,#8a94a3);margin-right:4px;}',
       '.asg-cons-card{border:1px solid var(--asg-border,#e1e4e9);border-radius:12px;padding:14px 16px;margin:0 0 12px;background:var(--asg-bg,#fff);}',
       '.asg-cons-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 8px;}',
       '.asg-cons-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--asg-border,#e1e4e9);}',
@@ -4129,10 +4552,11 @@
   }
   function renderExport() {
     var pre = $('#asg-payload-pre');
-    return mediaIndex().then(function (idx) { if (pre) pre.textContent = JSON.stringify(buildPayload(idx), null, 2); return renderExportMedia(); });
+    return mediaIndex().then(function (idx) { if (pre) pre.textContent = JSON.stringify(buildPayload(idx), null, 2); return renderExportMedia(); }).then(function () { renderLibraryHost(); fixExportCopy(); });
   }
 
   function openSettings() {
+    addSavedTab();
     $('#asg-settings-drawer').hidden = false;
     renderProfileBar();
     $('#asg-set-yt').value = state.settings.youtubeKey || '';
@@ -4280,8 +4704,12 @@
    * -> real-time canvas + audio recording to MP4/WebM, all in the browser.
    * Finished media is stored in this browser (IndexedDB) next to the scripts.
    * ===================================================================== */
-  var VID_DEFAULTS = { voice: 'am_echo', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true, callouts: true, endcard: true, banner: true, motion: true, visuals: true };
-  var BUILTIN_VOICES = [['am_echo', 'Echo · en-us · Male'], ['am_liam', 'Liam · en-us · Male'], ['af_heart', 'Heart · en-us · Female']];
+  var VID_DEFAULTS = { voice: 'af_heart', speed: 1, res: '720', footage: true, engine: 'wasm', tag: true, callouts: true, endcard: true, banner: true, motion: true, visuals: true };
+  // The Kokoro pack grades every voice (A best). The two voices this tool used to offer first, Echo and Liam, are graded D.
+  var BUILTIN_VOICES = [['af_heart', 'Heart · US · Female · quality A (best)'], ['af_bella', 'Bella · US · Female · quality A-'], ['bf_emma', 'Emma · UK · Female · quality B-'],
+    ['am_michael', 'Michael · US · Male · quality C+ (best male)'], ['am_fenrir', 'Fenrir · US · Male · quality C+'], ['am_puck', 'Puck · US · Male · quality C+'], ['bm_george', 'George · UK · Male · quality C'],
+    ['am_echo', 'Echo · US · Male · quality D'], ['am_liam', 'Liam · US · Male · quality D']];
+  function gradeRank(g) { g = String(g || 'F'); return 'ABCDF'.indexOf(g.charAt(0)) * 3 + (g.indexOf('-') > 0 ? 1 : g.indexOf('+') > 0 ? -1 : 0); }
   var STOCK = { pixabay: { name: 'Pixabay', keyField: 'pixabayKey' }, pexels: { name: 'Pexels', keyField: 'pexelsKey' } };
   function vopt() {
     var v = state.settings.video || {};
@@ -4339,13 +4767,13 @@
   }
 
   /* ---------- storage (IndexedDB, with an in-memory fallback) ---------- */
-  var idbP = null, memStore = { media: {}, parts: {} };
+  var idbP = null, memStore = { media: {}, parts: {}, library: {} };
   function idb() {
     if (idbP) return idbP;
     idbP = new Promise(function (res, rej) {
       try {
-        var r = indexedDB.open('asg-media', 1);
-        r.onupgradeneeded = function () { var d = r.result; ['media', 'parts'].forEach(function (n) { if (!d.objectStoreNames.contains(n)) d.createObjectStore(n, { keyPath: 'id' }); }); };
+        var r = indexedDB.open('asg-media', 2);
+        r.onupgradeneeded = function () { var d = r.result; ['media', 'parts', 'library'].forEach(function (n) { if (!d.objectStoreNames.contains(n)) d.createObjectStore(n, { keyPath: 'id' }); }); };
         r.onsuccess = function () { res(r.result); };
         r.onerror = function () { rej(r.error); };
       } catch (e) { rej(e); }
@@ -4524,15 +4952,20 @@
       st = Math.max(0, st - keep); en = Math.min(a.length, en + keep);
       return en - st > r * 0.25 ? a.subarray(st, en) : a;
     }
-    parts.forEach(function (p) {
-      var smp = trimSilence(p.samples, p.rate), dur = smp.length / p.rate;
-      items.push({ text: p.text, start: t, end: t + dur, samples: smp });
-      t += dur + GAP;
+    // Speech has uneven pauses: a short beat after a statement, a longer one after a question, and a real breath after the opening line.
+    // A constant 0.15 s gap is a large part of why synthetic narration sounds like a machine reading a list.
+    function gapAfter(text, k) { return k === 0 ? 0.42 : /\?["')\u201d]*$/.test(text) ? 0.34 : /[.!]["')\u201d]*$/.test(text) ? (wordCountOf(text) <= 6 ? 0.2 : 0.27) : 0.16; }
+    function wordCountOf(x) { return (String(x).match(/\S+/g) || []).length; }
+    var lastGap = GAP, prevGap = GAP;
+    parts.forEach(function (p, k) {
+      var smp = trimSilence(p.samples, p.rate), dur = smp.length / p.rate, g = gapAfter(p.text, k);
+      items.push({ text: p.text, start: t, end: t + dur, samples: smp, gapBefore: k ? prevGap : GAP });
+      t += dur + g; lastGap = g; prevGap = g;
     });
-    var total = t - GAP + TAIL;
+    var total = t - lastGap + TAIL;
     var scenes = [], cur = null;
     items.forEach(function (it) {
-      if (!cur || (cur.items[cur.items.length - 1].end - cur.items[0].start) >= 3) { cur = { items: [], start: scenes.length ? it.start - GAP / 2 : 0 }; scenes.push(cur); }
+      if (!cur || (cur.items[cur.items.length - 1].end - cur.items[0].start) >= 3) { cur = { items: [], start: scenes.length ? it.start - (it.gapBefore || GAP) / 2 : 0 }; scenes.push(cur); }
       cur.items.push(it);
     });
     scenes.forEach(function (s, i) { s.end = i + 1 < scenes.length ? scenes[i + 1].start : total; s.text = s.items.map(function (x) { return x.text; }).join(' '); s.video = null; });
@@ -4625,13 +5058,13 @@
   function normPixabay(j) {
     return ((j && j.hits) || []).map(function (h) {
       var f = h.videos && (h.videos.medium && h.videos.medium.url ? h.videos.medium : (h.videos.small && h.videos.small.url ? h.videos.small : null));
-      return f ? { id: 'px' + h.id, duration: h.duration, user: h.user || '', page: h.pageURL || '', tags: h.tags || '', file: { link: f.url, width: f.width, height: f.height } } : null;
+      return f ? { id: 'px' + h.id, duration: h.duration, user: h.user || '', page: h.pageURL || '', tags: h.tags || '', thumb: f.thumbnail || (h.videos.tiny && h.videos.tiny.thumbnail) || (h.picture_id ? 'https://i.vimeocdn.com/video/' + h.picture_id + '_295x166.jpg' : ''), file: { link: f.url, width: f.width, height: f.height } } : null;
     }).filter(Boolean);
   }
   function normPexels(j, target) {
     return ((j && j.videos) || []).map(function (v) {
       var f = pickFile(v, target), slug = String(v.url || '').replace(/\/+$/, '').split('/').pop().replace(/-\d+$/, '').replace(/-/g, ' ');
-      return f ? { id: 'pe' + v.id, duration: v.duration, user: (v.user && v.user.name) || '', page: v.url || '', tags: slug, file: { link: f.link, width: f.width, height: f.height } } : null;
+      return f ? { id: 'pe' + v.id, duration: v.duration, user: (v.user && v.user.name) || '', page: v.url || '', tags: slug, thumb: v.image || '', file: { link: f.link, width: f.width, height: f.height } } : null;
     }).filter(Boolean);
   }
   function stockSearch(provider, q, key, target) {
@@ -4709,7 +5142,10 @@
       if (onProgress) onProgress(idx, tl.scenes.length, p.query);
       if (p.kind === 'visual' && p.visual) { tl.scenes[idx].visual = p.visual; return next(); }
       if (p.kind === 'card' || p.kind === 'visual' || fatal) { plain++; return next(); }
-      return fetchSceneClip(tl.scenes[idx], p, provider, key, used, target, title).then(function (r) {
+      var chosen = (p.pick && p.pick.link) ? (used[p.pick.id] = 1, mediaFetch(p.pick.link).then(function (r) { if (!r.ok) throw new Error('clip download ' + r.status); return r.blob(); }).then(function (blob) {
+        if (blob.size > 45e6) throw new Error('clip too large'); return loadClip(URL.createObjectURL(blob));
+      }).then(function (video) { return { video: video, query: p.query, credit: p.pick.user || '', page: p.pick.page || '' }; }).catch(function (e) { LOG('chosen clip failed, searching instead: ' + (e && e.message)); return null; })) : Promise.resolve(null);
+      return chosen.then(function (got) { return got || fetchSceneClip(tl.scenes[idx], p, provider, key, used, target, title); }).then(function (r) {
         if (r) { tl.scenes[idx].video = r.video; tl.scenes[idx].usedQuery = r.query; if (r.credit) credits[r.credit] = 1; } else { plain++; }
         return next();
       }).catch(function (e) { if (e && (e.fatal)) fatal = e; if (e && e.cancelled) throw e; plain++; return next(); });
@@ -4949,7 +5385,18 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     ['bolt', /\b(power|electric\w*|grid|energy|gigawatts?|megawatts?|blackouts?|outages?|utilit\w+)\b/],
     ['network', /\b(AI|A\.I\.|artificial intelligence|models?|algorithms?|software|network\w*|internet|broadband|telecom\w*|fib(?:er|re)|5G|apps?|platforms?|chatbots?)\b/],
     ['lock', /\b(encrypt\w*|privacy|passwords?|ransomware|data leaks?|surveillance)\b/],
-    ['shield', /\b(security|cyber\w*|hack\w*|breach\w*|defen[cs]e|military|armed forces|troops)\b/],
+    ['shield', /\b((?:national|homeland|cyber)[ -]?security|cyber\w*|hack\w*|breach\w*|defen[cs]e (?:pact|agreement|treaty|deal|system|shield|minister|ministry|ties))\b/],
+    ['nuclear', /\b(nuclear|atomic|warheads?|uranium|enrich\w+|arsenal)\b/i],
+    ['missile', /\b(missiles?|rockets?|ballistic|hypersonic|interceptors?|air defen[cs]e)\b/i],
+    ['tank', /\b(tanks?|troops?|soldiers?|army|armies|armed forces|military|frontline|front line|offensive|invasion|invad\w+|combat|battlefield|ground operation|war)\b/i],
+    ['flag', /\b(government|regime|ministry|parliament|cabinet|junta|decree|authorities|president|prime minister)\b/i],
+    ['explosion', /\b(bombs?|bombings?|bombed|blasts?|explosions?|explod\w+|airstrikes?|air strikes?|shelling|shelled|attacks?|killed|dead|casualt\w+|massacre|assassinat\w+)\b/],
+    ['door', /\b(resign\w*|steps? down|stepped down|stepping down|ousted|fired|quits?|quit|dismissed|sacked|forced out|steps? aside|leaves? office)\b/],
+    ['megaphone', /\b(blam\w+|denies|denied|denounc\w+|accus\w+|claims?|claimed|slams?|slammed|rejects?|rejected|insists?)\b/],
+    ['clock', /\b(deadline|delays?|delayed|postpone\w*|overnight|countdown|expires?|expiring)\b/],
+    ['target', /\b(target\w*|crosshairs|aimed at|sights? on)\b/],
+    ['link', /\b(talks|meeting|meets?|met with|summit|negotiat\w+|alliance|partnership|partners?|joint|collaborat\w+|ties|relationship)\b/],
+    ['wheat', /\b(grain|wheat|corn|harvest\w*|crops?|food prices?|famine|farm\w*|agricultur\w*)\b/],
     ['bank', /\b(banks?|central banks?|Fed|ECB|Riksbank|interest rates?|rate cuts?|rate hikes?|lenders?|loans?)\b/],
     ['home', /\b(housing|mortgages?|rents?|rental|real estate|property|homes?|apartments?)\b/],
     ['chartDown', /\b(stocks?|shares|equit\w+|market|indices|index|S&P|Nasdaq|Dow|bitcoin|crypto\w*)\b[^.]{0,60}\b(fell|falls?|drop\w*|plung\w*|slump\w*|tumbl\w*|crash\w*|lower|down)\b/],
@@ -4963,7 +5410,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     ['flame', /\b(gas|LNG|fuel|coal|fires?|wildfires?|blaze)\b/],
     ['factory', /\b(factor(?:y|ies)|manufactur\w*|industr\w*|plants?|production|mines?|mining|steel)\b/],
     ['car', /\b(cars?|EVs?|vehicles?|automak\w+|Tesla|Toyota|Volkswagen)\b/],
-    ['satellite', /\b(satellites?|space|rockets?|orbit|launch\w*|missiles?)\b/],
+    ['satellite', /\b(satellites?|space|orbit)\b/],
     ['people', /\b(voters?|workers?|jobs?|unemployment|employees?|layoffs?|population|protest\w*|citizens|migrants?|consumers?)\b/],
     ['heart', /\b(health\w*|hospitals?|diseases?|vaccines?|medical|cancer|drugs?|pharma\w*)\b/],
     ['warning', /\b(warns?|warning|threat\w*|risks?|crisis|emergency|alert)\b/],
@@ -4972,7 +5419,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   function vzIconFor(text) {
     // Three tiers: what KIND of event it is (probe, court, vote) beats the topic (chips, oil), and the topic beats the vague
     // icons (globe, money, document, people). Inside a tier the earliest match wins.
-    var TIER = { magnifier: 0, scale: 0, ballot: 0, globe: 2, warning: 2, dollar: 2, document: 2, people: 2 }, best = '', bt = 9, at = 1e9;
+    var TIER = { magnifier: 0, scale: 0, ballot: 0, door: 0, globe: 2, warning: 2, dollar: 2, document: 2, people: 2, megaphone: 2, flag: 2 }, best = '', bt = 9, at = 1e9;
     VZ_ICON_RULES.forEach(function (r) {
       var m = r[1].exec(text); if (!m) return;
       var tr = TIER[r[0]] === undefined ? 1 : TIER[r[0]];
@@ -5031,7 +5478,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     return null;
   }
   // A named person with a job title ("CFO Colette Kress takes over as interim CEO"): initials, name and role. Never a face.
-  var VZ_ROLE = '(?:interim |acting |new |former |deputy |vice |co-)?(?:CEO|CFO|COO|CTO|chief executive|chief financial officer|president|vice president|prime minister|foreign minister|defen[cs]e minister|finance minister|minister|secretary of state|secretary|chancellor|envoy|chair(?:man|woman)?|director|governor|senator|general|spokesperson|spokesman|ambassador|leader|founder|commander|attorney general|speaker)';
+  var VZ_ROLE = '(?:interim |acting |new |former |ex-|ex |deputy |vice |co-)?(?:CEO|CFO|COO|CTO|chief executive|chief financial officer|president|vice president|prime minister|foreign minister|defen[cs]e minister|finance minister|minister|secretary of state|secretary|chancellor|envoy|chair(?:man|woman)?|director|governor|senator|general|spokesperson|spokesman|ambassador|leader|founder|commander|attorney general|speaker)';
   var VZ_ROLE_CI = VZ_ROLE.replace(/[a-z]/gi, function (c) { return '[' + c.toLowerCase() + c.toUpperCase() + ']'; });
   function vzPerson(text) {
     var nm = "[A-Z][a-z]+(?:\\s+[A-Z][a-z'’-]+){1,2}", m = new RegExp('\\b(' + VZ_ROLE_CI + ')\\s+(' + nm + ')\\b').exec(text), role, name, rest;
@@ -5041,9 +5488,36 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       name = m[1]; role = m[2]; rest = text.slice(m.index + m[0].length);
     }
     if (/\b(Street|Times|Post|News|Bank|Council|House|Department|Ministry|Party)$/.test(name)) return null;
+    // A person who is only the other end of a relationship ("adviser to the ex-prime minister Mykola Azarov", "served under President X") is not the subject of the sentence.
+    if (/(?:advis[eo]rs?|aides?|assistants?|successors?|predecessors?|served under|under|against|of|to)\s+(?:the\s+)?(?:[A-Za-z'’-]+\s+){0,3}$/i.test(text.slice(Math.max(0, m.index - 45), m.index))) return null;
     var act = (rest.match(/^\s*(?:,\s*)?((?:takes?|took|steps?|stepped|resign\w*|quits?|quit|named|appointed|announced|says?|said|warns?|warned|denies|denied|admits?|admitted|will|plans?|resigned)[^.;!?]{0,70})/i) || [])[1] || '';
     act = act.replace(/\s+/g, ' ').replace(/[,\s]+$/, '');
     return { type: 'person', name: name, role: role.replace(/\s+/g, ' '), action: act, score: 3.4 };
+  }
+  // A date in the sentence ("February 2014", "Oct 30", "in 2019") drawn as a calendar page. Only what the sentence says.
+  var VZ_MON = 'Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?';
+  function vzDate(text) {
+    var m, mo = '', day = '', yr = '', Y = '((?:19|20)\\d\\d)';
+    if ((m = new RegExp('\\b(' + VZ_MON + ')\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?:,?\\s+' + Y + ')?').exec(text))) { mo = m[1]; day = m[2]; yr = m[3] || ''; }
+    else if ((m = new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(' + VZ_MON + ')\\b(?:,?\\s+' + Y + ')?').exec(text))) { day = m[1]; mo = m[2]; yr = m[3] || ''; }
+    else if ((m = new RegExp('\\b(' + VZ_MON + ')\\s+' + Y + '\\b').exec(text))) { mo = m[1]; yr = m[2]; }
+    else if ((m = new RegExp('\\b(?:in|since|by|until|from|before|after)\\s+' + Y + '\\b').exec(text))) { yr = m[1]; }
+    else return null;
+    if (day && (+day < 1 || +day > 31)) return null;
+    return { type: 'date', mon: mo ? mo.slice(0, 3).toUpperCase() : '', day: day, year: yr, score: 3.3 };
+  }
+  // An organisation or agency that does something in the sentence: a badge, the name, what it did.
+  var VZ_ORG_SUFFIX = 'Committee|Commission|Agency|Council|Ministry|Department|Bureau|Court|Parliament|Administration|Authority|Organization|Organisation|Association|Union|Bank|Institute|Foundation|Corporation|Police|Army|Navy';
+  var VZ_ORG_ACR = 'IAEA|NATO|OPEC|IMF|WHO|ECB|SEC|FBI|CIA|NSA|FSB|OECD|WTO|IEA|OFAC|DOJ|NASA|EU|UN|Pentagon|Kremlin|White House|Treasury|Congress|Senate';
+  function vzOrg(text) {
+    var cap = "[A-Z][A-Za-z&.'’-]+", m = new RegExp('\\b((?:' + cap + '\\s+){0,3}(?:' + VZ_ORG_SUFFIX + '))\\b').exec(text), name, acr = '', rest;
+    if (m) { name = m[1].replace(/^(The|A|An)\s+/, ''); if (name.split(/\s+/).length > 4) return null; rest = text.slice(m.index + m[0].length); }
+    else if ((m = new RegExp('\\b(' + VZ_ORG_ACR + ')\\b').exec(text))) { name = m[1]; acr = /^[A-Z]{2,5}$/.test(name) ? name : ''; rest = text.slice(m.index + m[0].length); }
+    else return null;
+    var act = (rest.match(/^\s*,?\s*([a-z][^.;!?]{4,70})/) || [])[1] || '';
+    act = act.split(/\s+/).slice(0, 9).join(' ').replace(/[,\s]+$/, '');
+    if (!act && !acr) return null;
+    return { type: 'org', name: name, acr: acr, action: act, score: act ? 3.2 : 2.2 };
   }
   function vzMoreDetect(text, nums, top, out) {
     var dir = top ? vzDirNear(text, top.at) : '', icon = vzIconFor(text), ft = vzFromTo(text), ls = vzList(text);
@@ -5053,6 +5527,8 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     if (ls) out.push(ls);
     var cl = vzClaim(text); if (cl) out.push(cl);
     var pe = vzPerson(text); if (pe) out.push(pe);
+    var dt = vzDate(text); if (dt) out.push(dt);
+    var og = vzOrg(text); if (og) out.push(og);
     if (icon) out.push({ type: 'icon', icon: icon, text: top ? top.text : '', label: top ? top.label : '', score: 1 });
     return icon;
   }
@@ -5086,11 +5562,46 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     scale: function (c) { c.beginPath(); c.moveTo(0, -34); c.lineTo(0, 32); c.moveTo(-18, 34); c.lineTo(18, 34); c.moveTo(-34, -22); c.lineTo(34, -22); c.stroke(); [-34, 34].forEach(function (x) { c.beginPath(); c.moveTo(x, -22); c.lineTo(x - 12, 6); c.lineTo(x + 12, 6); c.closePath(); c.stroke(); }); },
     ballot: function (c) { c.strokeRect(-32, -4, 64, 38); c.beginPath(); c.moveTo(-14, -4); c.lineTo(-14, -12); c.moveTo(14, -4); c.lineTo(14, -12); c.stroke(); c.save(); c.rotate(0.15); c.strokeRect(-14, -34, 28, 26); c.restore(); c.beginPath(); c.moveTo(-8, 14); c.lineTo(8, 14); c.stroke(); },
     document: function (c) { c.beginPath(); c.moveTo(-22, -36); c.lineTo(10, -36); c.lineTo(26, -20); c.lineTo(26, 36); c.lineTo(-22, 36); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(10, -36); c.lineTo(10, -20); c.lineTo(26, -20); c.moveTo(-12, -6); c.lineTo(16, -6); c.moveTo(-12, 6); c.lineTo(16, 6); c.moveTo(-12, 18); c.lineTo(6, 18); c.stroke(); },
-    globe: function (c) { c.beginPath(); c.arc(0, 0, 34, 0, 7); c.stroke(); c.beginPath(); c.ellipse(0, 0, 14, 34, 0, 0, 7); c.stroke(); c.beginPath(); c.moveTo(-34, 0); c.lineTo(34, 0); c.moveTo(-30, -17); c.lineTo(30, -17); c.moveTo(-30, 17); c.lineTo(30, 17); c.stroke(); }
+    explosion: function (c) { c.beginPath(); for (var k = 0; k < 16; k++) { var r = k % 2 ? 17 : 38, a = k * Math.PI / 8 - Math.PI / 2; if (k) c.lineTo(r * Math.cos(a), r * Math.sin(a)); else c.moveTo(r * Math.cos(a), r * Math.sin(a)); } c.closePath(); c.stroke(); },
+    door: function (c) { c.beginPath(); c.moveTo(-10, -36); c.lineTo(-30, -36); c.lineTo(-30, 36); c.lineTo(-10, 36); c.stroke(); c.beginPath(); c.moveTo(-10, 0); c.lineTo(32, 0); c.moveTo(18, -14); c.lineTo(32, 0); c.lineTo(18, 14); c.stroke(); },
+    megaphone: function (c) { c.beginPath(); c.moveTo(-34, -8); c.lineTo(-14, -8); c.lineTo(22, -30); c.lineTo(22, 30); c.lineTo(-14, 8); c.lineTo(-34, 8); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(-26, 8); c.lineTo(-20, 32); c.lineTo(-8, 32); c.lineTo(-10, 12); c.stroke(); c.beginPath(); c.arc(22, 0, 14, -1, 1); c.stroke(); },
+    clock: function (c) { c.beginPath(); c.arc(0, 0, 34, 0, 7); c.stroke(); c.beginPath(); c.moveTo(0, -20); c.lineTo(0, 0); c.lineTo(15, 10); c.stroke(); },
+    target: function (c) { [34, 21, 8].forEach(function (r) { c.beginPath(); c.arc(0, 0, r, 0, 7); c.stroke(); }); c.beginPath(); c.moveTo(-40, 0); c.lineTo(-26, 0); c.moveTo(26, 0); c.lineTo(40, 0); c.moveTo(0, -40); c.lineTo(0, -26); c.moveTo(0, 26); c.lineTo(0, 40); c.stroke(); },
+    link: function (c) { c.beginPath(); c.arc(-14, 0, 20, 0, 7); c.stroke(); c.beginPath(); c.arc(14, 0, 20, 0, 7); c.stroke(); },
+    wheat: function (c) { c.beginPath(); c.moveTo(0, 38); c.lineTo(0, -30); c.stroke(); [-24, -8, 8].forEach(function (y) { [-1, 1].forEach(function (sg) { c.beginPath(); c.ellipse(sg * 11, y, 6, 12, sg * 0.7, 0, 7); c.stroke(); }); }); c.beginPath(); c.ellipse(0, -36, 5, 9, 0, 0, 7); c.stroke(); },
+    globe: function (c) { c.beginPath(); c.arc(0, 0, 34, 0, 7); c.stroke(); c.beginPath(); c.ellipse(0, 0, 14, 34, 0, 0, 7); c.stroke(); c.beginPath(); c.moveTo(-34, 0); c.lineTo(34, 0); c.moveTo(-30, -17); c.lineTo(30, -17); c.moveTo(-30, 17); c.lineTo(30, 17); c.stroke(); },
+    tank: function (c) { c.strokeRect(-34, 12, 66, 12); c.strokeRect(-26, -2, 48, 14); c.strokeRect(-12, -16, 26, 14); c.beginPath(); c.moveTo(14, -9); c.lineTo(40, -9); c.stroke(); },
+    missile: function (c) { c.beginPath(); c.moveTo(0, -40); c.quadraticCurveTo(11, -20, 11, 12); c.lineTo(-11, 12); c.quadraticCurveTo(-11, -20, 0, -40); c.closePath(); c.stroke(); c.beginPath(); c.moveTo(-11, 2); c.lineTo(-24, 18); c.lineTo(-11, 14); c.moveTo(11, 2); c.lineTo(24, 18); c.lineTo(11, 14); c.moveTo(-5, 18); c.lineTo(0, 36); c.lineTo(5, 18); c.stroke(); },
+    nuclear: function (c) { c.beginPath(); c.arc(0, 0, 5, 0, 7); c.fill(); for (var k = 0; k < 3; k++) { var a = k * 2.0944 - 1.5708; c.beginPath(); c.arc(0, 0, 32, a - 0.5, a + 0.5); c.arc(0, 0, 12, a + 0.5, a - 0.5, true); c.closePath(); c.fill(); } c.beginPath(); c.arc(0, 0, 40, 0, 7); c.stroke(); },
+    flag: function (c) { c.beginPath(); c.moveTo(-24, -38); c.lineTo(-24, 40); c.stroke(); c.beginPath(); c.moveTo(-24, -34); c.lineTo(30, -34); c.lineTo(20, -18); c.lineTo(30, -2); c.lineTo(-24, -2); c.stroke(); }
   };
-  function vzIconDraw(ctx, id, x, y, size, col, a) {
+  // Icons move, not just sit: they draw themselves in, then act out what they stand for (vehicles glide, a missile climbs,
+  // an explosion or warning pulses, a magnifier searches, a nuclear sign turns, a satellite orbits). t = seconds into the scene.
+  function vzIconMotion(ctx, id, t) {
+    var k;
+    switch (id) {
+      case 'tank': case 'car': case 'truck': ctx.translate(Math.sin(t * 1.1) * 13, 0); break;
+      case 'ship': ctx.translate(Math.sin(t * 0.9) * 11, Math.sin(t * 2.2) * 2.5); ctx.rotate(Math.sin(t * 1.6) * 0.05); break;
+      case 'plane': ctx.translate(Math.sin(t * 1.0) * 12, Math.cos(t * 1.0) * -5); ctx.rotate(Math.sin(t * 1.0) * 0.12); break;
+      case 'missile': ctx.translate(Math.sin(t * 38) * 0.7, -Math.min(9, t * 4.5) + Math.sin(t * 3) * 1.5); break;
+      case 'explosion': case 'warning': case 'target': case 'bolt': k = 1 + 0.09 * Math.abs(Math.sin(t * 4.2)); ctx.scale(k, k); break;
+      case 'magnifier': ctx.translate(Math.sin(t * 1.6) * 9, Math.cos(t * 1.2) * 5); break;
+      case 'nuclear': ctx.rotate(t * 0.9); break;
+      case 'satellite': ctx.translate(Math.cos(t * 1.3) * 9, Math.sin(t * 1.3) * 5); break;
+      case 'scale': ctx.rotate(Math.sin(t * 2) * 0.07); break;
+      case 'clock': ctx.rotate(Math.sin(t * 2.4) * 0.09); break;
+      case 'flame': case 'drop': k = 1 + 0.07 * Math.sin(t * 7); ctx.scale(1 / k, k); break;
+      case 'chartUp': case 'chartDown': case 'coin': case 'dollar': ctx.translate(0, Math.sin(t * 2.4) * 2.2); k = 1 + 0.04 * Math.sin(t * 2.4); ctx.scale(k, k); break;
+      default: ctx.translate(0, Math.sin(t * 2) * 2.5);
+    }
+  }
+  function vzIconDraw(ctx, id, x, y, size, col, a, t) {
     var f = VZ_ICONS[id]; if (!f) return;
     ctx.save(); ctx.globalAlpha = a == null ? 1 : a; ctx.translate(x, y); ctx.scale(size / 50, size / 50); ctx.lineWidth = 5.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = col; ctx.fillStyle = col;
+    if (t != null) {
+      if (t < 0.9 && ctx.setLineDash) { var pp = vzEase(t / 0.9); ctx.setLineDash([420, 420]); ctx.lineDashOffset = 420 * (1 - pp); }
+      try { vzIconMotion(ctx, id, t); } catch (e1) {}
+    }
     try { f(ctx); } catch (e) {} ctx.restore();
   }
   function vzCard(ctx, W, H, t) {
@@ -5108,7 +5619,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   function vzChange(ctx, W, H, v, t, dur) {
     var b, up = v.dir === 'up', col = up ? VZ_UPC : VZ_DNC;
     ctx.save(); b = vzCard(ctx, W, H, t); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-    if (v.icon) vzIconDraw(ctx, v.icon, W / 2, b.y + b.h * 0.1, W * 0.045, 'rgba(207,216,255,.8)', vzEase(t / 0.4));
+    if (v.icon) vzIconDraw(ctx, v.icon, W / 2, b.y + b.h * 0.1, W * 0.045, 'rgba(207,216,255,.8)', vzEase(t / 0.4), t);
     if (v.num) {
       var p = vzEase(t / 1.1), full = vzFmt(v.num, 1), size = vzFit(ctx, full, b.w * 0.8, Math.round(W * 0.22), 900), slide = (1 - vzEase(t / 0.5)) * W * 0.06 * (up ? 1 : -1), cy = b.y + b.h * 0.56;
       vzArrow(ctx, W / 2, b.y + b.h * 0.27 + slide, W * 0.09, up, col, vzEase(t / 0.3));
@@ -5134,7 +5645,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     ctx.save(); ctx.strokeStyle = '#ffd400'; ctx.shadowColor = '#ffd400'; ctx.shadowBlur = W * 0.02; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, v.num.val / 100) * p); ctx.stroke(); ctx.restore();
     var txt = vzFmt(v.num, p), sz = vzFit(ctx, vzFmt(v.num, 1), r * 1.5, Math.round(r * 0.8), 900);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '900 ' + sz + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(txt, cx, cy);
-    if (v.icon) vzIconDraw(ctx, v.icon, cx, cy - r - W * 0.07, W * 0.04, 'rgba(207,216,255,.8)', vzEase(t / 0.4));
+    if (v.icon) vzIconDraw(ctx, v.icon, cx, cy - r - W * 0.07, W * 0.04, 'rgba(207,216,255,.8)', vzEase(t / 0.4), t);
     if (v.num.label) { var ls = Math.round(W * 0.05); ctx.font = '800 ' + ls + 'px ' + VZ_FONT; ctx.fillStyle = '#cfd8ff'; vzWrap(ctx, v.num.label, b.w * 0.84, 2).forEach(function (l, i) { ctx.fillText(l, cx, cy + r + ls * 1.5 + i * ls * 1.15); }); }
     ctx.restore();
   }
@@ -5192,13 +5703,44 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     if (v.action) { var as = Math.round(W * 0.06); ctx.save(); ctx.globalAlpha = a3; ctx.font = '800 ' + as + 'px ' + VZ_FONT; ctx.fillStyle = '#cfd8ff'; vzWrap(ctx, v.action, b.w * 0.84, 3).forEach(function (l, i) { ctx.fillText(l, cx, ry + rs * 2.3 + i * as * 1.25); }); ctx.restore(); }
     ctx.restore();
   }
+  function vzDateDraw(ctx, W, H, v, t, dur) {
+    var b = vzCard(ctx, W, H, t), cx = W / 2, a = vzEase(t / 0.4), pw = b.w * 0.62, ph = pw * 1.04, cy = b.y + b.h * 0.42, hd = v.mon || 'YEAR', big = v.day || v.year, sub = v.day ? v.year : (v.mon ? '' : '');
+    if (!v.day && v.mon && v.year) { hd = v.mon; big = v.year; }
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(1, 0.35 + 0.65 * a); ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = W * 0.04; ctx.shadowOffsetY = W * 0.015;
+    rrect(ctx, -pw / 2, -ph / 2, pw, ph, W * 0.03); ctx.fillStyle = '#f7f8fc'; ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.save(); rrect(ctx, -pw / 2, -ph / 2, pw, ph, W * 0.03); ctx.clip(); ctx.fillStyle = '#e8372c'; ctx.fillRect(-pw / 2, -ph / 2, pw, ph * 0.26); ctx.restore();
+    ctx.fillStyle = '#ffffff'; ctx.font = '900 ' + Math.round(ph * 0.14) + 'px ' + VZ_FONT; ctx.fillText(hd, 0, -ph / 2 + ph * 0.13);
+    [-0.28, 0.28].forEach(function (k) { ctx.beginPath(); ctx.arc(k * pw, -ph / 2, W * 0.014, 0, 7); ctx.fillStyle = '#1b2236'; ctx.fill(); });
+    ctx.fillStyle = '#141a2a'; var bs = vzFit(ctx, String(big), pw * 0.8, Math.round(ph * (String(big).length > 2 ? 0.34 : 0.5)), 900); ctx.font = '900 ' + bs + 'px ' + VZ_FONT; ctx.fillText(String(big), 0, ph * (sub ? 0.08 : 0.14));
+    if (sub) { ctx.fillStyle = '#5b6471'; ctx.font = '800 ' + Math.round(ph * 0.12) + 'px ' + VZ_FONT; ctx.fillText(sub, 0, ph * 0.36); }
+    ctx.restore();
+  }
+  function vzOrgDraw(ctx, W, H, v, t, dur) {
+    var b = vzCard(ctx, W, H, t), cx = W / 2, cy = b.y + b.h * 0.3, r = W * 0.17, a1 = vzEase(t / 0.35), a2 = vzEase((t - 0.25) / 0.35), a3 = vzEase((t - 0.5) / 0.5), hue = 0, k;
+    for (k = 0; k < v.name.length; k++) hue = (hue * 31 + v.name.charCodeAt(k)) % 360;
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    ctx.save(); ctx.globalAlpha = a1; ctx.translate(cx, cy); ctx.scale(0.8 + 0.2 * a1, 0.8 + 0.2 * a1);
+    var g = ctx.createLinearGradient(-r, -r, r, r); g.addColorStop(0, 'hsl(' + hue + ',65%,42%)'); g.addColorStop(1, 'hsl(' + ((hue + 40) % 360) + ',65%,24%)');
+    rrect(ctx, -r, -r, r * 2, r * 2, r * 0.3); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = W * 0.008; ctx.strokeStyle = '#3dd6ff'; ctx.stroke();
+    if (v.acr) { ctx.font = '900 ' + vzFit(ctx, v.acr, r * 1.6, Math.round(r * 0.8), 900) + 'px ' + VZ_FONT; ctx.fillStyle = '#fff'; ctx.fillText(v.acr, 0, r * 0.04); }
+    else vzIconDraw(ctx, 'bank', 0, 0, r * 0.62, '#ffffff', 1);
+    ctx.restore();
+    var nm = v.acr && v.acr === v.name ? '' : v.name.toUpperCase(), ns = Math.round(W * 0.085), nl = [];
+    if (nm) { ctx.font = '900 ' + ns + 'px ' + VZ_FONT; nl = vzWrap(ctx, nm, b.w * 0.88, 9); while (nl.length > 2 && ns > W * 0.045) { ns -= 2; ctx.font = '900 ' + ns + 'px ' + VZ_FONT; nl = vzWrap(ctx, nm, b.w * 0.88, 9); } nl = nl.slice(0, 2); }
+    var ny = cy + r + ns * 1.05;
+    ctx.save(); ctx.globalAlpha = a2; ctx.font = '900 ' + ns + 'px ' + VZ_FONT; ctx.lineWidth = ns * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)';
+    nl.forEach(function (l, i) { ctx.strokeText(l, cx, ny + i * ns * 1.15); ctx.fillStyle = '#fff'; ctx.fillText(l, cx, ny + i * ns * 1.15); }); ctx.restore();
+    if (v.action) { var as = Math.round(W * 0.06); ctx.save(); ctx.globalAlpha = a3; ctx.font = '800 ' + as + 'px ' + VZ_FONT; ctx.fillStyle = '#cfd8ff'; vzWrap(ctx, v.action, b.w * 0.84, 3).forEach(function (l, i) { ctx.fillText(l, cx, ny + nl.length * ns * 1.15 + as * 0.9 + i * as * 1.25); }); ctx.restore(); }
+    ctx.restore();
+  }
   function vzIconScene(ctx, W, H, v, t, dur) {
     var b, cx = W / 2, cy;
     ctx.save(); b = vzCard(ctx, W, H, t); cy = b.y + b.h * (v.text ? 0.34 : 0.45);
     var r = W * 0.17, pulse = 0.5 + 0.5 * Math.sin(t * 3), a = vzEase(t / 0.4);
     var g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * (1.5 + 0.1 * pulse)); g.addColorStop(0, 'rgba(255,212,0,.28)'); g.addColorStop(1, 'rgba(255,212,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r * 1.7, 0, 7); ctx.fill();
     ctx.lineWidth = W * 0.004; ctx.strokeStyle = 'rgba(255,212,0,.5)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
-    vzIconDraw(ctx, v.icon, cx, cy, r * 0.62 * (0.85 + 0.15 * a), '#ffd400', a);
+    vzIconDraw(ctx, v.icon, cx, cy, r * 0.62 * (0.85 + 0.15 * a), '#ffd400', a, t);
     if (v.text) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; var tx = v.text.toUpperCase(), sz = Math.round(W * (tx.length > 18 ? 0.075 : 0.13)); ctx.font = '900 ' + sz + 'px ' + VZ_FONT; var tl = vzWrap(ctx, tx, b.w * 0.84, 9);
       while (tl.length > 4 && sz > W * 0.05) { sz -= 2; ctx.font = '900 ' + sz + 'px ' + VZ_FONT; tl = vzWrap(ctx, tx, b.w * 0.84, 9); }
@@ -5215,6 +5757,8 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     if (v.type === 'change') return 'Change: ' + (v.num ? (v.dir === 'up' ? 'up ' : 'down ') + v.num.text : v.from.text + ' to ' + v.to.text);
     if (v.type === 'ring') return 'Share: ' + v.num.text;
     if (v.type === 'person') return 'Person: ' + v.name + ' (' + v.role + ')';
+    if (v.type === 'date') return 'Date: ' + [v.mon, v.day, v.year].filter(Boolean).join(' ');
+    if (v.type === 'org') return 'Organisation: ' + v.name;
     if (v.type === 'claim') return 'Statement: ' + v.who + ' ' + v.verb;
     if (v.type === 'list') return 'List: ' + v.items.length + ' items';
     if (v.type === 'flow') return 'Flow: ' + v.steps.length + ' steps';
@@ -5261,7 +5805,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       var c = vzDetect(s.text, i, title); if (tlm && tlm[i]) c.push(Object.assign({ score: 4 }, tlm[i]));
       return c;
     });
-    var iconN = 0, claimN = 0, personN = 0, rank = { change: 5.5, number: 5, compare: 5, ring: 4.8, timeline: 4, flow: 4, person: 3.6, claim: 3.5, quote: 4.2, list: 3, map: 2, icon: 1.5 }, chosen = [], maps = 0, prevT = '', run = 0, lastMap = '', i;
+    var iconN = 0, claimN = 0, personN = 0, dateN = 0, orgN = 0, usedIc = [], rank = { change: 5.5, number: 5, compare: 5, ring: 4.8, timeline: 4, flow: 4, person: 3.6, date: 3.3, org: 3.2, claim: 3.5, quote: 4.2, list: 3, map: 2, icon: 1.5 }, chosen = [], maps = 0, prevT = '', run = 0, lastMap = '', i;
     for (i = 0; i < n; i++) {
       var c = cands[i].slice();
       if (c.length && !plan[i].visual) plan[i].visual = cands[i].slice().sort(function (a, b) { return (rank[b.type] + (b.score || 0) / 10) - (rank[a.type] + (a.score || 0) / 10); })[0];
@@ -5271,12 +5815,12 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
           var pa = rank[a.type] + (a.score || 0) / 10 + (i === 0 && /^(number|compare|change|ring)$/.test(a.type) ? 3 : 0), pb = rank[b.type] + (b.score || 0) / 10 + (i === 0 && /^(number|compare|change|ring)$/.test(b.type) ? 3 : 0);
           return pb - pa;
         });
-        pick = c.filter(function (v) { return v.type !== prevT && (v.type !== 'map' || (maps < 3 && vzMapKey(v) !== lastMap)) && (v.type !== 'icon' || iconN < 2) && (v.type !== 'claim' || claimN < 2) && (v.type !== 'person' || personN < 2); })[0] || null;
+        pick = c.filter(function (v) { return v.type !== prevT && (v.type !== 'map' || (maps < 3 && vzMapKey(v) !== lastMap)) && (v.type !== 'icon' || (iconN < 2 && usedIc.indexOf(v.icon) < 0)) && (v.type !== 'claim' || claimN < 2) && (v.type !== 'person' || personN < 2) && (v.type !== 'date' || dateN < 2) && (v.type !== 'org' || orgN < 2); })[0] || null;
         if (pick && useFootage && run >= 4) pick = null;
         if (pick && plan[i].kind === 'card' && !useFootage) { /* captions-only video: visuals replace plain cards freely */ }
       }
       if (pick && i === 0 && pick.type === 'icon' && !pick.text && title) pick = Object.assign({}, pick, { text: String(title).replace(/\s+/g, ' ').slice(0, 90) });
-      if (pick) { chosen[i] = pick; prevT = pick.type; run++; if (pick.type === 'map') { maps++; lastMap = vzMapKey(pick); } if (pick.type === 'icon') iconN++; if (pick.type === 'claim') claimN++; if (pick.type === 'person') personN++; } else { prevT = ''; run = 0; }
+      if (pick) { chosen[i] = pick; prevT = pick.type; run++; if (pick.type === 'map') { maps++; lastMap = vzMapKey(pick); } if (pick.type === 'icon') { iconN++; usedIc.push(pick.icon); } if (pick.type === 'date') dateN++; if (pick.type === 'org') orgN++; if (pick.type === 'claim') claimN++; if (pick.type === 'person') personN++; } else { prevT = ''; run = 0; }
     }
     for (i = 0; i < n; i++) {
       if (chosen[i]) { plan[i].kind = 'visual'; plan[i].visual = chosen[i]; }
@@ -5391,7 +5935,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   function vzNumber(ctx, W, H, v, t, dur) {
     var b = vzBox(W, H), p = vzEase(t / 1.1), a = vzEase(t / 0.25), txt = vzFmt(v, p), full = vzFmt(v, 1), cy = b.y + b.h * 0.44;
     ctx.save(); ctx.globalAlpha = a; vzPanel(ctx, b, W); ctx.fillStyle = 'rgba(8,14,38,.78)'; ctx.fill(); ctx.lineWidth = Math.max(2, W * 0.003); ctx.strokeStyle = 'rgba(160,180,255,.35)'; ctx.stroke();
-    if (v.icon) vzIconDraw(ctx, v.icon, W / 2, b.y + b.h * 0.1, W * 0.045, 'rgba(207,216,255,.8)', vzEase(t / 0.4));
+    if (v.icon) vzIconDraw(ctx, v.icon, W / 2, b.y + b.h * 0.1, W * 0.045, 'rgba(207,216,255,.8)', vzEase(t / 0.4), t);
     var size = vzFit(ctx, full, b.w * 0.86, Math.round(W * 0.26), 900), magSz = Math.round(W * 0.07);
     ctx.font = '900 ' + size + 'px ' + VZ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     ctx.lineWidth = size * 0.1; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(txt, W / 2, cy); ctx.fillStyle = '#ffd400'; ctx.fillText(txt, W / 2, cy);
@@ -5449,8 +5993,40 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     });
     ctx.restore();
   }
-  function vzDraw(ctx, W, H, v, t, dur) {
+  // A card that stands still for the 5 or 6 seconds a long sentence lasts looks like a slide. Everything drawn by a painter now gets a slow
+  // push-in with a faint sideways drift, a soft light sweep that passes over it every few seconds, and a few drifting specks of light.
+  // None of it touches the card's own layout, so every card type gets it.
+  function vzAmbient(ctx, W, H, t, seed) {
+    try {
+      var k = Math.floor((t - 1.5) / 3), ph = (t - 1.5) - k * 3;
+      if (t > 1.5 && ph < 1) {
+        var x = -0.35 * W + ph * 1.7 * W, a = 0.15 * Math.sin(ph * Math.PI), g = ctx.createLinearGradient(x - W * 0.18, 0, x + W * 0.18, H * 0.35);
+        g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,' + a.toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+      }
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (var i = 0; i < 14; i++) {
+        var f1 = ((i + 1 + seed) * 0.6180339) % 1, f2 = ((i + 3 + seed) * 0.7548777) % 1, sp = 0.012 + (i % 5) * 0.004;
+        var px = (f1 + Math.sin(t * 0.5 + i) * 0.015) * W, py = ((f2 - t * sp) % 1 + 1) % 1 * H, r = W * (0.0025 + (i % 3) * 0.0016);
+        ctx.fillStyle = 'rgba(190,210,255,' + (0.10 + 0.07 * Math.sin(t * 1.3 + i * 1.7)).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(px, py, r, 0, 6.2832); ctx.fill();
+      }
+      ctx.restore();
+    } catch (e) {}
+  }
+  function vzDraw(ctx, W, H, v, t, dur, motion) {
     if (!v) return;
+    var live = motion !== false && !v.noMotion;
+    if (live) {
+      var p = Math.min(1, Math.max(0, t) / Math.max(dur || 3, 4));
+      ctx.save();
+      var z = 1 + 0.05 * Math.sin(p * Math.PI / 2);
+      ctx.translate(W / 2 + Math.sin(t * 0.55) * W * 0.004, H / 2 + Math.cos(t * 0.45) * H * 0.002); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
+    }
+    vzDrawCore(ctx, W, H, v, t, dur);
+    if (live) { ctx.restore(); vzAmbient(ctx, W, H, t, (v.type || '').length + (String(v.text || v.name || v.label || '').length % 7)); }
+  }
+  function vzDrawCore(ctx, W, H, v, t, dur) {
     try {
       if (v.type === 'map') vzMap(ctx, W, H, v, t, dur);
       else if (v.type === 'number') vzNumber(ctx, W, H, v, t, dur);
@@ -5459,6 +6035,8 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       else if (v.type === 'list') vzListDraw(ctx, W, H, v, t, dur);
       else if (v.type === 'claim') vzClaimDraw(ctx, W, H, v, t, dur);
       else if (v.type === 'person') vzPersonDraw(ctx, W, H, v, t, dur);
+      else if (v.type === 'date') vzDateDraw(ctx, W, H, v, t, dur);
+      else if (v.type === 'org') vzOrgDraw(ctx, W, H, v, t, dur);
       else if (v.type === 'flow') vzFlow(ctx, W, H, v, t, dur);
       else if (v.type === 'icon') vzIconScene(ctx, W, H, v, t, dur);
       else if (v.type === 'compare') vzCompare(ctx, W, H, v, t, dur);
@@ -5589,7 +6167,9 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     });
     ctx.restore();
   }
+  var lastCover = null;
   function renderVideo(tl, opts, onProgress, canvasHost, run) {
+    var coverDone = false; lastCover = null;
     var mimes = pickMimes();
     if (!mimes) return Promise.reject(new Error('This browser cannot record video. Use a current Chrome, Edge or Safari.'));
     var i = 0, lastErr = null;
@@ -5660,7 +6240,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
         ctx.fillStyle = g; ctx.fillRect(0, H * 0.35, W, H * 0.65);
         var g2 = ctx.createLinearGradient(0, 0, 0, H * 0.18); g2.addColorStop(0, 'rgba(0,0,0,.4)'); g2.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H * 0.18);
-        if (sc.visual) vzDraw(ctx, W, H, sc.visual, now - (sc.start || 0), Math.max(0.5, (sc.end || now + 2) - (sc.start || 0)));
+        if (sc.visual) vzDraw(ctx, W, H, sc.visual, now - (sc.start || 0), Math.max(0.5, (sc.end || now + 2) - (sc.start || 0)), opts.motion);
         var ch = chunkAt(now); if (ch) drawCaption(ctx, W, H, ch, now, sc.visual ? 0.79 : 0);
         if (opts.banner && !sc.visual) drawBanner(ctx, W, H, opts.banner, now);
         if (!sc.visual) (opts.callouts || []).forEach(function (c) { drawCallout(ctx, W, H, c, now); });
@@ -5669,6 +6249,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
           ctx.font = '600 ' + Math.round(W * 0.028) + 'px system-ui,Arial,sans-serif'; ctx.textBaseline = 'top'; ctx.fillStyle = 'rgba(255,255,255,.85)';
           ctx.fillText('Illustrative footage', W * 0.045, H * 0.03);
         }
+        if (!coverDone && now >= Math.min(2.2, tl.total * 0.25)) { coverDone = true; try { canvas.toBlob(function (b) { if (b) lastCover = b; }, 'image/jpeg', 0.92); } catch (eC) {} }
         ctx.fillStyle = '#ffd400'; ctx.fillRect(0, H - Math.max(6, H * 0.004), W * Math.min(1, now / tl.total), Math.max(6, H * 0.004));
         if (onProgress) onProgress(now / tl.total, tl.total);
         requestAnimationFrame(frame);
@@ -5694,7 +6275,8 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     if (disc && desc.toLowerCase().indexOf(String(disc).toLowerCase()) < 0) desc += '\n\n' + disc;
     if (state.settings.madeWith !== false) desc += '\n\nMade with Autonom Newsreel: ' + APP_URL;
     if (credits && credits.length) desc += '\n\nStock footage: ' + (provider || 'Pixabay') + ' (' + credits.join(', ') + ')';
-    if (!/#shorts/i.test(desc)) desc += '\n\n#Shorts';
+    if (!/#\w/.test(desc)) { var hs = hashFor(sc, 3); if (hs.length) desc += '\n\n' + hs.join(' '); }
+    if (!/#shorts/i.test(desc)) desc += (/#\w/.test(desc) ? ' ' : '\n\n') + '#Shorts';
     var tags = (sc.tags || []).map(cleanTag).filter(Boolean);
     if (tags.map(function (t) { return t.toLowerCase(); }).indexOf('shorts') < 0) tags.push('Shorts');
     return { title: title, description: desc, tags: tags, pinned: String(sc.pinned || sc.cta || '').trim() };
@@ -5745,6 +6327,14 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       '.asg-plan-list{list-style:none;margin:0;padding:0;display:grid;gap:8px;}',
       '.asg-plan-scene{display:grid;grid-template-columns:46px 1fr;gap:12px;padding:12px 14px;border:1px solid var(--asg-border,#dde1ea);border-left:3px solid transparent;border-radius:10px;background:var(--asg-bg,#fff);}',
       '.asg-plan-scene.is-edited{border-left-color:var(--asg-signal,#f5a524);}',
+      '.asg-plan-pickbtn{border:1px solid var(--asg-line,#d9dde3);background:transparent;border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:13px;color:inherit;}',
+      '.asg-plan-picker{margin-top:8px;display:grid;gap:8px;}',
+      '.asg-plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}',
+      '.asg-plan-clip{position:relative;border:1px solid var(--asg-line,#d9dde3);border-radius:8px;padding:0;background:#111;cursor:pointer;overflow:hidden;aspect-ratio:9/12;color:#fff;font-size:11px;}',
+      '.asg-plan-clip img{width:100%;height:100%;object-fit:cover;display:block;}',
+      '.asg-plan-clip small{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.65);border-radius:4px;padding:1px 5px;}',
+      '.asg-plan-thumb{width:28px;height:36px;object-fit:cover;border-radius:4px;vertical-align:middle;}',
+      '.asg-plan-link{border:0;background:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;padding:0;}',
       '.asg-plan-time{font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700;color:var(--asg-text-muted,#4f5a6e);padding-top:2px;}',
       '.asg-plan-text{margin:0 0 8px;font-size:14px;line-height:1.45;color:var(--asg-text,#141a2a);}',
       '.asg-plan-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}',
@@ -5767,6 +6357,19 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   }
   function fmtTime(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60); }
   function fmtMB(b) { return (b / 1e6).toFixed(1) + ' MB'; }
+  function playVoiceSample(voice, speed, btn, note) {
+    btn.disabled = true; note.textContent = 'Loading the voice (the first time downloads about 90 MB)…';
+    getTts(function (t) { note.textContent = t; }).then(function (tts) {
+      note.textContent = 'Speaking…';
+      return tts.generate('The Pentagon has launched a new task force. Moscow calls it illegal. Here is what that means.', voice, speed);
+    }).then(function (r) {
+      var AC = window.AudioContext || window.webkitAudioContext, ac = new AC(), buf = ac.createBuffer(1, r.samples.length, r.rate);
+      buf.copyToChannel(r.samples, 0);
+      var src = ac.createBufferSource(); src.buffer = buf; src.connect(ac.destination);
+      src.onended = function () { try { ac.close(); } catch (e) {} note.textContent = ''; btn.disabled = false; };
+      src.start();
+    }).catch(function (e) { note.textContent = 'Could not play the sample: ' + (e && e.message ? e.message : e); btn.disabled = false; });
+  }
   function vidSettingsBox() {
     var o = vopt();
     var box = el('div', { class: 'asg-vid-box' });
@@ -5778,21 +6381,28 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       var cur = vopt().voice; voiceSel.innerHTML = '';
       var seen = {};
       BUILTIN_VOICES.forEach(function (v) { seen[v[0]] = 1; voiceSel.appendChild(el('option', { value: v[0], text: v[1] })); });
-      Object.keys(extra || {}).forEach(function (id) {
-        if (seen[id]) return; var v = extra[id] || {};
-        voiceSel.appendChild(el('option', { value: id, text: (v.name || id) + ' · ' + (v.language || '') + (v.gender ? ' · ' + v.gender : '') }));
+      Object.keys(extra || {}).filter(function (id) { return !seen[id]; }).sort(function (a, b) {
+        var va = extra[a] || {}, vb = extra[b] || {}, ea = /^en/i.test(va.language || '') ? 0 : 1, eb = /^en/i.test(vb.language || '') ? 0 : 1;
+        return ea - eb || gradeRank(va.overallGrade) - gradeRank(vb.overallGrade);
+      }).forEach(function (id) {
+        var v = extra[id] || {};
+        voiceSel.appendChild(el('option', { value: id, text: (v.name || id) + ' · ' + (v.language || '') + (v.gender ? ' · ' + v.gender : '') + (v.overallGrade ? ' · quality ' + v.overallGrade : '') }));
       });
       if (!seen[cur] && !(extra && extra[cur])) voiceSel.appendChild(el('option', { value: cur, text: cur }));
       voiceSel.value = cur;
     };
     fill();
     grid.appendChild(el('div', {}, [el('label', { text: 'Voice' }), voiceSel]));
+    var hearRow = el('div', { class: 'asg-vid-row' }), hearBtn = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Hear this voice' }), hearNote = el('span', { class: 'asg-vid-note', style: 'margin:0;' });
+    hearBtn.addEventListener('click', function () { playVoiceSample(voiceSel.value, Math.min(1.3, Math.max(0.7, parseFloat((document.getElementById('asg-vid-speed') || {}).value) || 1)), hearBtn, hearNote); });
+    hearRow.appendChild(hearBtn); hearRow.appendChild(hearNote);
+    if (/^(am_echo|am_liam)$/.test(o.voice)) box.appendChild(el('p', { class: 'asg-vid-note', text: 'The voice in use (' + o.voice.replace(/^\w\w_/, '') + ') is one of the two lowest-rated in the pack. Heart (rated A) and Bella (A-) are the best; Michael and Fenrir are the best male voices (C+). Press "Hear this voice" to compare before you choose.' }));
     grid.appendChild(el('div', {}, [el('label', { text: 'Speed' }), el('input', { type: 'number', id: 'asg-vid-speed', min: '0.7', max: '1.3', step: '0.05', value: String(o.speed) })]));
     var res = el('select', { id: 'asg-vid-res' }); [['720', '720 × 1280 (faster)'], ['1080', '1080 × 1920 (sharper)']].forEach(function (x) { res.appendChild(el('option', { value: x[0], text: x[1] })); });
     res.value = o.res; grid.appendChild(el('div', {}, [el('label', { text: 'Quality' }), res]));
     var eng = el('select', { id: 'asg-vid-engine' }); [['wasm', 'Standard (works everywhere)'], ['webgpu', 'Fast (recent Chrome or Edge)']].forEach(function (x) { eng.appendChild(el('option', { value: x[0], text: x[1] })); });
     eng.value = o.engine; grid.appendChild(el('div', {}, [el('label', { text: 'Voice engine' }), eng]));
-    box.appendChild(grid);
+    box.appendChild(grid); box.appendChild(hearRow);
     var fr = el('div', { class: 'asg-vid-row' });
     var fc = el('input', { type: 'checkbox', id: 'asg-vid-footage' }); fc.checked = !!o.footage;
     fr.appendChild(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:0;font-weight:600;' }, [fc, 'Use stock footage']));
@@ -5862,11 +6472,12 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     var go2 = el('button', { class: 'asg-btn asg-btn-primary asg-plan-go', type: 'button' });
     head.appendChild(go);
     wrap.appendChild(head);
-    var edits = scenes.map(function (s) { return { query: s.query || '', alt: s.alt || '', kind: s.kind || 'footage', visual: s.visual || null }; });
-    var orig = edits.map(function (e) { return { query: e.query, kind: e.kind }; });
+    var edits = scenes.map(function (s) { return { query: s.query || '', alt: s.alt || '', kind: s.kind || 'footage', visual: s.visual || null, pick: s.pick || null }; });
+    var orig = edits.map(function (e) { return { query: e.query, kind: e.kind, pk: (e.pick && e.pick.id) || '' }; });
+    var pkOf = function (e) { return (e.pick && e.pick.id) || ''; };
     var changed = 0;
     function count() {
-      changed = edits.filter(function (e, i) { return e.query !== orig[i].query || e.kind !== orig[i].kind; }).length;
+      changed = edits.filter(function (e, i) { return e.query !== orig[i].query || e.kind !== orig[i].kind || pkOf(e) !== orig[i].pk; }).length;
       go.textContent = go2.textContent = changed ? 'Re-record with ' + changed + ' change' + (changed === 1 ? '' : 's') : 'Re-record scenes';
     }
     var list = el('ol', { class: 'asg-plan-list' });
@@ -5879,27 +6490,69 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       var tg = el('div', { class: 'asg-plan-tg', role: 'group', 'aria-label': 'Scene ' + (i + 1) + ' shows' });
       var bF = el('button', { type: 'button', text: 'Footage' }), bV = el('button', { type: 'button', text: edits[i].visual ? vzLabel(edits[i].visual) : 'Drawn scene' }), bC = el('button', { type: 'button', text: 'Caption card' });
       tg.appendChild(bF); if (edits[i].visual) tg.appendChild(bV); tg.appendChild(bC);
+      var pickBtn = el('button', { type: 'button', class: 'asg-plan-pickbtn', text: 'Choose clip' });
       var q = el('input', { type: 'text', value: edits[i].query, placeholder: 'Search words, for example crowd outside parliament', 'aria-label': 'Footage search words for scene ' + (i + 1) });
       function paint() {
         var k = edits[i].kind, isCard = k === 'card', isVis = k === 'visual';
         bF.className = (isCard || isVis) ? '' : 'is-on'; bC.className = isCard ? 'is-on' : ''; bV.className = isVis ? 'is-on' : '';
         bF.setAttribute('aria-pressed', String(!isCard && !isVis)); bC.setAttribute('aria-pressed', String(isCard)); bV.setAttribute('aria-pressed', String(isVis));
         q.disabled = isCard || isVis; row.classList.toggle('is-card', isCard || isVis);
-        row.classList.toggle('is-edited', edits[i].query !== orig[i].query || edits[i].kind !== orig[i].kind);
+        row.classList.toggle('is-edited', edits[i].query !== orig[i].query || edits[i].kind !== orig[i].kind || pkOf(edits[i]) !== orig[i].pk);
+        if (pickBtn) pickBtn.hidden = isCard || isVis;
         count();
       }
       bF.addEventListener('click', function () { edits[i].kind = 'footage'; paint(); });
       bC.addEventListener('click', function () { edits[i].kind = 'card'; paint(); });
       bV.addEventListener('click', function () { edits[i].kind = 'visual'; paint(); });
-      q.addEventListener('input', function () { edits[i].query = q.value; paint(); });
-      ctl.appendChild(tg); ctl.appendChild(q); body.appendChild(ctl);
+      q.addEventListener('input', function () { edits[i].query = q.value; edits[i].pick = null; showPick(); paint(); });
+      var chosenNote = el('p', { class: 'asg-plan-used' }), pickBox = el('div', { class: 'asg-plan-picker', hidden: 'hidden' });
+      function showPick() {
+        chosenNote.innerHTML = '';
+        if (!edits[i].pick) { chosenNote.hidden = true; return; }
+        chosenNote.hidden = false;
+        if (edits[i].pick.thumb) chosenNote.appendChild(el('img', { src: edits[i].pick.thumb, alt: '', class: 'asg-plan-thumb' }));
+        chosenNote.appendChild(document.createTextNode(' Using the clip you chose. '));
+        var clr = el('button', { type: 'button', class: 'asg-plan-link', text: 'Clear' }); clr.addEventListener('click', function () { edits[i].pick = null; showPick(); paint(); }); chosenNote.appendChild(clr);
+      }
+      function openPicker() {
+        if (!pickBox.hidden) { pickBox.hidden = true; return; }
+        pickBox.hidden = false; pickBox.innerHTML = '';
+        var prov = stockProvider(), key = stockKey();
+        if (!key) { pickBox.appendChild(el('p', { text: 'Add a ' + STOCK[prov].name + ' key in Settings to browse clips.' })); return; }
+        var qi = el('input', { type: 'text', value: String(edits[i].query || '').trim() || fallbackQuery(s.text, sc.title || ''), 'aria-label': 'Search clips' });
+        var go3 = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Search' }), grid = el('div', { class: 'asg-plan-grid' });
+        pickBox.appendChild(el('div', { class: 'asg-plan-ctl' }, [qi, go3])); pickBox.appendChild(grid);
+        function run() {
+          grid.innerHTML = ''; grid.appendChild(el('p', { text: 'Searching…' }));
+          stockSearch(prov, qi.value.trim(), key, 720).then(function (vids) {
+            grid.innerHTML = '';
+            if (!vids.length) { grid.appendChild(el('p', { text: 'No clips for that search. Try other words.' })); return; }
+            vids.slice(0, 12).forEach(function (v) {
+              var b = el('button', { type: 'button', class: 'asg-plan-clip', title: (v.tags || '') + ' · ' + Math.round(v.duration || 0) + ' s' });
+              if (v.thumb) b.appendChild(el('img', { src: v.thumb, alt: v.tags || 'clip', loading: 'lazy' })); else b.appendChild(el('span', { text: v.tags || 'clip' }));
+              b.appendChild(el('small', { text: Math.round(v.duration || 0) + ' s' }));
+              b.addEventListener('click', function () { edits[i].pick = { id: v.id, link: v.file.link, user: v.user || '', page: v.page || '', thumb: v.thumb || '' }; edits[i].kind = 'footage'; pickBox.hidden = true; showPick(); paint(); });
+              grid.appendChild(b);
+            });
+          }).catch(function (e) { grid.innerHTML = ''; grid.appendChild(el('p', { text: 'Could not search: ' + (e && e.message ? e.message : e) })); });
+        }
+        go3.addEventListener('click', run); qi.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') run(); });
+        run();
+      }
+      pickBtn.addEventListener('click', openPicker);
+      ctl.appendChild(tg); ctl.appendChild(q); ctl.appendChild(pickBtn); body.appendChild(ctl); body.appendChild(pickBox); body.appendChild(chosenNote); showPick();
       if (s.usedQuery && s.kind !== 'card' && s.kind !== 'visual' && s.usedQuery !== edits[i].query) body.appendChild(el('p', { class: 'asg-plan-used', text: 'Showing footage for: ' + s.usedQuery }));
       row.appendChild(body); list.appendChild(row); paint();
     });
-    wrap.appendChild(list);
-    var foot = el('div', { class: 'asg-plan-foot' }); foot.appendChild(go2); wrap.appendChild(foot);
+    var foot = el('div', { class: 'asg-plan-foot' }); foot.appendChild(go2);
+    var tgl = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost asg-plan-toggle', 'aria-expanded': 'false' });
+    function setOpen(o) { list.hidden = foot.hidden = !o; tgl.textContent = o ? 'Hide scenes ▴' : 'Show ' + scenes.length + ' scenes ▾'; tgl.setAttribute('aria-expanded', String(o)); }
+    tgl.addEventListener('click', function () { setOpen(list.hidden); });
+    head.insertBefore(tgl, go);
+    wrap.appendChild(list); wrap.appendChild(foot); setOpen(false);
+    wrap._open = function () { setOpen(true); };
     function rerec() {
-      sc.vplan = { hash: rec.sceneHash, vz: 1, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind, visual: edits[i].visual || null }; }) };
+      sc.vplan = { hash: rec.sceneHash, vz: 1, scenes: edits.map(function (e, i) { return { query: String(e.query || '').trim() || fallbackQuery(scenes[i].text, sc.title || ''), alt: edits[i].alt || '', kind: e.kind, visual: edits[i].visual || null, pick: edits[i].pick || null }; }) };
       persistScripts(); makeVideo(sc, card, { keepPlan: true });
     }
     go.addEventListener('click', rerec); go2.addEventListener('click', rerec);
@@ -5915,6 +6568,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     var links = el('div', { class: 'asg-vid-row', style: 'margin:0 0 10px;' });
     links.appendChild(el('a', { class: 'asg-btn asg-btn-primary', href: url, download: base + '.' + rec.ext, text: 'Download ' + rec.ext.toUpperCase() + ' (' + fmtMB(rec.video.size) + ')' }));
     if (rec.audio) links.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: URL.createObjectURL(rec.audio), download: base + '.wav', text: 'Audio (WAV)' }));
+    if (rec.cover) links.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: URL.createObjectURL(rec.cover), download: base + '-cover.jpg', title: 'The opening frame with its headline, for the cover or thumbnail', text: 'Cover image (JPG)' }));
     if (rec.srt) links.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: URL.createObjectURL(new Blob([rec.srt], { type: 'text/plain' })), download: base + '.srt', text: 'Captions (SRT)' }));
     links.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: 'https://studio.youtube.com', target: '_blank', rel: 'noopener noreferrer', text: 'Open YouTube Studio ↗' }));
     side.appendChild(links);
@@ -5926,7 +6580,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     side.appendChild(vidField('Title', m.title)); side.appendChild(vidField('Description', m.description, 150)); side.appendChild(vidField('Tags', m.tags.join(', '))); if (m.pinned) side.appendChild(vidField('Pinned comment (post and pin it)', m.pinned));
     var ed = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-editscenes', type: 'button', text: 'Edit scenes' });
     ed.title = 'Change the footage or turn a scene into a caption card';
-    ed.addEventListener('click', function () { var pl = $('.asg-plan', card); if (pl) { pl.scrollIntoView({ behavior: 'smooth', block: 'start' }); pl.classList.add('is-flash'); setTimeout(function () { pl.classList.remove('is-flash'); }, 1400); } });
+    ed.addEventListener('click', function () { var pl = $('.asg-plan', card); if (pl) { if (pl._open) pl._open(); pl.scrollIntoView({ behavior: 'smooth', block: 'start' }); pl.classList.add('is-flash'); setTimeout(function () { pl.classList.remove('is-flash'); }, 1400); } });
     links.appendChild(ed);
     var del = el('button', { class: 'asg-btn asg-btn-ghost asg-vid-del', type: 'button', text: '🗑 Delete this video' });
     del.addEventListener('click', function () {
@@ -6021,10 +6675,10 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       var rec = {
         id: id, title: sc.title || '', video: res.blob, ext: res.ext, mime: res.mime, duration: res.duration, w: res.w, h: res.h,
         audio: wavBlob(timelineSamples(tl), tl.rate), srt: buildSrt(tl), credits: info.credits, provider: info.provider, footage: info.footage, plain: info.plain,
-        madeAt: new Date().toISOString(), sceneHash: sceneHash(tl.scenes),
-        scenes: tl.scenes.map(function (s, i) { return { text: s.text, start: s.start, usedQuery: s.usedQuery || '', query: (plan[i] && plan[i].query) || '', alt: (plan[i] && plan[i].alt) || '', kind: (plan[i] && plan[i].kind) || 'card', visual: (plan[i] && plan[i].visual) || null }; })
+        madeAt: new Date().toISOString(), sceneHash: sceneHash(tl.scenes), cover: lastCover,
+        scenes: tl.scenes.map(function (s, i) { return { text: s.text, start: s.start, usedQuery: s.usedQuery || '', query: (plan[i] && plan[i].query) || '', alt: (plan[i] && plan[i].alt) || '', pick: (plan[i] && plan[i].pick) || null, kind: (plan[i] && plan[i].kind) || 'card', visual: (plan[i] && plan[i].visual) || null }; })
       };
-      return dbPut('media', rec).then(function () { showVideoResult(sc, card, rec); setStatus(card, 'Done. Saved in this browser.', 'is-ok'); refreshStorageNote(); });
+      return dbPut('media', rec).then(function () { try { archiveScripts('Auto-saved after a video'); } catch (e2) {} showVideoResult(sc, card, rec); setStatus(card, 'Done. Saved in this browser.', 'is-ok'); refreshStorageNote(); });
     }).catch(function (e) {
       $('.asg-vid-live', card).innerHTML = '';
       if (e && e.cancelled) { setStatus(card, 'Cancelled.', ''); return; }
@@ -6118,7 +6772,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
         add('Captions (SRT)', rec && rec.srt ? new Blob([rec.srt], { type: 'text/plain' }) : null, base + '.srt');
         var um = uploadMeta(sc, rec && rec.credits, rec && rec.provider);
         links.appendChild(el('a', { href: URL.createObjectURL(new Blob([uploadText(um)], { type: 'text/plain' })), download: base + '-upload.txt', text: 'Upload details (TXT)' }));
-        item.appendChild(links); list.appendChild(item);
+        item.appendChild(links); item.appendChild(postsBlock(sc)); list.appendChild(item);
       });
       host.appendChild(list);
       if (!have) host.appendChild(el('p', { class: 'asg-hint', text: 'No videos made yet. Use the Video step, then come back: videos stay saved in this browser.' }));
@@ -6136,6 +6790,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
         var dir = slugOf(sc, i), rec = idx[sc.mediaId || ''];
         addText(dir + '/script.txt', scriptToText(sc));
         addText(dir + '/narration.txt', narrationOf(sc) + '\n');
+        addText(dir + '/posts.txt', postsText(sc));
         addText(dir + '/upload.txt', uploadText(uploadMeta(sc, rec && rec.credits, rec && rec.provider)));
         if (rec) {
           if (rec.srt) addText(dir + '/captions.srt', rec.srt);
@@ -6153,322 +6808,270 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   }
 
 
-  /* ---------- Publish: a caption per platform, then hand-off to the owner's own automation ---------- */
-  var PLATFORMS = [
-    { id: 'youtube', label: 'YouTube Shorts', limit: 5000, tags: 3, style: '' },
-    { id: 'instagram', label: 'Instagram Reels', limit: 2000, tags: 6, style: 'A first line that stops the scroll, 2-3 short lines, then a question to the viewer, then the hashtags.' },
-    { id: 'facebook', label: 'Facebook Reels', limit: 600, tags: 3, style: '2-3 plain sentences and a question. Few hashtags.' },
-    { id: 'tiktok', label: 'TikTok', limit: 150, tags: 4, style: 'One curiosity-led line, under 150 characters including the hashtags.' },
-    { id: 'x', label: 'X', limit: 270, tags: 2, style: 'One sharp take under 270 characters. No link. At most two hashtags.' },
-    { id: 'linkedin', label: 'LinkedIn', limit: 1100, tags: 3, style: 'Professional, 3-5 short lines leading with the analytical point, ending on a question. Three hashtags.' },
-    { id: 'threads', label: 'Threads', limit: 480, tags: 1, style: 'Conversational, like a thought you had out loud.' },
-    { id: 'bluesky', label: 'Bluesky', limit: 290, tags: 1, style: 'One clear sentence or two, under 290 characters.' },
-    { id: 'telegram', label: 'Telegram', limit: 900, tags: 3, style: '3-4 sentences, plain text, a question at the end.' },
-    { id: 'rumble', label: 'Rumble', limit: 1000, tags: 3, style: 'A short description: what happened and the angle.' },
-    { id: 'mastodon', label: 'Mastodon', limit: 480, tags: 2, style: 'Plain, conversational, under 480 characters, hashtags at the end.' }
-  ];
-  function platOf(id) { return PLATFORMS.filter(function (x) { return x.id === id; })[0]; }
-  function pubPlatforms() {
-    var sel = Array.isArray(state.settings.publishPlatforms) ? state.settings.publishPlatforms : [];
-    return PLATFORMS.filter(function (x) { return sel.indexOf(x.id) !== -1; });
-  }
-  function hashtagLine(tags, n) {
-    return (tags || []).filter(function (t) { return String(t).toLowerCase() !== 'shorts'; }).slice(0, n).map(function (t) { return '#' + cleanTag(t); }).join(' ');
-  }
-  function fitPost(text, pl, tagsLine) {
-    var t = String(text || '').replace(/[ \t]+\n/g, '\n').trim();
-    var tagLen = tagsLine && t.indexOf(tagsLine) === -1 ? tagsLine.length + 2 : 0;
-    var room = pl.limit - tagLen;
-    if (t.length > room) {
-      var cut = t.slice(0, room), k = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '));
-      t = (k > room * 0.5 ? cut.slice(0, k + 1) : cut.replace(/\s+\S*$/, '') + '…').trim();
-    }
-    if (tagLen) t += '\n\n' + tagsLine;
-    return t;
-  }
-  function defaultPost(pl, sc, meta) {
-    var tagsLine = hashtagLine(meta.tags, pl.tags);
-    var parts = [sc.title || sc.storyTitle, sc.hook && sc.hook !== sc.title ? sc.hook : '', sc.cta].filter(Boolean);
-    function wset(t) { var o = {}; String(t).toLowerCase().replace(/https?:\/\/\S+|#\S+/g, '').split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2; }).forEach(function (w) { o[w] = 1; }); return o; }
-    function near(a, b) { var A = wset(a), B = wset(b), i = 0, u = 0, k; for (k in A) { u++; if (B[k]) i++; } for (k in B) if (!A[k]) u++; return u ? i / u >= 0.55 : false; }
-    parts = parts.filter(function (t, i) { for (var j = 0; j < i; j++) if (near(t, parts[j])) return false; return true; });
-    if (pl.id === 'x' || pl.id === 'tiktok' || pl.id === 'bluesky') parts = parts.slice(0, 1);
-    return fitPost(parts.join('\n\n'), pl, tagsLine);
-  }
-  function postsOf(sc) { return sc.posts && typeof sc.posts === 'object' ? sc.posts : (sc.posts = {}); }
-  function scriptSourceText(sc) {
-    return [sc.hook, sc.body, sc.analysis, sc.cta, sc.title, sc.description].concat((sc.facts || []).map(function (f) { return f.claim + ' ' + f.quote; })).join('\n');
-  }
-  function writePosts(sc, meta, pls) {
-    var want = pls.filter(function (p) { return p.id !== 'youtube'; });
-    var out = {};
-    if (!want.length) return Promise.resolve(out);
-    var lines = [
-      'You write the social captions that go with a finished news-explainer short. Same story, one caption per platform, each in the native style of that platform.',
-      '', 'CHANNEL VOICE:'
-    ].concat(dnaText(state.profile).split('\n'), ['', 'TITLE: ' + (sc.title || sc.storyTitle), 'HOOK: ' + sc.hook, 'BODY: ' + sc.body, 'ANALYSIS: ' + (sc.analysis || ''), 'CTA: ' + sc.cta, '', 'PLATFORMS:']);
-    want.forEach(function (p) { lines.push('- "' + p.id + '" (' + p.label + '): max ' + p.limit + ' characters including hashtags. ' + p.style + (p.tags ? ' Up to ' + p.tags + ' relevant hashtags.' : '')); });
-    lines.push('', 'RULES: use only facts that are in the script above; never add numbers, names, quotes or claims. Do not mention other platforms. No emojis unless they clearly fit the voice. Write like a person, not a brand. Do not put links in the caption.',
-      'Return STRICT JSON only: {"posts":{' + want.map(function (p) { return '"' + p.id + '":"..."'; }).join(',') + '}}');
-    var src = scriptSourceText(sc);
-    return callLLM(lines.join('\n'), 'write').then(function (r) {
-      var j = extractJson(r.text), po = (j && j.posts) || j || {};
-      want.forEach(function (p) {
-        var t = String(po[p.id] || '').trim();
-        if (!t || unsupportedNumbers(t, src).length) return;
-        out[p.id] = fitPost(t, p, '');
-      });
-      return out;
-    }).catch(function (e) { LOG('captions: AI unavailable, using plain captions:', e && e.message); return out; });
-  }
-  function pubStyle() {
-    if (document.getElementById('asg-pub-style')) return;
-    var st = document.createElement('style'); st.id = 'asg-pub-style';
-    st.textContent = '.asg-pub-plats{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}.asg-pub-plats label{display:flex;gap:6px;align-items:center;border:1px solid var(--asg-border,#e1e4e9);border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer}' +
-      '.asg-pub-plats input:checked+span{font-weight:600}.asg-pub-row{margin:8px 0;border:1px solid var(--asg-border,#dde1ea);border-radius:10px;background:var(--asg-bg,#fff)}.asg-pub-row>summary{list-style:none;cursor:pointer;padding:10px 14px;border-radius:10px}.asg-pub-row>summary::-webkit-details-marker{display:none}.asg-pub-row>summary strong::before{content:"▸";display:inline-block;width:16px;color:var(--asg-text-dim,#7a869b);transition:transform .15s}.asg-pub-row[open]>summary strong::before{transform:rotate(90deg)}.asg-pub-row[open]>summary{border-bottom:1px solid var(--asg-border,#dde1ea);border-radius:10px 10px 0 0}.asg-root .asg-pub-row>*:not(summary){margin-left:14px;margin-right:14px}.asg-root .asg-pub-row>*:last-child{margin-bottom:12px}.asg-root .asg-pub-row .asg-hint{margin-top:8px}.asg-pub-row textarea{width:100%;min-height:78px;box-sizing:border-box}.asg-pub-row .asg-pub-h{display:flex;justify-content:space-between;align-items:center;font-size:14px}.asg-pub-row textarea{margin-top:10px}' +
-      '.asg-pub-in{width:100%;box-sizing:border-box;margin:4px 0 10px;padding:9px 12px;border:1px solid var(--asg-border,#dde1ea);border-radius:9px;background:var(--asg-bg,#fff);color:var(--asg-text,#141a2a);font:inherit;font-size:14px}.asg-pub-in:focus{outline:none;border-color:var(--asg-accent,#3157f0);box-shadow:0 0 0 3px rgba(49,87,240,.16)}.asg-pub-status{margin:8px 0 0}' +
-      '.asg-pub-spread,.asg-pub-when{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:10px 0}.asg-pub-spread .asg-pub-in,.asg-pub-when .asg-pub-in{width:auto;margin:0}.asg-pub-when{padding:12px 14px;border:1px solid var(--asg-border,#dde1ea);border-left:3px solid var(--asg-signal,#f5a524);border-radius:10px;background:var(--asg-signal-soft,#fff4de)}.asg-pub-when .asg-label{margin:0}';
+  /* ---------- posts per platform, saved work, browser storage ---------- */
+  function ensureLibStyle() {
+    if (document.getElementById('asg-lib-style')) return;
+    var st = document.createElement('style'); st.id = 'asg-lib-style';
+    st.textContent = [
+      '.asg-posts{margin:10px 0 0;border:1px solid var(--asg-border,#dde1ea);border-radius:10px;padding:8px 12px;}',
+      '.asg-posts summary{cursor:pointer;font-weight:600;font-size:14px;}',
+      '.asg-post{margin:12px 0 0;}',
+      '.asg-post-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;}',
+      '.asg-post-head span{margin-left:auto;color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-post pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:13.5px;line-height:1.5;background:rgba(127,127,127,.09);border-radius:8px;padding:9px 11px;margin:6px 0 0;}',
+      '.asg-lib{margin:18px 0 0;border:1px solid var(--asg-border,#dde1ea);border-radius:12px;padding:14px 16px;}',
+      '.asg-lib h3{margin:0 0 4px;font-size:16px;}.asg-lib>p{margin:0 0 10px;font-size:13px;color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-lib-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:9px 0;border-top:1px solid var(--asg-border,#dde1ea);font-size:13.5px;}',
+      '.asg-lib-row b{display:block;font-weight:600;}.asg-lib-row small{color:var(--asg-text-dim,#8a94a3);}',
+      '.asg-lib-act{display:flex;gap:6px;flex-wrap:wrap;}',
+      '.asg-bar{height:8px;border-radius:99px;background:rgba(127,127,127,.2);overflow:hidden;margin:6px 0 10px;}.asg-bar i{display:block;height:100%;background:var(--asg-accent,#3b6cf6);}'
+    ].join('');
     document.head.appendChild(st);
   }
-  var PUB_SAMPLE = { event: 'newsreel.publish', sent_at: '2026-10-25T05:00:00+00:00', profile: { id: '...', name: 'Blomstra Insights' }, platforms: ['youtube', 'instagram', 'x'], scheduled_at: '2026-10-27T16:30:00.000Z', scheduled_local: '2026-10-27T18:30', timezone: 'Europe/Stockholm', title: '...', description: '...', tags: ['Iran', 'geopolitics'], posts: { instagram: '...', x: '...' }, pinned_comment: '...', sources: ['https://...'], duration_sec: 59, captions_srt: '...', video_url: 'https://your-site/wp-content/uploads/autonom-newsreel/abc123.mp4', video_mime: 'video/mp4' };
-  function toLocalInput(d) { function z(n) { return (n < 10 ? '0' : '') + n; } return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); }
-  function pubSend(sc, rec, test, schedule, local) {
-    var cfg = window.AUTONOM_ASG || {}, st = state.settings;
-    var um = rec ? uploadMeta(sc, rec.credits, rec.provider) : { title: 'Test from Newsreel', description: 'Test event. Nothing was published.', tags: ['test'], pinned: '' };
-    var posts = {}; var mine = sc ? postsOf(sc) : {};
-    pubPlatforms().forEach(function (p) { if (p.id !== 'youtube') posts[p.id] = sc ? (mine[p.id] || defaultPost(p, sc, um)) : 'Test caption for ' + p.label; });
-    var meta = {
-      test: !!test, webhook: String(st.publishWebhook || '').trim(), secret: String(st.publishSecret || '').trim(),
-      profile: { id: state.profile && state.profile.id, name: state.profile && state.profile.name },
-      platforms: pubPlatforms().map(function (p) { return p.id; }), scheduled_at: schedule || '', scheduled_local: local || '', timezone: (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } })(),
-      title: um.title, description: um.description, tags: um.tags, posts: posts, pinned_comment: um.pinned,
-      sources: (sc && sc.sources) || [], duration_sec: rec ? Math.round(rec.duration || 0) : 0, captions_srt: rec && rec.srt ? rec.srt : ''
-    };
-    var fd = new FormData();
-    fd.append('meta', JSON.stringify(meta));
-    if (!test && rec && rec.video) fd.append('video', rec.video, slugOf(sc, 0) + '.' + (rec.ext || 'mp4'));
-    return fetchWithTimeout(cfg.publishEndpoint, { method: 'POST', body: fd, headers: { 'X-WP-Nonce': cfg.restNonce || '' }, credentials: 'same-origin' }, 240000).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (j) { j = j || {}; j.httpStatus = r.status; return j; });
+  function hashFor(sc, n) {
+    var seen = {}, out = [];
+    (sc.tags || []).map(cleanTag).filter(Boolean).forEach(function (t) { var k = t.toLowerCase(); if (k !== 'shorts' && !seen[k]) { seen[k] = 1; out.push('#' + t); } });
+    return out.slice(0, n);
+  }
+  function clipText(s, n) {
+    s = String(s || '').replace(/\s+/g, ' ').trim();
+    if (s.length <= n) return s;
+    var c = s.slice(0, n - 1), k = c.lastIndexOf(' ');
+    return (k > n * 0.6 ? c.slice(0, k) : c).replace(/[,;:\s]+$/, '') + '…';
+  }
+  // Post copy for each platform, built only from the script itself (no new claims). Every platform has its own length and hashtag habits.
+  function firstSentence(t) { return splitSentences(String(t || ''))[0] || ''; }
+  function platformPosts(sc) {
+    var title = String(sc.title || sc.storyTitle || '').trim();
+    var hook = String(sc.hook || '').trim() || title, cta = String(sc.cta || '').trim();
+    var ctx = splitSentences(sc.body || '').slice(0, 2).join(' ').trim();
+    var src = String(sc.sourceName || sc.source || '').trim(), srcLine = src ? 'Source: ' + src : '';
+    function tags(n) { return hashFor(sc, n).join(' '); }
+    function join(parts) { return parts.filter(Boolean).join('\n\n'); }
+    var allTags = (sc.tags || []).map(cleanTag).filter(Boolean).join(', ');
+    var x = clipText(hook, 200);
+    if (cta && (x + '\n\n' + cta).length <= 250) x += '\n\n' + cta;
+    var tg = tags(2); if (tg && (x + '\n\n' + tg).length <= 280) x += '\n\n' + tg;
+    return [
+      { name: 'YouTube Shorts', tags: uploadMeta(sc, null, null).tags.join(', '), text: uploadText(uploadMeta(sc, null, null)), note: 'Title up to 100 characters. Post and pin the comment after upload.' },
+      { name: 'TikTok', tags: allTags, text: join([hook, ctx, cta, tags(4), srcLine]), note: 'Use the platform\'s AI-content label if it applies.' },
+      { name: 'Instagram Reels', tags: allTags, text: join([hook, ctx, cta, tags(5), srcLine]), note: 'Three to five hashtags is plenty. Use the AI label if the app asks for it.' },
+      { name: 'Facebook Reels', tags: allTags, text: join([hook, ctx, cta, tags(3), srcLine]), note: '' },
+      { name: 'X', tags: allTags, text: x, note: 'Attach the video. 280 characters at most.' },
+      { name: 'Rumble', tags: allTags, text: join([clipText(title, 100), hook + (ctx ? ' ' + ctx : ''), cta, tags(3), srcLine]), note: 'First line is the title (100 characters at most). Pick a category such as News or Politics, and set the video as original if it is yours.' },
+      { name: 'LinkedIn', tags: allTags, text: clipText(join([hook, ctx, firstSentence(sc.analysis), cta, tags(3)]), 2800), note: 'Native video with a short analytical caption. The audience is investors and professionals, so keep the analysis line.' },
+      { name: 'Telegram channel', tags: allTags, text: clipText(join([hook, ctx, cta, tags(2)]), 1000), note: 'Post the video with this as the caption (1,024 characters at most).' }
+    ];
+  }
+  function postsText(sc) { return platformPosts(sc).map(function (p) { return '=== ' + p.name + ' ===\n' + p.text + '\n' + (p.tags && p.name !== 'YouTube Shorts' ? '\nTAGS (comma separated)\n' + p.tags + '\n' : ''); }).join('\n'); }
+  function postsBlock(sc) {
+    ensureLibStyle();
+    var d = el('details', { class: 'asg-posts' });
+    d.appendChild(el('summary', { text: 'Posts for each platform (copy and paste)' }));
+    platformPosts(sc).forEach(function (p) {
+      var w = el('div', { class: 'asg-post' }), h = el('div', { class: 'asg-post-head' });
+      h.appendChild(el('strong', { text: p.name }));
+      h.appendChild(el('span', { text: p.text.length + ' characters' }));
+      var b = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Copy' });
+      b.addEventListener('click', function () { copyText(p.text).then(function () { toast(p.name + ' post copied', 'success'); }); });
+      h.appendChild(b); w.appendChild(h); w.appendChild(el('pre', { text: p.text }));
+      if (p.tags) {
+        var th = el('div', { class: 'asg-post-head', style: 'margin-top:8px;' }), tb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Copy tags' });
+        th.appendChild(el('strong', { text: 'Tags, comma separated' })); th.appendChild(el('span', { text: 'for platforms with a tags box' }));
+        tb.addEventListener('click', function () { copyText(p.tags).then(function () { toast('Tags copied', 'success'); }); });
+        th.appendChild(tb); w.appendChild(th); w.appendChild(el('pre', { text: p.tags }));
+      }
+      if (p.note) w.appendChild(el('div', { class: 'asg-vid-note', text: p.note }));
+      d.appendChild(w);
+    });
+    return d;
+  }
+  function fixExportCopy() {
+    $$('p').forEach(function (p) {
+      if (p.children.length) return;
+      var t = p.textContent;
+      if (/press Send in the Publish step/.test(t)) p.textContent = t.replace(/Autonom only sends something out when you press Send in the Publish step\.?/, 'Nothing is sent anywhere from here: download what you need and upload it yourself.');
+      else if (/renderer or webhook will receive/.test(t)) p.textContent = 'The data behind your scripts, for your own pipeline. The media entries name the files inside the ZIP.';
     });
   }
-  function pubExplain(j) {
-    if (j.httpStatus === 401 || j.httpStatus === 403 || j.code === 'rest_forbidden') return 'Not allowed: log in to WordPress as an editor or admin and reload this page. (If the page is cached, the login check can be stale.)';
-    if (j.message) return j.message;
-    if (j.ok === false && j.webhook_status) return 'Your automation answered ' + j.webhook_status + (j.webhook_reply ? ': ' + String(j.webhook_reply).slice(0, 120) : '') + '.';
-    return j.error ? 'Failed: ' + j.error : 'No answer from the site relay (status ' + (j.httpStatus || '?') + ').';
-  }
-  var PUB_OPEN = {
-    youtube: function () { return 'https://www.youtube.com/upload'; },
-    instagram: function () { return 'https://www.instagram.com/'; },
-    facebook: function () { return 'https://www.facebook.com/reels/create'; },
-    tiktok: function () { return 'https://www.tiktok.com/tiktokstudio/upload'; },
-    x: function (t) { return 'https://x.com/intent/post?text=' + encodeURIComponent(t); },
-    linkedin: function (t) { return 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(t); },
-    threads: function () { return 'https://www.threads.net/'; },
-    bluesky: function (t) { return 'https://bsky.app/intent/compose?text=' + encodeURIComponent(t); },
-    telegram: function () { return 'https://web.telegram.org/'; },
-    rumble: function () { return 'https://rumble.com/upload.php'; },
-    mastodon: null
-  };
-  function copyText(t) { try { navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
-  function tgPost(rec, text, name) {
-    var st = state.settings, fd = new FormData();
-    fd.append('chat_id', String(st.telegramChat || '').trim());
-    fd.append('caption', String(text).slice(0, 1024));
-    fd.append('supports_streaming', 'true');
-    fd.append('video', rec.video, name);
-    return fetchWithTimeout('https://api.telegram.org/bot' + String(st.telegramToken || '').trim() + '/sendVideo', { method: 'POST', body: fd }, 240000)
-      .then(function (r) { return r.json().catch(function () { return {}; }); })
-      .then(function (j) { if (!j.ok) throw new Error(j.description || 'Telegram refused the video'); return 'Posted to Telegram.'; });
-  }
-  function mastoBase() { var h = String(state.settings.mastodonInstance || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, ''); return h ? 'https://' + h : ''; }
-  function mastoPost(rec, text, name) {
-    var st = state.settings, base = mastoBase(), auth = { 'Authorization': 'Bearer ' + String(st.mastodonToken || '').trim() };
-    var fd = new FormData(); fd.append('file', rec.video, name);
-    return fetchWithTimeout(base + '/api/v2/media', { method: 'POST', body: fd, headers: auth }, 240000).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (j) {
-        if (!(r.status === 200 || r.status === 202) || !j.id) throw new Error(j.error || 'Mastodon refused the video (' + r.status + ')');
-        function wait(n) {
-          if (r.status === 200 || n > 40) return Promise.resolve();
-          return sleep(1500).then(function () { return fetchWithTimeout(base + '/api/v1/media/' + j.id, { headers: auth }, 15000); }).then(function (g) { return g.status === 200 ? null : wait(n + 1); });
-        }
-        return wait(0).then(function () { return j.id; });
-      });
-    }).then(function (id) {
-      return fetchWithTimeout(base + '/api/v1/statuses', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: JSON.stringify({ status: text, media_ids: [id], visibility: 'public' }) }, 30000);
-    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!j.id) throw new Error(j.error || 'Mastodon did not accept the post'); return 'Posted to Mastodon.'; }); });
-  }
-  function renderPublish() {
-    pubStyle();
-    var cfg = window.AUTONOM_ASG || {}, st = state.settings, owner = !!cfg.canPublish;
-    var setup = $('#asg-pub-setup'), list = $('#asg-pub-list'); if (!setup || !list) return Promise.resolve();
-    var myTok = (renderPublish._tok = (renderPublish._tok || 0) + 1);
-    setup.innerHTML = ''; list.innerHTML = '';
-    var box = el('div', { class: 'asg-cons-card' });
-    box.appendChild(el('strong', { text: 'Where to publish' }));
-    var pl = el('div', { class: 'asg-pub-plats' });
-    PLATFORMS.forEach(function (p) {
-      var cb = el('input', { type: 'checkbox' }); cb.checked = (st.publishPlatforms || []).indexOf(p.id) !== -1;
-      cb.addEventListener('change', function () {
-        var cur = (st.publishPlatforms || []).filter(function (x) { return x !== p.id; });
-        if (cb.checked) cur.push(p.id);
-        st.publishPlatforms = cur; persistSettings(); renderPublish();
-      });
-      pl.appendChild(el('label', {}, [cb, el('span', { text: p.label })]));
-    });
-    box.appendChild(pl);
-    function field2(parent, label, key, ph) {
-      var inp = el('input', { type: 'text', class: 'asg-pub-in', placeholder: ph || '', autocomplete: 'off', spellcheck: 'false' });
-      inp.value = st[key] || '';
-      inp.addEventListener('change', function () { st[key] = inp.value.trim(); persistSettings(); renderPublish(); });
-      inp.id = 'asg-pub-' + key;
-      parent.appendChild(el('label', { class: 'asg-label', for: inp.id, text: label })); parent.appendChild(inp);
-    }
-    var direct = el('details', { style: 'margin-top:6px;' });
-    direct.appendChild(el('summary', { text: 'Post directly: Telegram and Mastodon (no extra service)' }));
-    direct.open = !!(st.telegramToken || st.mastodonToken);
-    direct.appendChild(el('p', { class: 'asg-hint', text: 'Telegram: create a bot with @BotFather, add it as an admin of your channel, paste its token and the channel name (like @mychannel). Mastodon: Preferences, Development, new application with write:media and write:statuses, paste the access token. Keys stay in this browser, like your AI keys.' }));
-    field2(direct, 'Telegram bot token', 'telegramToken', '123456:ABC…'); field2(direct, 'Telegram channel or chat', 'telegramChat', '@mychannel');
-    field2(direct, 'Mastodon server', 'mastodonInstance', 'mastodon.social'); field2(direct, 'Mastodon access token', 'mastodonToken', '');
-    box.appendChild(direct);
-    var hookOn = owner && /^https:\/\//.test(st.publishWebhook || '');
-    if (owner) {
-      var own = el('details', { style: 'margin-top:6px;' });
-      own.open = !!st.publishWebhook;
-      own.appendChild(el('summary', { text: 'Automation hand-off (site owner): Make, n8n, Zapier' }));
-      own.appendChild(el('p', { class: 'asg-hint', text: 'Sends the video and all captions to your own webhook through this site, which hosts the video at a temporary public link. Only you can use it because it needs your WordPress login.' }));
-      var wh = el('input', { type: 'url', class: 'asg-pub-in', placeholder: 'https://hook.eu1.make.com/…', autocomplete: 'off', spellcheck: 'false' });
-      wh.value = st.publishWebhook || '';
-      wh.addEventListener('change', function () { st.publishWebhook = wh.value.trim(); persistSettings(); renderPublish(); });
-      own.appendChild(el('label', { class: 'asg-label', text: 'Webhook address (https)' })); own.appendChild(wh);
-      field2(own, 'Shared secret (optional)', 'publishSecret', 'sent as the X-Newsreel-Secret header');
-      var sp = el('div', { class: 'asg-pub-spread' });
-      var spFirst = el('input', { type: 'datetime-local', class: 'asg-pub-in', id: 'asg-pub-first', style: 'max-width:230px;' });
-      spFirst.value = st.publishFirst || ''; spFirst.addEventListener('change', function () { st.publishFirst = spFirst.value; persistSettings(); });
-      var spGap = el('select', { class: 'asg-pub-in', id: 'asg-pub-gap', style: 'max-width:150px;' });
-      [[2, 'every 2 hours'], [4, 'every 4 hours'], [6, 'every 6 hours'], [12, 'every 12 hours'], [24, 'once a day']].forEach(function (g) { spGap.appendChild(el('option', { value: String(g[0]), text: g[1] })); });
-      spGap.value = String(st.publishGap || 6);
-      var spBtn = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Space my videos out' });
-      spBtn.addEventListener('click', function () {
-        if (!spFirst.value) { toast('Pick a time for the first video.', 'error'); return; }
-        st.publishFirst = spFirst.value; var t0 = new Date(spFirst.value).getTime(), gap = parseFloat(spGap.value) * 3600000; st.publishGap = parseFloat(spGap.value); persistSettings();
-        var n = 0; goodScripts().forEach(function (sc2) { sc2.schedule = toLocalInput(new Date(t0 + n * gap)); n++; });
-        persistScripts(); renderPublish();
-      });
-      sp.appendChild(el('label', { class: 'asg-label', for: 'asg-pub-first', text: 'Schedule all: first video at' })); sp.appendChild(spFirst); sp.appendChild(spGap); sp.appendChild(spBtn);
-      own.appendChild(sp);
-      own.appendChild(el('p', { class: 'asg-hint', text: 'Each video also has its own time on its card below. Times use this browser\'s time zone, and your automation receives the exact UTC time.' }));
-      var tb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Send a test event' }), tstat = el('p', { class: 'asg-hint asg-pub-status' });
-      tb.disabled = !hookOn;
-      tb.addEventListener('click', function () {
-        tb.disabled = true; tstat.textContent = 'Sending…';
-        pubSend(null, null, true, '').then(function (j) { tstat.textContent = j.ok ? 'Your automation accepted the test (' + j.webhook_status + '). Nothing was published.' : pubExplain(j); })
-          .catch(function (e) { tstat.textContent = 'Could not reach the site relay: ' + (e && e.message || e); }).then(function () { tb.disabled = false; });
-      });
-      own.appendChild(tb); own.appendChild(tstat);
-      var ex = el('details', { style: 'margin-top:8px;' });
-      ex.appendChild(el('summary', { text: 'What your automation receives' }));
-      ex.appendChild(el('pre', { style: 'white-space:pre-wrap;font-size:12px;overflow:auto;', text: JSON.stringify(PUB_SAMPLE, null, 2) + '\n\nPOST, JSON. Route by "platforms". "video_url" is public for 3 days, then deleted.' }));
-      own.appendChild(ex);
-      box.appendChild(own);
-    }
-    setup.appendChild(box);
 
-    return mediaIndex().then(function (idx) {
-      if (myTok !== renderPublish._tok) return;
-      var scripts = goodScripts(), pls = pubPlatforms(), have = 0;
-      scripts.forEach(function (sc, i) {
-        var rec = idx[sc.mediaId || ''];
-        var card = el('div', { class: 'asg-cons-card' });
-        card.appendChild(el('strong', { text: (i + 1) + '. ' + (sc.title || sc.storyTitle) }));
-        if (!rec || !rec.video) { card.appendChild(el('p', { class: 'asg-hint', text: 'No video yet. Make it in the Video step first.' })); list.appendChild(card); return; }
-        have++;
-        var fname = slugOf(sc, i) + '.' + (rec.ext || 'mp4');
-        var um = uploadMeta(sc, rec.credits, rec.provider), posts = postsOf(sc), areas = {};
-        var meta = el('p', { class: 'asg-hint' });
-        meta.appendChild(document.createTextNode((rec.ext || 'mp4').toUpperCase() + ' · ' + fmtMB(rec.video.size) + ' · ' + Math.round(rec.duration || 0) + ' s' + (sc.published ? ' · sent ' + new Date(sc.published.at).toLocaleString() + (sc.published.scheduled_for ? ' for ' + new Date(sc.published.scheduled_for).toLocaleString() : '') + ' to ' + sc.published.platforms.join(', ') : '') + ' · '));
-        meta.appendChild(el('a', { href: URL.createObjectURL(rec.video), download: fname, text: 'Download video' }));
-        card.appendChild(meta);
-        if ((rec.ext || '') !== 'mp4') card.appendChild(el('p', { class: 'asg-hint', style: 'color:#8a5b00;', text: 'This is a WebM file. Instagram, Facebook and TikTok often refuse WebM. Make the video in Chrome or Edge to get MP4.' }));
-        var file = null, canShare = false;
-        try { file = new File([rec.video], fname, { type: rec.video.type || (rec.ext === 'mp4' ? 'video/mp4' : 'video/webm') }); canShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) {}
-        var status = el('p', { class: 'asg-hint asg-pub-status' });
-        var wb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Write captions for ' + pls.filter(function (p) { return p.id !== 'youtube'; }).length + ' platforms' });
-        function fillAreas() { pls.forEach(function (p) { if (areas[p.id]) { areas[p.id].value = posts[p.id] || defaultPost(p, sc, um); areas[p.id].dispatchEvent(new Event('input')); } }); }
-        wb.addEventListener('click', function () {
-          wb.disabled = true; wb.textContent = 'Writing…';
-          writePosts(sc, um, pls).then(function (po) { pls.forEach(function (p) { if (po[p.id]) posts[p.id] = po[p.id]; }); persistScripts(); fillAreas(); status.textContent = 'Captions written. Edit them if you like.'; })
-            .then(function () { wb.disabled = false; wb.textContent = 'Write captions again'; });
-        });
-        var tgl = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Expand all', style: 'margin-left:8px;' });
-        tgl.addEventListener('click', function () { var rows = $$('.asg-pub-row', card), anyClosed = rows.some(function (r) { return !r.open; }); rows.forEach(function (r) { r.open = anyClosed; }); tgl.textContent = anyClosed ? 'Collapse all' : 'Expand all'; });
-        card.appendChild(wb); card.appendChild(tgl);
-        pls.forEach(function (p) {
-          var row = el('details', { class: 'asg-pub-row' }); if (p.id === 'youtube') row.open = true;
-          var h = el('summary', { class: 'asg-pub-h' }); h.appendChild(el('strong', { text: p.label }));
-          var cnt = el('span', { class: 'asg-hint' }); h.appendChild(cnt); row.appendChild(h);
-          var btns = el('div', { style: 'display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;' }), rs = el('span', { class: 'asg-hint' });
-          function btn(label, fn) { var b = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: label }); b.addEventListener('click', function () { fn(b); }); btns.appendChild(b); return b; }
-          if (p.id === 'youtube') {
-            row.appendChild(el('p', { class: 'asg-hint', text: um.title }));
-            btn('Copy title', function () { copyText(um.title); toast('Title copied.', 'ok', 1500); });
-            btn('Copy description + tags', function () { copyText(um.description + '\n\n' + um.tags.map(function (t) { return '#' + cleanTag(t); }).join(' ')); toast('Copied.', 'ok', 1500); });
-            btn('Open YouTube upload', function () { window.open(PUB_OPEN.youtube(), '_blank', 'noopener'); });
-          } else {
-            var ta = el('textarea', {}); ta.value = posts[p.id] || defaultPost(p, sc, um);
-            var count = function () { cnt.textContent = ta.value.length + ' / ' + p.limit; cnt.style.color = ta.value.length > p.limit ? '#b3261e' : ''; };
-            ta.addEventListener('input', function () { posts[p.id] = ta.value; persistScripts(); count(); });
-            count(); areas[p.id] = ta; row.appendChild(ta);
-            btn('Copy', function () { copyText(ta.value); toast('Copied.', 'ok', 1500); });
-            if (PUB_OPEN[p.id] && !(p.id === 'telegram' && st.telegramToken && st.telegramChat)) btn('Copy and open ' + p.label, function () { copyText(ta.value); window.open(PUB_OPEN[p.id](ta.value), '_blank', 'noopener'); });
-            if (canShare) btn('Share…', function () { navigator.share({ files: [file], text: ta.value, title: um.title }).catch(function () {}); });
-            if (p.id === 'telegram' && st.telegramToken && st.telegramChat) btn('Post to Telegram', function (b) {
-              if (!window.confirm('Post this video to ' + st.telegramChat + ' on Telegram now?')) return;
-              b.disabled = true; rs.textContent = 'Uploading…';
-              tgPost(rec, ta.value, fname).then(function (m) { rs.textContent = m; }).catch(function (e) { rs.textContent = 'Failed: ' + (e && e.message || e); }).then(function () { b.disabled = false; });
-            });
-            if (p.id === 'mastodon' && mastoBase() && st.mastodonToken) btn('Post to Mastodon', function (b) {
-              if (!window.confirm('Post this video publicly on ' + mastoBase().replace('https://', '') + ' now?')) return;
-              b.disabled = true; rs.textContent = 'Uploading…';
-              mastoPost(rec, ta.value, fname).then(function (m) { rs.textContent = m; }).catch(function (e) { rs.textContent = 'Failed: ' + (e && e.message || e); }).then(function () { b.disabled = false; });
-            });
-          }
-          row.appendChild(btns); row.appendChild(rs); card.appendChild(row);
-        });
-        if (owner) {
-          var wrap = el('div', { class: 'asg-pub-when' });
-          var when = el('input', { type: 'datetime-local', class: 'asg-pub-in', id: 'asg-when-' + i, style: 'max-width:230px;' });
-          when.value = sc.schedule || '';
-          when.addEventListener('change', function () { sc.schedule = when.value; persistScripts(); setLabel(); });
-          wrap.appendChild(el('label', { class: 'asg-label', for: 'asg-when-' + i, text: 'Publish at' })); wrap.appendChild(when);
-          wrap.appendChild(el('span', { class: 'asg-hint', text: 'Leave empty to publish as soon as your automation runs.' }));
-          card.appendChild(wrap);
-          var sb = el('button', { type: 'button', class: 'asg-btn asg-btn-primary', style: 'margin-top:10px;' });
-          function setLabel() { sb.textContent = when.value ? 'Send and schedule for ' + new Date(when.value).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Send to my automation now'; }
-          setLabel();
-          sb.disabled = !hookOn || !pls.length;
-          sb.addEventListener('click', function () {
-            var names = pls.map(function (p) { return p.label; }).join(', ');
-            if (!window.confirm('Send "' + (sc.title || sc.storyTitle) + '" to your automation for: ' + names + '?\n\nDepending on how you built it, your automation may publish this publicly.')) return;
-            sb.disabled = true; status.textContent = 'Uploading ' + fmtMB(rec.video.size) + ' and sending…';
-            var iso = when.value ? new Date(when.value).toISOString() : '';
-            if (when.value && new Date(when.value).getTime() < Date.now() - 60000) { sb.disabled = false; status.textContent = 'That time is in the past. Pick a later time or clear it.'; return; }
-            pubSend(sc, rec, false, iso, when.value).then(function (j) {
-              if (j.ok) { sc.published = { at: new Date().toISOString(), platforms: pls.map(function (p) { return p.id; }), scheduled_for: iso }; persistScripts(); status.textContent = 'Sent. Your automation accepted it (' + j.webhook_status + '). Check there that each platform published.'; }
-              else status.textContent = pubExplain(j);
-            }).catch(function (e) { status.textContent = 'Could not reach the site relay: ' + (e && e.message || e); }).then(function () { sb.disabled = !hookOn || !pls.length; });
-          });
-          card.appendChild(sb);
+  // ---- Saved work: Start over keeps what was written ----
+  var LIB_KEY = 'asg_library_v1';
+  // The saved sets live in IndexedDB (hundreds of MB), not localStorage (about 5 MB, and usually full).
+  var libCache = [], libReady = false;
+  function libLoad() { return libCache.slice(); }
+  function libSave(a) {
+    var prev = libCache, keep = {};
+    libCache = a.slice(0, 25);
+    var tn0 = document.getElementById('asg-top-saved-n'); if (tn0) tn0.textContent = libCache.length ? libCache.length + ' set' + (libCache.length === 1 ? '' : 's') : '';
+    libCache.forEach(function (e) { keep[e.id] = true; dbPut('library', e); });
+    prev.forEach(function (e) { if (!keep[e.id]) dbDel('library', e.id); });
+    return true;
+  }
+  function libInit() {
+    return dbAll('library').then(function (all) {
+      libCache = (all || []).filter(function (e) { return e && e.scripts && e.id.charAt(0) !== '_'; }).sort(function (a, b) { return b.t - a.t; });
+      // Older versions kept the list in localStorage: move it over once.
+      try {
+        var old = JSON.parse(localStorage.getItem(LIB_KEY) || '[]');
+        if (Array.isArray(old) && old.length) {
+          old.forEach(function (e) { if (e && e.id && !libCache.some(function (x) { return x.id === e.id; })) { libCache.push(e); dbPut('library', e); } });
+          libCache.sort(function (a, b) { return b.t - a.t; });
+          localStorage.removeItem(LIB_KEY);
         }
-        card.appendChild(status);
-        list.appendChild(card);
+      } catch (e0) {}
+      libReady = true;
+      var tn = document.getElementById('asg-top-saved-n'); if (tn) tn.textContent = libCache.length ? libCache.length + ' set' + (libCache.length === 1 ? '' : 's') : '';
+    });
+  }
+  function archiveScripts(label) {
+    var keep = goodScripts().filter(function (s) { return !s.srcFail; });
+    if (!keep.length) return false;
+    var key = keep.map(function (s) { return s.id; }).join(',');
+    var lib = libLoad().filter(function (e) { return e.key !== key; });
+    var copy; try { copy = JSON.parse(JSON.stringify(keep)); } catch (e) { return false; }
+    lib.unshift({ id: 'l' + Date.now().toString(36), key: key, t: Date.now(), profileId: state.profile && state.profile.id, profileName: state.profile && state.profile.name, label: label || '', scripts: copy });
+    return libSave(lib.slice(0, 25));
+  }
+  function libOpen(e) {
+    if (generating || vidBusy) { toast('Wait until the current run finishes.', 'error'); return; }
+    archiveScripts('Before opening saved work');
+    try { state.scripts = JSON.parse(JSON.stringify(e.scripts)); } catch (x) { return; }
+    persistScripts(); renderScripts(); updateStepAvailability();
+    var withVid = state.scripts.some(function (x) { return x.mediaId; });
+    if (withVid) { renderExport(); setStep('export'); } else setStep('scripts');
+    toast('Opened ' + state.scripts.length + ' saved script' + (state.scripts.length === 1 ? '' : 's') + '. Videos made earlier are still attached if you have not deleted them.', 'success');
+  }
+  function fmtDay(t) { try { return new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+  function sizeOfRec(r) {
+    var n = 0;
+    (function w(v, d) {
+      if (!v || d > 3) return;
+      if (typeof Blob !== 'undefined' && v instanceof Blob) { n += v.size; return; }
+      if (typeof v === 'string') { n += v.length; return; }
+      if (typeof v.byteLength === 'number') { n += v.byteLength; return; }
+      if (typeof v === 'object') Object.keys(v).forEach(function (k) { w(v[k], d + 1); });
+    })(r, 0);
+    return n;
+  }
+  function clearMediaIds(ids) {
+    var any = false;
+    state.scripts.forEach(function (sc) { if (sc.mediaId && ids.indexOf(sc.mediaId) !== -1) { delete sc.mediaId; any = true; } });
+    if (any) persistScripts();
+  }
+  function rerenderLater(host) { renderSavedWork(host); setTimeout(function () { try { renderSavedWork(host); } catch (e) {} }, 2500); }
+  function renderSavedWork(host) {
+    ensureLibStyle(); ensureVideoStyle();
+    host.innerHTML = '';
+    var lib = el('div', { class: 'asg-lib' });
+    lib.appendChild(el('h3', { text: 'Saved work' }));
+    lib.appendChild(el('p', { text: 'Start over saves your scripts here first, so nothing you wrote is lost. Open a set to carry on with it.' }));
+    var entries = libLoad();
+    if (!entries.length) lib.appendChild(el('p', { text: 'Nothing saved yet.' }));
+    entries.forEach(function (e) {
+      var row = el('div', { class: 'asg-lib-row' }), info = el('div', {});
+      info.appendChild(el('b', { text: e.scripts.length + ' script' + (e.scripts.length === 1 ? '' : 's') + ' · ' + fmtDay(e.t) }));
+      info.appendChild(el('small', { text: (e.profileName ? e.profileName + ' · ' : '') + e.scripts.slice(0, 3).map(function (s) { return clipText(s.title || s.storyTitle, 48); }).join(' | ') + (e.scripts.length > 3 ? ' …' : '') }));
+      row.appendChild(info);
+      var act = el('div', { class: 'asg-lib-act' });
+      var ob = el('button', { type: 'button', class: 'asg-btn asg-btn-primary', text: 'Open' }); ob.addEventListener('click', function () { libOpen(e); });
+      var db = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Delete' });
+      db.addEventListener('click', function () { if (!confirm('Delete this saved set? The scripts in it are removed. Videos are kept until you delete them below.')) return; libSave(libLoad().filter(function (x) { return x.id !== e.id; })); rerenderLater(host); });
+      act.appendChild(ob); act.appendChild(db); row.appendChild(act); lib.appendChild(row);
+    });
+    host.appendChild(lib);
+
+    var box = el('div', { class: 'asg-lib' });
+    box.appendChild(el('h3', { text: 'Videos stored in this browser' }));
+    box.appendChild(el('p', { text: 'Finished videos are kept in this browser (not on a server) so they survive a refresh. Download what you need, then delete the rest to free space.' }));
+    var meter = el('div', {}); box.appendChild(meter);
+    var listBox = el('div', {}); box.appendChild(listBox);
+    host.appendChild(box);
+    var storageInfo = el('div', {}); box.insertBefore(storageInfo, listBox);
+    try {
+      if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(function (e) {
+        if (!e || !e.quota) return;
+        var pct = Math.min(100, Math.round(e.usage / e.quota * 100));
+        meter.appendChild(el('div', { class: 'asg-bar' }, [el('i', { style: 'width:' + pct + '%' })]));
+        meter.appendChild(el('small', { text: 'This site uses ' + fmtMB(e.usage) + ' of about ' + fmtMB(e.quota) + ' the browser allows (' + pct + '%).' }));
+        Promise.all([dbAll('media'), dbAll('parts')]).then(function (r) {
+          var vids = (r[0] || []).reduce(function (a, x) { return a + sizeOfRec(x); }, 0), work = (r[1] || []).reduce(function (a, x) { return a + sizeOfRec(x); }, 0);
+          var other = Math.max(0, e.usage - vids - work), ud = e.usageDetails || {};
+          var line = 'Your videos ' + fmtMB(vids) + ' · working data ' + fmtMB(work) + ' · everything else ' + fmtMB(other) + (ud.caches ? ' (downloaded files such as the voice model: ' + fmtMB(ud.caches) + ')' : '') + '.';
+          storageInfo.appendChild(el('small', { style: 'display:block;margin-top:4px;', text: line }));
+          storageInfo.appendChild(el('small', { style: 'display:block;margin-top:2px;opacity:.75;', text: 'Deleting a video frees its space right away, but the browser can take a minute or two to update this meter. The rest is not your videos: it is the voice model the browser downloaded once, plus anything other Autonom tools on this site keep.' }));
+          if (window.caches && caches.keys) caches.keys().then(function (names) {
+            var vn = names.filter(function (n) { return /transformers|onnx|kokoro|hugging|hf-|tts|asg/i.test(n); });
+            if (!vn.length) return;
+            var cb2 = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', style: 'margin-top:6px;', text: 'Clear the downloaded voice model' });
+            cb2.addEventListener('click', function () {
+              if (vidBusy) { toast('A video is being made. Wait until it finishes.', 'error'); return; }
+              if (!confirm('Remove the downloaded voice model (' + vn.join(', ') + ')? It downloads again, about 100 to 300 MB, the next time you make a video.')) return;
+              Promise.all(vn.map(function (n) { return caches.delete(n); })).then(function () { toast('Voice model cleared.', 'success'); rerenderLater(host); });
+            });
+            storageInfo.appendChild(cb2);
+          }).catch(function () {});
+        });
       });
-      if (!have) list.appendChild(el('p', { class: 'asg-hint', text: 'No videos yet. Make them in the Video step; they stay saved in this browser.' }));
+    } catch (e0) {}
+    Promise.all([dbAll('media'), dbAll('parts')]).then(function (r) {
+      var media = r[0] || [], parts = r[1] || [], names = {};
+      state.scripts.concat.apply(state.scripts, libLoad().map(function (e) { return e.scripts; })).forEach(function (s) { names[s.mediaId || s.id] = s.title || s.storyTitle; });
+      if (!media.length) listBox.appendChild(el('p', { text: 'No stored videos.' }));
+      media.forEach(function (rec) {
+        var row = el('div', { class: 'asg-lib-row' }), info = el('div', {}), sz = sizeOfRec(rec);
+        info.appendChild(el('b', { text: clipText(names[rec.id] || rec.title || 'Video from an earlier run', 70) }));
+        info.appendChild(el('small', { text: fmtMB(sz) + (rec.duration ? ' · ' + Math.round(rec.duration) + ' s' : '') + (rec.madeAt ? ' · ' + fmtDay(rec.madeAt) : '') }));
+        row.appendChild(info);
+        var act = el('div', { class: 'asg-lib-act' });
+        if (rec.video) act.appendChild(el('a', { class: 'asg-btn asg-btn-ghost', href: URL.createObjectURL(rec.video), download: 'short-' + rec.id + '.' + (rec.ext || 'mp4'), text: 'Download' }));
+        var xb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Delete' });
+        xb.addEventListener('click', function () {
+          Promise.all([dbDel('media', rec.id), dbDel('parts', rec.id)]).then(function () { clearMediaIds([rec.id]); rerenderLater(host); if (state.step === 'export') renderExportMedia(); });
+        });
+        act.appendChild(xb); row.appendChild(act); listBox.appendChild(row);
+      });
+      var extra = parts.reduce(function (a, p) { return a + sizeOfRec(p); }, 0);
+      var foot = el('div', { class: 'asg-lib-row' });
+      foot.appendChild(el('div', {}, [el('b', { text: 'Working data' }), el('small', { text: fmtMB(extra) + ' of voice and render pieces kept to resume a video. Safe to clear when no video is being made.' })]));
+      var cb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Clear' });
+      cb.addEventListener('click', function () { if (vidBusy) { toast('A video is being made. Wait until it finishes.', 'error'); return; } dbClear('parts').then(function () { rerenderLater(host); }); });
+      foot.appendChild(cb); listBox.appendChild(foot);
+      if (media.length > 1) {
+        var all = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Delete all ' + media.length + ' videos' });
+        all.addEventListener('click', function () {
+          if (vidBusy) { toast('A video is being made. Wait until it finishes.', 'error'); return; }
+          if (!confirm('Delete all ' + media.length + ' stored videos from this browser? Download any you want first. This cannot be undone.')) return;
+          var ids = media.map(function (m) { return m.id; });
+          Promise.all([dbClear('media'), dbClear('parts')]).then(function () { clearMediaIds(ids); rerenderLater(host); if (state.step === 'export') renderExportMedia(); toast('Stored videos deleted.', 'success'); });
+        });
+        listBox.appendChild(el('div', { style: 'margin-top:10px;' }, [all]));
+      }
+    });
+  }
+  function renderLibraryHost() {
+    var mh = $('#asg-export-media'); if (!mh) return;
+    var h = document.getElementById('asg-library-host');
+    if (!h) { h = el('div', { id: 'asg-library-host' }); mh.parentNode.insertBefore(h, mh.nextSibling); }
+    renderSavedWork(h);
+  }
+  function addSavedTab() {
+    var tabs = $$('.asg-set-tab'), body = $('.asg-drawer-body');
+    if (!tabs.length || !body || document.getElementById('asg-set-saved-tab')) return;
+    var tb = tabs[0].cloneNode(false); tb.id = 'asg-set-saved-tab'; tb.dataset.tab = 'saved'; tb.textContent = 'Saved work'; tb.classList.remove('is-active'); tb.setAttribute('aria-selected', 'false');
+    tabs[tabs.length - 1].parentNode.appendChild(tb);
+    var sec = document.createElement('div'); sec.className = 'asg-set-sec'; sec.dataset.tab = 'saved'; sec.id = 'asg-set-saved'; sec.hidden = true; body.appendChild(sec);
+    tb.addEventListener('click', function () {
+      $$('.asg-set-tab').forEach(function (x) { x.classList.toggle('is-active', x === tb); x.setAttribute('aria-selected', String(x === tb)); });
+      $$('.asg-set-sec').forEach(function (s) { s.hidden = s !== sec; });
+      body.scrollTop = 0; renderSavedWork(sec);
     });
   }
 
   function bind() {
     $$('.asg-step').forEach(function (s) { s.addEventListener('click', function () { if (!s.disabled) setStep(s.dataset.step); }); });
+    // The Publish step is gone from this version (the page markup still carries it, so it is hidden); number the rest again.
+    (function () { var n = 0; $$('.asg-step').forEach(function (s) { if (s.dataset.step === 'publish') return; n++; var f = s.firstElementChild; if (f && /^\d+$/.test(String(f.textContent).trim())) f.textContent = String(n); }); })();
     $('.asg-privacy-toggle').addEventListener('click', function () { var d = $('.asg-privacy-drawer'); d.hidden = !d.hidden; });
     $$('.asg-mode-card').forEach(function (card) {
       card.addEventListener('click', function () {
@@ -6534,7 +7137,11 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     $('#asg-continue-scripts').addEventListener('click', function () {
       var n = Object.keys(state.selectedStoryIds).length;
       if (!n) { toast('Tick at least one story first.', 'error'); return; }
-      setStep(n > 1 ? 'consolidate' : 'generate');
+      var multi = n > 1 ? groupsFor(selectedList()).filter(function (g) { return g.length > 1; }) : [];
+      if (!multi.length) { setStep('generate'); return; }
+      var todo = multi.filter(function (g) { return !consFor(g); });
+      setStep('consolidate');
+      if (todo.length && !consBusy) { consThen = true; runConsolidation(todo); }
     });
     var cn = $('#asg-cons-next'); if (cn) cn.addEventListener('click', function () { if (consBusy) { consThen = true; paintConsProg(); toast('Still consolidating. Generate opens when it is done.', ''); return; } setStep('generate'); });
     var cs = $('#asg-cons-stop'); if (cs) cs.addEventListener('click', function () { consStop = true; consThen = false; cs.disabled = true; setTimeout(function () { cs.disabled = false; }, 1500); toast('Stopping after the current group…', ''); });
@@ -6547,8 +7154,8 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     $('#asg-back-generate').addEventListener('click', function () { setStep('generate'); });
     $('#asg-continue-video').addEventListener('click', function () { setStep('video'); });
     $('#asg-back-review').addEventListener('click', function () { setStep('scripts'); });
-    $('#asg-continue-export').addEventListener('click', function () { setStep('publish'); });
-    $('#asg-pub-skip').addEventListener('click', function () { renderExport(); setStep('export'); });
+    $('#asg-continue-export').addEventListener('click', function () { renderExport(); setStep('export'); });
+    var pubSkip = $('#asg-pub-skip'); if (pubSkip) pubSkip.addEventListener('click', function () { renderExport(); setStep('export'); });
     $('#asg-back-video').addEventListener('click', function () { setStep('video'); });
     $('#asg-export-json').addEventListener('click', function () {
       mediaIndex().then(function (idx) { download('autonom-ai-shorts.json', JSON.stringify(buildPayload(idx), null, 2), 'application/json'); toast('JSON downloaded', 'success'); });
@@ -6563,7 +7170,8 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       copyText(txt).then(function () { toast('Copied all', 'success'); });
     });
     $('#asg-restart').addEventListener('click', function () {
-      if (!confirm('Start over?\n\nThis clears the current stories and scripts so you can begin a new run. Your profile and API keys stay. Videos you already made stay saved in this browser.')) return;
+      if (!confirm('Start over?\n\nYour scripts are saved first (Settings > Saved work) so you can open them again. The current stories are cleared. Your profile and API keys stay. Videos you already made stay stored in this browser until you delete them there.')) return;
+      var savedN = goodScripts().length; if (savedN) archiveScripts('Start over');
       state.scripts = []; state.stories = []; state.selectedStoryIds = {}; state.consGroups = []; state.consRes = {};
       persistScripts(); setStep('channel');
     });
@@ -6651,6 +7259,23 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       renderProfile(); updateStepAvailability();
       if (state.scripts.length) renderScripts();
     }
+    (function () {
+      var acts = $('.asg-topbar-actions'), sub = $('.asg-brand-sub');
+      if (sub && !$('.asg-ver')) sub.parentNode.appendChild(el('small', { class: 'asg-ver', style: 'margin-left:8px;opacity:.55;font-size:11px;', text: 'v' + VERSION }));
+      if (acts && !$('#asg-top-saved')) {
+        var tb = el('button', { type: 'button', class: 'asg-btn-pill', id: 'asg-top-saved', title: 'Earlier scripts, videos and their post texts' });
+        tb.appendChild(el('span', { class: 'asg-pill-k', text: 'Saved work' })); tb.appendChild(document.createTextNode(' '));
+        var cnt = el('span', { class: 'asg-pill-name', id: 'asg-top-saved-n', text: '' }); tb.appendChild(cnt); tb.appendChild(el('span', { 'aria-hidden': 'true', text: ' ▾' }));
+        tb.addEventListener('click', function () { openSettings(); var t = document.getElementById('asg-set-saved-tab'); if (t) t.click(); });
+        acts.insertBefore(tb, acts.firstChild);
+      }
+    })();
+    libInit().then(function () {
+      // If the browser refused to keep the current scripts (storage full), bring back the safety copy.
+      if (state.profile && !state.scripts.length) return dbGet('library', '_current_' + scriptsKey()).then(function (r) {
+        if (r && r.scripts && r.scripts.length && !state.scripts.length) { state.scripts = r.scripts; renderScripts(); updateStepAvailability(); toast('Restored ' + r.scripts.length + ' script' + (r.scripts.length === 1 ? '' : 's') + ' from this browser.', 'success'); }
+      });
+    }).catch(function () {});
     LOG('ready v' + VERSION + (window.AUTONOM_ASG && window.AUTONOM_ASG.articleEndpoint ? ' · article endpoint on' : ' · article endpoint OFF (headline-only)'));
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
