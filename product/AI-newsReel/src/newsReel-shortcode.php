@@ -1,12 +1,12 @@
 /**
  * Autonom Newsreel — Shortcode
  * Shortcode: [autonom_newsreel]  (the old [autonom_ai_shorts_generator] still works)
- * v1.28.3
+ * v1.39.0
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! defined( 'AUTONOM_ASG_VERSION' ) ) {
-    define( 'AUTONOM_ASG_VERSION', '1.28.3' );
+    define( 'AUTONOM_ASG_VERSION', '1.39.0' );
 }
 
 /**
@@ -42,10 +42,33 @@ function autonom_asg_asset_ver( $file ) {
 /**
  * Register assets. Loaded only when the shortcode is present.
  */
+function autonom_asg_pick_asset( $candidates ) {
+    $base = autonom_asg_assets_url();
+    $up   = wp_get_upload_dir();
+    $best = $candidates[0];
+    $time = -1;
+    // Several copies can sit in the folder after an upgrade. Use the most recently uploaded one, not the first by name.
+    foreach ( $candidates as $file ) {
+        if ( ! empty( $up['baseurl'] ) && strpos( $base, $up['baseurl'] ) === 0 ) {
+            $path = $up['basedir'] . substr( $base, strlen( $up['baseurl'] ) ) . $file;
+        } else {
+            $path = plugin_dir_path( __FILE__ ) . $file;
+        }
+        if ( is_readable( $path ) ) {
+            $m = (int) @filemtime( $path );
+            if ( $m > $time ) { $time = $m; $best = $file; }
+        }
+    }
+    return $best;
+}
+
 function autonom_asg_register_assets() {
     $base = autonom_asg_assets_url();
-    wp_register_style( 'autonom-asg-tool', $base . 'ai-shorts-generator-tool-style.css', array(), autonom_asg_asset_ver( 'ai-shorts-generator-tool-style.css' ) );
-    wp_register_script( 'autonom-asg-backend', $base . 'ai-shorts-generator-backend.js', array(), autonom_asg_asset_ver( 'ai-shorts-generator-backend.js' ), true );
+    // Newest file name first, the older name as a fallback, so an upgrade never breaks the page.
+    $css = autonom_asg_pick_asset( array( 'newsReel-style.css', 'ai-shorts-generator-tool-style.css' ) );
+    $js  = autonom_asg_pick_asset( array( 'newsReel-backend.js', 'ai-shorts-generator-backend.js' ) );
+    wp_register_style( 'autonom-asg-tool', $base . $css, array(), autonom_asg_asset_ver( $css ) );
+    wp_register_script( 'autonom-asg-backend', $base . $js, array(), autonom_asg_asset_ver( $js ), true );
 }
 add_action( 'wp_enqueue_scripts', 'autonom_asg_register_assets', 5 );
 
@@ -59,105 +82,6 @@ add_action( 'wp_enqueue_scripts', 'autonom_asg_register_assets', 5 );
  *  - per-IP and global rate limits, results cached for 6 hours
  *  - returns plain text only (no HTML is ever passed through)
  * ------------------------------------------------------------------ */
-
-/* ------------------------------------------------------------------
- * Publish relay (owner only).
- * The browser sends the finished video and the texts; this hosts the video at a
- * public, unguessable URL (Instagram and others fetch from a URL) and forwards the
- * job to the owner's own automation webhook (Make, n8n, Zapier, ...).
- * Only logged-in users who may upload files can use it, so visitors of the free
- * tool cannot push files to this server or fire the webhook.
- * ------------------------------------------------------------------ */
-function autonom_asg_can_publish() {
-    return is_user_logged_in() && current_user_can( 'upload_files' );
-}
-
-function autonom_asg_publish_dir() {
-    $up = wp_get_upload_dir();
-    if ( ! empty( $up['error'] ) ) return null;
-    $dir = trailingslashit( $up['basedir'] ) . 'autonom-newsreel';
-    if ( ! file_exists( $dir ) ) {
-        wp_mkdir_p( $dir );
-        @file_put_contents( $dir . '/index.html', '' );
-    }
-    return array( 'dir' => $dir, 'url' => trailingslashit( $up['baseurl'] ) . 'autonom-newsreel' );
-}
-
-/** Videos only need to live until the automation has fetched them. */
-function autonom_asg_publish_cleanup( $dir, $max_age = 259200 ) {
-    foreach ( (array) glob( trailingslashit( $dir ) . '*.{mp4,webm,mov}', GLOB_BRACE ) as $f ) {
-        if ( is_file( $f ) && ( time() - filemtime( $f ) ) > $max_age ) @unlink( $f );
-    }
-}
-
-function autonom_asg_rest_publish( WP_REST_Request $req ) {
-    $meta = json_decode( (string) $req->get_param( 'meta' ), true );
-    if ( ! is_array( $meta ) ) {
-        return new WP_REST_Response( array( 'ok' => false, 'error' => 'bad_request' ), 400 );
-    }
-    $hook = isset( $meta['webhook'] ) ? esc_url_raw( trim( (string) $meta['webhook'] ) ) : '';
-    if ( ! $hook || strpos( $hook, 'https://' ) !== 0 || ! wp_http_validate_url( $hook ) ) {
-        return new WP_REST_Response( array( 'ok' => false, 'error' => 'webhook_invalid', 'message' => 'The webhook address must be a public https URL.' ), 400 );
-    }
-    $event = array(
-        'event'        => ! empty( $meta['test'] ) ? 'newsreel.test' : 'newsreel.publish',
-        'sent_at'      => gmdate( 'c' ),
-        'profile'      => isset( $meta['profile'] ) ? $meta['profile'] : null,
-        'platforms'    => isset( $meta['platforms'] ) && is_array( $meta['platforms'] ) ? array_values( $meta['platforms'] ) : array(),
-        'scheduled_at' => isset( $meta['scheduled_at'] ) ? (string) $meta['scheduled_at'] : '',
-        'scheduled_local' => isset( $meta['scheduled_local'] ) ? (string) $meta['scheduled_local'] : '',
-        'timezone'     => isset( $meta['timezone'] ) ? (string) $meta['timezone'] : '',
-        'title'        => isset( $meta['title'] ) ? (string) $meta['title'] : '',
-        'description'  => isset( $meta['description'] ) ? (string) $meta['description'] : '',
-        'tags'         => isset( $meta['tags'] ) && is_array( $meta['tags'] ) ? $meta['tags'] : array(),
-        'posts'        => isset( $meta['posts'] ) && is_array( $meta['posts'] ) ? $meta['posts'] : new stdClass(),
-        'pinned_comment' => isset( $meta['pinned_comment'] ) ? (string) $meta['pinned_comment'] : '',
-        'sources'      => isset( $meta['sources'] ) && is_array( $meta['sources'] ) ? $meta['sources'] : array(),
-        'duration_sec' => isset( $meta['duration_sec'] ) ? (int) $meta['duration_sec'] : 0,
-        'captions_srt' => isset( $meta['captions_srt'] ) ? (string) $meta['captions_srt'] : '',
-        'video_url'    => '',
-        'video_mime'   => '',
-    );
-
-    $files = $req->get_file_params();
-    if ( empty( $event['event'] ) || ( $event['event'] === 'newsreel.publish' && empty( $files['video'] ) ) ) {
-        return new WP_REST_Response( array( 'ok' => false, 'error' => 'no_video', 'message' => 'No video file was received.' ), 400 );
-    }
-    if ( ! empty( $files['video'] ) ) {
-        $f = $files['video'];
-        if ( ! empty( $f['error'] ) || empty( $f['tmp_name'] ) || ! is_uploaded_file( $f['tmp_name'] ) ) {
-            $why = ( isset( $f['error'] ) && (int) $f['error'] === UPLOAD_ERR_INI_SIZE ) ? 'The video is larger than this server allows (upload_max_filesize / post_max_size).' : 'The video upload failed.';
-            return new WP_REST_Response( array( 'ok' => false, 'error' => 'upload_failed', 'message' => $why ), 413 );
-        }
-        $ext = strtolower( pathinfo( (string) $f['name'], PATHINFO_EXTENSION ) );
-        if ( ! in_array( $ext, array( 'mp4', 'webm', 'mov' ), true ) ) {
-            return new WP_REST_Response( array( 'ok' => false, 'error' => 'bad_type', 'message' => 'Only mp4, webm or mov videos are accepted.' ), 415 );
-        }
-        $loc = autonom_asg_publish_dir();
-        if ( ! $loc ) return new WP_REST_Response( array( 'ok' => false, 'error' => 'no_storage', 'message' => 'The uploads folder is not writable.' ), 500 );
-        autonom_asg_publish_cleanup( $loc['dir'] );
-        $name = bin2hex( random_bytes( 12 ) ) . '.' . $ext;
-        if ( ! @move_uploaded_file( $f['tmp_name'], trailingslashit( $loc['dir'] ) . $name ) ) {
-            return new WP_REST_Response( array( 'ok' => false, 'error' => 'no_storage', 'message' => 'Could not store the video.' ), 500 );
-        }
-        $event['video_url']  = trailingslashit( $loc['url'] ) . $name;
-        $event['video_mime'] = $ext === 'mp4' ? 'video/mp4' : ( $ext === 'webm' ? 'video/webm' : 'video/quicktime' );
-    }
-
-    $headers = array( 'Content-Type' => 'application/json', 'User-Agent' => 'Autonom-Newsreel/' . AUTONOM_ASG_VERSION );
-    if ( ! empty( $meta['secret'] ) ) $headers['X-Newsreel-Secret'] = (string) $meta['secret'];
-    $res = wp_safe_remote_post( $hook, array( 'timeout' => 25, 'headers' => $headers, 'body' => wp_json_encode( $event ) ) );
-    if ( is_wp_error( $res ) ) {
-        return new WP_REST_Response( array( 'ok' => false, 'error' => 'webhook_failed', 'message' => $res->get_error_message(), 'video_url' => $event['video_url'] ), 502 );
-    }
-    $code = (int) wp_remote_retrieve_response_code( $res );
-    return new WP_REST_Response( array(
-        'ok'             => $code >= 200 && $code < 300,
-        'webhook_status' => $code,
-        'webhook_reply'  => substr( (string) wp_remote_retrieve_body( $res ), 0, 300 ),
-        'video_url'      => $event['video_url'],
-    ), 200 );
-}
 
 function autonom_asg_register_rest() {
     register_rest_route( 'autonom-asg/v1', '/article', array(
@@ -188,11 +112,6 @@ function autonom_asg_register_rest() {
         'args'                => array(
             'u' => array( 'required' => true, 'type' => 'string' ),
         ),
-    ) );
-    register_rest_route( 'autonom-asg/v1', '/publish', array(
-        'methods'             => 'POST',
-        'callback'            => 'autonom_asg_rest_publish',
-        'permission_callback' => 'autonom_asg_can_publish',
     ) );
     register_rest_route( 'autonom-asg/v1', '/news', array(
         'methods'             => 'GET',
@@ -750,6 +669,34 @@ function autonom_asg_feed_registry() {
         array( 'id' => 'theverge',          'name' => 'The Verge',    'access' => 'open',      'url' => 'https://www.theverge.com/rss/index.xml' ),
         array( 'id' => 'breakingdefense',   'name' => 'Breaking Defense', 'access' => 'open',  'url' => 'https://breakingdefense.com/feed/' ),
         array( 'id' => 'nyt-world',         'name' => 'The New York Times', 'access' => 'metered', 'url' => 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml' ),
+        // Regional coverage (Asia, Africa, Latin America, Middle East). Addresses can change, so
+        // check /wp-json/autonom-asg/v1/feeds: the "stats" block shows which of these answered.
+        array( 'id' => 'bbc-africa',        'name' => 'BBC News',     'access' => 'open', 'url' => 'https://feeds.bbci.co.uk/news/world/africa/rss.xml' ),
+        array( 'id' => 'bbc-asia',          'name' => 'BBC News',     'access' => 'open', 'url' => 'https://feeds.bbci.co.uk/news/world/asia/rss.xml' ),
+        array( 'id' => 'bbc-latam',         'name' => 'BBC News',     'access' => 'open', 'url' => 'https://feeds.bbci.co.uk/news/world/latin_america/rss.xml' ),
+        array( 'id' => 'bbc-mideast',       'name' => 'BBC News',     'access' => 'open', 'url' => 'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml' ),
+        array( 'id' => 'guardian-africa',   'name' => 'The Guardian', 'access' => 'open', 'url' => 'https://www.theguardian.com/world/africa/rss' ),
+        array( 'id' => 'guardian-asia',     'name' => 'The Guardian', 'access' => 'open', 'url' => 'https://www.theguardian.com/world/asia-pacific/rss' ),
+        array( 'id' => 'guardian-americas', 'name' => 'The Guardian', 'access' => 'open', 'url' => 'https://www.theguardian.com/world/americas/rss' ),
+        array( 'id' => 'guardian-mideast',  'name' => 'The Guardian', 'access' => 'open', 'url' => 'https://www.theguardian.com/world/middleeast/rss' ),
+        array( 'id' => 'france24-africa',   'name' => 'France 24',    'access' => 'open', 'url' => 'https://www.france24.com/en/africa/rss' ),
+        array( 'id' => 'france24-asia',     'name' => 'France 24',    'access' => 'open', 'url' => 'https://www.france24.com/en/asia-pacific/rss' ),
+        array( 'id' => 'france24-americas', 'name' => 'France 24',    'access' => 'open', 'url' => 'https://www.france24.com/en/americas/rss' ),
+        array( 'id' => 'france24-mideast',  'name' => 'France 24',    'access' => 'open', 'url' => 'https://www.france24.com/en/middle-east/rss' ),
+        array( 'id' => 'dw-asia',           'name' => 'DW',           'access' => 'open', 'url' => 'https://rss.dw.com/rdf/rss-en-asia' ),
+        array( 'id' => 'dw-africa',         'name' => 'DW',           'access' => 'open', 'url' => 'https://rss.dw.com/rdf/rss-en-africa' ),
+        array( 'id' => 'dw-latam',          'name' => 'DW',           'access' => 'open', 'url' => 'https://rss.dw.com/rdf/rss-en-latam' ),
+        array( 'id' => 'dw-mideast',        'name' => 'DW',           'access' => 'open', 'url' => 'https://rss.dw.com/rdf/rss-en-mid-east' ),
+        array( 'id' => 'scmp-asia',         'name' => 'South China Morning Post', 'access' => 'open', 'url' => 'https://www.scmp.com/rss/91/feed' ),
+        array( 'id' => 'diplomat',          'name' => 'The Diplomat', 'access' => 'open', 'url' => 'https://thediplomat.com/feed/' ),
+        array( 'id' => 'straitstimes-asia', 'name' => 'The Straits Times', 'access' => 'open', 'url' => 'https://www.straitstimes.com/news/asia/rss.xml' ),
+        array( 'id' => 'hindu-world',       'name' => 'The Hindu',    'access' => 'open', 'url' => 'https://www.thehindu.com/news/international/feeder/default.rss' ),
+        array( 'id' => 'africanews',        'name' => 'Africanews',   'access' => 'open', 'url' => 'https://www.africanews.com/feed/rss' ),
+        array( 'id' => 'allafrica',         'name' => 'AllAfrica',    'access' => 'open', 'url' => 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf' ),
+        array( 'id' => 'mercopress',        'name' => 'MercoPress',   'access' => 'open', 'url' => 'https://en.mercopress.com/rss' ),
+        array( 'id' => 'batimes',           'name' => 'Buenos Aires Times', 'access' => 'open', 'url' => 'https://www.batimes.com.ar/feed' ),
+        array( 'id' => 'middleeasteye',     'name' => 'Middle East Eye', 'access' => 'open', 'url' => 'https://www.middleeasteye.net/rss' ),
+        array( 'id' => 'toi-mideast',       'name' => 'The Times of Israel', 'access' => 'open', 'url' => 'https://www.timesofisrael.com/feed/' ),
         array( 'id' => 'wsj-world',         'name' => 'The Wall Street Journal', 'access' => 'paywalled', 'url' => $dj . 'RSSWorldNews' ),
         array( 'id' => 'wsj-markets',       'name' => 'The Wall Street Journal', 'access' => 'paywalled', 'url' => $dj . 'RSSMarketsMain' ),
         array( 'id' => 'wsj-economy',       'name' => 'The Wall Street Journal', 'access' => 'paywalled', 'url' => $dj . 'socialeconomyfeed' ),
@@ -962,8 +909,6 @@ function autonom_asg_shortcode( $atts ) {
             'feedsEndpoint'   => esc_url_raw( rest_url( 'autonom-asg/v1/feeds' ) ),
             'llmEndpoint'     => esc_url_raw( rest_url( 'autonom-asg/v1/llm' ) ),
             'mediaEndpoint'   => esc_url_raw( rest_url( 'autonom-asg/v1/media' ) ),
-            'publishEndpoint' => esc_url_raw( rest_url( 'autonom-asg/v1/publish' ) ),
-            'canPublish'      => autonom_asg_can_publish(),
             'restNonce'       => wp_create_nonce( 'wp_rest' ),
         ) );
         $localized = true;
@@ -1316,6 +1261,19 @@ function autonom_asg_shortcode( $atts ) {
 @media (prefers-reduced-motion: reduce) {
   .asg-root *, .asg-root *::before, .asg-root *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Header on two rows: brand and controls on one line, steps on the next ---------- */
+@media (min-width: 900px) {
+  .asg-root .asg-topbar-inner { flex-wrap: nowrap; gap: 10px 14px; }
+  .asg-root .asg-topbar-actions { flex-wrap: nowrap; gap: 6px; min-width: 0; }
+  .asg-root .asg-keys-group { padding: 2px 3px 2px 3px; gap: 4px; }
+  .asg-root .asg-keys-group .asg-keys-title { display: none; }
+  .asg-root .asg-api-status { padding: 4px 8px; font-size: 11.5px; }
+  .asg-root .asg-btn-pill { padding: 6px 10px; font-size: 12.5px; white-space: nowrap; }
+  .asg-root .asg-ver { font-size: 10.5px; }
+  .asg-root .asg-topbar-actions .asg-pill-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (min-width: 900px) and (max-width: 1240px) { .asg-root .asg-priv-long { display: none; } }
 </style>
 <div class="asg-root">
 
@@ -1339,7 +1297,7 @@ function autonom_asg_shortcode( $atts ) {
     </button>
   </div>
   <button class="asg-btn-pill asg-privacy-toggle" type="button">
-    <span class="asg-privacy-dot"></span> Data &amp; privacy
+    <span class="asg-privacy-dot"></span> <span class="asg-priv-long">Data &amp; </span>privacy
   </button>
 </div>
 
@@ -1353,8 +1311,7 @@ function autonom_asg_shortcode( $atts ) {
         <button class="asg-step" data-step="generate" type="button" disabled><em>4</em><span>Generate</span></button>
         <button class="asg-step" data-step="scripts" type="button" disabled><em>5</em><span>Review</span></button>
         <button class="asg-step" data-step="video" type="button" disabled><em>6</em><span>Video</span></button>
-        <button class="asg-step" data-step="publish" type="button" disabled><em>7</em><span>Publish</span></button>
-        <button class="asg-step" data-step="export" type="button" disabled><em>8</em><span>Export</span></button>
+        <button class="asg-step" data-step="export" type="button" disabled><em>7</em><span>Export</span></button>
       </div>
     </nav>
 
@@ -1363,7 +1320,7 @@ function autonom_asg_shortcode( $atts ) {
         <h4>Data &amp; privacy</h4>
         <ul class="asg-privacy-list">
           <li><span class="asg-check">✓</span> Your profile, scripts and API keys are stored in this browser only (keys are saved unencrypted in local storage)</li>
-          <li><span class="asg-check">✓</span> No Autonom database and no accounts. The one thing this site can store is a video you hand to the site owner's own automation (Publish step), and it is deleted after 3 days</li>
+          <li><span class="asg-check">✓</span> No Autonom database and no accounts. Scripts, voices and videos stay in your browser (you can see and delete them under Settings → Saved work)</li>
           <li><span class="asg-check">✓</span> News searches and article pages (the story's own article and, for cross-checking, one or two other outlets' articles on the same event) are fetched by this website's own server and only cached briefly (10 min to 6 hours)</li>
           <li><span class="asg-check">✓</span> AI, YouTube and footage calls use your own API keys. They are sent from your browser straight to the provider. If a provider refuses calls from a browser (Groq, OpenRouter and NVIDIA sometimes do), the request is forwarded by this website's server for that call only. The server passes your key along and does not store or log it. Stock-footage downloads are relayed the same way.</li>
         </ul>
@@ -1371,7 +1328,7 @@ function autonom_asg_shortcode( $atts ) {
           <div><span>API calls</span><strong id="asg-stat-api">0</strong></div>
           <div><span>LLM calls</span><strong id="asg-stat-llm">0</strong></div>
         </div>
-        <p class="asg-privacy-note">Your server reads publisher RSS feeds (BBC, Al Jazeera, Guardian, DW, NPR, Sky, Euronews, CBC, NYT, WSJ), searches GDELT, Bing News and Google News, and reads the article pages of the stories you select. Your browser calls YouTube (googleapis.com) and Google Gemini, OpenAI or DeepSeek directly; requests to Groq and OpenRouter, and stock-footage downloads from Pixabay and Pexels, pass through your server, which forwards them without storing them. Only if the server search fails does your browser fall back to GDELT directly or to the public CORS proxies allorigins.win, codetabs.com and rss2json.com, which then see your search terms.</p>
+        <p class="asg-privacy-note">Your server reads publisher RSS feeds (BBC, Al Jazeera, Guardian, DW, NPR, Sky, France 24, Euronews, CBC, NYT, WSJ, and regional outlets across Asia, Africa, Latin America and the Middle East), searches GDELT, Bing News and Google News, and reads the article pages of the stories you select. Your browser calls YouTube (googleapis.com) and Google Gemini, OpenAI or DeepSeek directly; requests to Groq and OpenRouter, and stock-footage downloads from Pixabay and Pexels, pass through your server, which forwards them without storing them. Only if the server search fails does your browser fall back to GDELT directly or to the public CORS proxies allorigins.win, codetabs.com and rss2json.com, which then see your search terms.</p>
       </div>
     </div>
   </div>
@@ -1466,7 +1423,7 @@ function autonom_asg_shortcode( $atts ) {
   <section class="asg-panel" data-panel="feed" hidden>
     <header class="asg-panel-head">
       <h2>Scan live news</h2>
-      <p class="asg-lead">Autonom reads publisher feeds (BBC, Al Jazeera, Guardian, DW, NPR, Sky, Euronews, CBC, NYT, WSJ) and searches aggregators (GDELT, Bing News, Google News) for stories matching your profile's signals. Stories marked "readable" can be turned into scripts; paywalled and headline-only stories are for topic discovery.</p>
+      <p class="asg-lead">Autonom reads publisher feeds (BBC, Al Jazeera, Guardian, DW, NPR, Sky, France 24, Euronews, CBC, NYT, WSJ, and regional outlets across Asia, Africa, Latin America and the Middle East) and searches aggregators (GDELT, Bing News, Google News) for stories matching your profile's signals. Stories marked "readable" can be turned into scripts; paywalled and headline-only stories are for topic discovery.</p>
     </header>
 
     <div class="asg-actions">
@@ -1560,27 +1517,15 @@ function autonom_asg_shortcode( $atts ) {
     <div class="asg-actions">
       <button class="asg-btn asg-btn-ghost" id="asg-back-review" type="button">← Back to Review</button>
       <button class="asg-btn asg-btn-primary" id="asg-make-all" type="button">Make all videos</button>
-      <button class="asg-btn asg-btn-ghost" id="asg-continue-export" type="button">Continue to Publish →</button>
+      <button class="asg-btn asg-btn-ghost" id="asg-continue-export" type="button">Continue to Export →</button>
     </div>
   </section>
 
-  <!-- ============ STEP 6 · EXPORT ============ -->
-  <section class="asg-panel" data-panel="publish" hidden>
-    <header class="asg-panel-head">
-      <h2>Publish</h2>
-      <p class="asg-lead">A caption for each platform, ready to use. Post straight to Telegram or Mastodon, share the video from your phone, or open each platform's uploader with the caption already copied. Site owners can also hand everything to their own automation.</p>
-    </header>
-    <div id="asg-pub-setup"></div>
-    <div id="asg-pub-list"></div>
-    <div class="asg-actions">
-      <button class="asg-btn asg-btn-ghost" id="asg-pub-skip" type="button">Skip to Export</button>
-    </div>
-  </section>
-
+  <!-- ============ STEP 7 · EXPORT ============ -->
   <section class="asg-panel" data-panel="export" hidden>
     <header class="asg-panel-head">
       <h2>Export</h2>
-      <p class="asg-lead">Take your scripts, voice-overs, captions and videos anywhere. Autonom only sends something out when you press Send in the Publish step.</p>
+      <p class="asg-lead">Take your scripts, voice-overs, captions and videos anywhere. Nothing leaves your browser unless you download or copy it.</p>
     </header>
 
     <div class="asg-export-grid">
