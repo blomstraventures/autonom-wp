@@ -1,12 +1,12 @@
 /**
  * Autonom Newsreel — Shortcode
  * Shortcode: [autonom_newsreel]  (the old [autonom_ai_shorts_generator] still works)
- * v1.39.0
+ * v1.40.0
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! defined( 'AUTONOM_ASG_VERSION' ) ) {
-    define( 'AUTONOM_ASG_VERSION', '1.39.0' );
+    define( 'AUTONOM_ASG_VERSION', '1.40.0' );
 }
 
 /**
