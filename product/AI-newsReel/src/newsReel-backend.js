@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.41.0';
+  var VERSION = '1.41.1';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -6183,7 +6183,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
   }
   var lastCover = null;
   function renderVideo(tl, opts, onProgress, canvasHost, run) {
-    var coverDone = false; lastCover = null;
+    lastCover = null;
     var mimes = pickMimes();
     if (!mimes) return Promise.reject(new Error('This browser cannot record video. Use a current Chrome, Edge or Safari.'));
     var i = 0, lastErr = null;
@@ -6208,7 +6208,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       src.buffer = buf; src.connect(dest);
       var vstream = canvas.captureStream(30);
       var stream = new MediaStream(vstream.getVideoTracks().concat(dest.stream.getAudioTracks()));
-      var rec, chunks = [], finished = false, cur = -1, t0 = 0, stopped = false;
+      var rec, chunks = [], finished = false, cur = -1, t0 = 0, stopped = false, coverDone = false, frameErr = 0;
       var onVis = function () { if (document.hidden && !stopped) toast('Keep this tab visible while the video records. Switching away freezes the picture.', 'error'); };
       var cleanup = function () {
         try { document.removeEventListener('visibilitychange', onVis); } catch (e) {}
@@ -6232,6 +6232,10 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       function chunkAt(now) { for (var i = 0; i < tl.chunks.length; i++) if (now >= tl.chunks[i].start && now < tl.chunks[i].end) return tl.chunks[i]; return null; }
       function playClip(s) { if (s && s.video && s.video.paused) { try { var p = s.video.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} } }
       function frame() {
+        try { frameBody(); }
+        catch (eF) { if (!frameErr++) LOG('frame error (the loop keeps going): ' + (eF && eF.message)); if (!stopped) requestAnimationFrame(frame); }
+      }
+      function frameBody() {
         if (stopped) return;
         var now = actx.currentTime - t0;
         if (now >= tl.total) { stopped = true; try { rec.stop(); } catch (e) { rec.onstop(); } return; }
