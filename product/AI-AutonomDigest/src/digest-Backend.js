@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.1.2';
+  var VERSION = '1.2.2';
   var SIMPLE = true;   // v1.1: one draft at a time, daily bulletin of 3 to 4 sections; pool, plan and split are retired
   if (window.__autonomDGSLoaded) return;
   window.__autonomDGSLoaded = true;
@@ -2281,6 +2281,7 @@
     });
   }
   function afterDigestSwitch(step) {
+    try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (eb) {}
     state.selectedStoryIds = {}; cluBusy = outBusy = wrBusy = false;
     renderStories(); updateStepAvailability(); updateLibPill(); renderLib();
     setStep(step);
@@ -2548,7 +2549,17 @@
     if (L.length && unmatched / L.length > 0.5) hints.push('Over half the stories matched none of your topics. They came in through search only; tighten or add signals.');
     if (hints.length) {
       var hb = el('div', { class: 'dgs-fo-hints' }); hb.appendChild(el('strong', { text: 'What you could change' }));
-      var ul = el('ul'); hints.slice(0, 4).forEach(function (h) { ul.appendChild(el('li', { text: h })); }); hb.appendChild(ul); box.appendChild(hb);
+      var ul = el('ul'); hints.slice(0, 4).forEach(function (h) { ul.appendChild(el('li', { text: h })); }); hb.appendChild(ul);
+      var dead = counts.filter(function (c) { return c.n === 0; }).map(function (c) { return c.name; });
+      if (dead.length && state.profile) {
+        var rb = el('button', { type: 'button', class: 'dgs-btn dgs-btn-ghost', text: 'Remove the ' + dead.length + ' topic' + (dead.length === 1 ? '' : 's') + ' that found nothing' });
+        rb.addEventListener('click', function () {
+          state.profile.topics = (state.profile.topics || []).filter(function (t) { return dead.indexOf(t.name) === -1; });
+          persistProfile(); hb.remove(); toast('Removed: ' + dead.join(', ') + '. Scan the feed again. Add signals (specific words) to a topic before adding it back.', 'success');
+        });
+        hb.appendChild(rb);
+      }
+      box.appendChild(hb);
     }
     var act = el('div', { class: 'dgs-fo-actions' });
     var b1 = el('button', { type: 'button', class: 'dgs-btn dgs-btn-ghost', text: 'Edit profile and rescan' });
@@ -2616,6 +2627,7 @@
       n ? '- Make about ' + n + ' sections (fewer only if there are fewer real threads). Prefer 2 to 6 stories per section; a strong single story may stand alone.' : '- Choose the number of sections yourself: one per real thread, never padding and never merging unrelated threads. Prefer 2 to 6 stories per section; a strong single story may stand alone.',
       n ? '- Put every section in digest 1.' : '- DIGESTS: a digest is ONE article about ONE theme, with 2 to 4 sections. If the stories span unrelated themes, split them into separate digests (at most 4). Each digest needs a theme a reader could search for months from now, such as "Oil prices and the Iran conflict", not today\'s event. If everything fits one theme, return one digest. Never force unrelated stories into one article. Give each section a "digest" number.',
       '- An event covered by three or more outlets is the day\'s story: it must be a section of its own, never left out. Leave out only stories that fit no thread, or that repeat a story already placed.',
+      '- IMPACT FIRST. A digest is for what changed the picture: breaking news and stories with consequences for security, war and diplomacy, energy, trade, money, technology or elections. Soft stories (culture, film, art, sport, awards, celebrity, royals, human interest, local events) and low-consequence items go under "left_out", even when several outlets carry them. When there are more threads than fit, keep the ones with the biggest consequences.',
       '- Each story label appears in at most one section. Put weak duplicates and stories that fit no thread under "left_out".',
       '- Use only the labels shown. Never invent a story.',
       '- "title": a plain working title for the thread, at most 8 words, no clickbait.',
@@ -2664,6 +2676,7 @@
     });
   }
   var BULLETIN_MAX = 4;
+  var SOFT_RX = /\b(festival|documentary|marathon|award|awards|wins best|van gogh|art market|concert|celebrity|prince|princess|royal|oscars?|grammy|football|soccer|olympic|tennis|recipe|fashion)\b/i;
   function runClustering() {
     var list = selectedList().filter(function (s) { return !unusableOf(s); });
     if (!list.length) { toast('Select stories in the Feed first.', 'error'); return Promise.resolve(false); }
@@ -2689,7 +2702,7 @@
       var secs = res.sections.slice(), dropped = [];
       if (SIMPLE && d.sectionsAuto && secs.length > BULLETIN_MAX) {
         var srcOf = {}; list.forEach(function (x) { srcOf[x.id] = x.source || x.id; });
-        secs.forEach(function (c) { var o = {}; c.stories.forEach(function (i) { o[srcOf[i] || i] = 1; }); c.rank = Object.keys(o).length * 10 + c.stories.length; });
+        secs.forEach(function (c) { var o = {}; c.stories.forEach(function (i) { o[srcOf[i] || i] = 1; }); c.rank = Object.keys(o).length * 10 + c.stories.length; var soft = c.stories.every(function (i) { return SOFT_RX.test(list.filter(function (x) { return x.id === i; }).map(function (x) { return x.title; }).join(' ')); }); if (soft) c.rank -= 40; });
         var order = secs.slice().sort(function (a, b) { return b.rank - a.rank; }), top = order.slice(0, BULLETIN_MAX);
         order.slice(BULLETIN_MAX).forEach(function (c) { dropped = dropped.concat(c.stories); });
         secs = secs.filter(function (c) { return top.indexOf(c) !== -1; });
@@ -2698,7 +2711,7 @@
       d.themes = []; d.themeTitle = ''; d.themeAngle = '';
       d.left = (res.left || []).concat(dropped); d.how = how; d.outline = null; d.draft = Object.keys(keptDraft).length ? { sections: keptDraft, frame: null } : null; d.review = null;
       digestSave(); renderCluster(); updateStepAvailability();
-      toast((how === 'ai' ? 'Grouped ' : 'Grouped (no AI) ') + list.length + ' stories into ' + d.clusters.length + ' sections.' + (d.left.length && SIMPLE ? ' The strongest ' + d.clusters.length + ' threads made the bulletin; ' + d.left.length + ' stories stay in the Feed for tomorrow.' : '') + (hadOutline ? ' The outline was reset.' : ''), 'success');
+      toast((how === 'ai' ? 'Grouped ' : 'Grouped (no AI) ') + list.length + ' stories into ' + d.clusters.length + ' sections.' + (d.left.length && SIMPLE ? ' The strongest ' + d.clusters.length + ' threads made the bulletin; ' + d.left.length + ' stories are kept: press "Make a second digest" under the left-out list.' : '') + (hadOutline ? ' The outline was reset.' : ''), 'success');
       return true;
     });
   }
@@ -2752,6 +2765,7 @@
       'WRITE (strict JSON, no other text):',
       '- "headline": at most 70 characters, the lasting question or thesis, words a reader could search.',
       '- "summary": our verdict, at most 90 words, answer-first, taking a position.',
+      kpRule('frame'),
       '- "opening": 1 to 2 sentences that open the piece.',
       '- "arguments": 2 or 3 objects {"heading": at most 8 words, "body": 220 to 320 words in 3 paragraphs separated by a blank line (the claim; the mechanism and the strongest counterargument; what would change our mind, with a concrete signal), "from": [daily numbers used]}.',
       '- "scorecard": up to 5 objects {"daily": number, "read": our earlier read in one plain sentence, "status": "held" or "weakened" or "still open", "why": one sentence}. Judge a read only from what LATER dailies in the material show; if nothing bears on it, "still open". Never call a read held without evidence in the material.',
@@ -3055,7 +3069,10 @@
       lc.appendChild(el('div', { class: 'dgs-clu-head' }, [el('strong', { text: 'Left out (' + d.left.length + ')' }), el('span', { class: 'dgs-hint', text: 'Not used in the article. Move any of these into a section.' })]));
       var lu = el('ul', { class: 'dgs-clu-stories' });
       d.left.forEach(function (sid) { var r = storyRow(sid, '__left'); if (r) lu.appendChild(r); });
-      lc.appendChild(lu); box.appendChild(lc);
+      lc.appendChild(lu);
+      var nb = el('button', { type: 'button', class: 'dgs-btn dgs-btn-primary', text: 'Make a second digest from these ' + d.left.length + ' stories' });
+      nb.addEventListener('click', nextFromLeft);
+      lc.appendChild(el('p', { class: 'dgs-hint', text: 'These stories did not fit the first digest. A second digest groups them on their own, so each article stays focused and nothing important is lost.' })); lc.appendChild(nb); box.appendChild(lc);
     }
   }
 
@@ -3306,7 +3323,9 @@
   var STYLE_RULES = [
     'WRITE LIKE A HUMAN EDITOR, NOT A MODEL:',
     '- Plain, specific sentences. Name who did what, with the number or place from the sources. Prefer a concrete detail to a general statement.',
-    '- Vary sentence length. Some short. Some longer. No filler openers and no summary closer at the end of the section.',
+    '- Short sentences. Most are 8 to 16 words, and none is longer than 20 words. One idea per sentence. If a sentence needs a second comma or a "which" clause, make it two sentences. A few very short ones are good. No filler openers and no summary closer at the end of the section.',
+    '- Everyday words. Say "use" not "utilise", "start" not "commence", "after" not "subsequently", "show" not "demonstrate". Prefer active verbs ("Moscow rejected the offer", not "the offer was rejected by Moscow").',
+    '- Paragraphs are 2 or 3 sentences and never more than 90 words. Join ideas with plain linking words (but, so, because, then, meanwhile, as a result, for example) in about a third of the sentences.',
     '- No em dashes. No "not X, but Y" framing. No lists of three. No trailing "-ing" clause that claims significance (highlighting, underscoring, reflecting, marking, shaping).',
     '- Never use: pivotal, landscape, testament, underscores, crucial, vital role, key role, delve, tapestry, navigate, realm, multifaceted, robust, seamless, leverage, shed light, paves the way, poised to, watershed, "it is worth noting".',
     '- Attribute by outlet name ("Reuters reports", "according to the BBC"), never "experts say" or "observers note".',
@@ -3321,6 +3340,22 @@
     if (readLenMode() === 'short') return '"reading" is a separate short box, 1 to 3 sentences and at most 60 words, that applies the lens to those facts, written as reasoning, never as fact or prediction.' + open + ' If there is nothing solid to add, set "reading" to an empty string.';
     return '"reading" is "Our read": the publication\'s own commentary, and the reason people read it instead of the wire. 200 to 300 words in 2 or 3 short paragraphs, separated by a blank line. Take a position and argue it, in the voice above. Cover, in this order and without labels: first, what the facts mean and who gains or loses; second, the strongest alternative explanation or counterargument and why it is weaker, or where it could be right; third, the specific evidence that would show this read is wrong. Make it last: work one plain sentence on the lasting mechanism (how this kind of pressure normally works, in a term a reader might search for) into the argument, so it still makes sense in six months. Do not introduce it with a label such as \"The lasting mechanism is\" or \"The mechanism at work is\", and phrase it differently in every section. Every place, organisation, person and number you mention in the reading must also appear in the SOURCES, and do not add descriptions of them that the SOURCES do not support (for example no credit-rating labels, no extra regions or shipping routes). Argue only from the facts in the SOURCES: add no new fact, name, number or quote. Make it plain in the wording that this is analysis (likely, points to, we think), never reported fact; a prediction only as "if X, then Y". The lens for this section is "' + lens.label + '".' + open;
   }
+
+  // The phrase the article is meant to rank for. Chosen before writing so the text really contains it.
+  function plannedKeyphrase() {
+    var rv = dReview(), f = rv && rv.seo && rv.seo.focus; if (f) return String(f).toLowerCase();
+    var h = (state.digest && state.digest.outline && state.digest.outline.headline) || ''; var w = tokenize(h.split(':')[0]);
+    return w.slice(-3).join(' ');
+  }
+  function kpRule(where) {
+    var k = plannedKeyphrase(); if (!k) return '';
+    return where === 'frame' ? '- The "summary" and the "opening" must each contain the exact words "' + k + '" once, used naturally (this is the phrase the article should be found for).' : '- Search: use the exact words "' + k + '" once in the first paragraph of this section where it reads naturally, and again later only if it fits. Never force it.';
+  }
+  function bestKeyphrase(cands) {
+    var dr = wrDraft(), body = (includedSections().map(function (x) { var r = dr.sections[x.c.id]; return r ? r.paras.join(' ') + ' ' + (r.reading || '') : ''; }).join(' ') + ' ' + ((dr.frame && dr.frame.summary) || '') + ' ' + ((dr.frame && dr.frame.opening) || '')).toLowerCase();
+    var best = null, bn = -1; cands.forEach(function (c) { c = String(c || '').toLowerCase().trim(); if (!c) return; var n = body.split(c).length - 1; if (n > bn) { bn = n; best = c; } });
+    return { phrase: best, n: bn };
+  }
   function sectionPrompt(c, s, srcs, words, thin) {
     var p = state.profile || {}, lens = dLens(s.lens);
     var lines = [
@@ -3332,6 +3367,7 @@
       'LENS: ' + lens.label + '. ' + lens.hint,
       thin ? 'LENGTH: the sources are thin. Write ONE short paragraph of 35 to 70 words with only what they state. Set "reading" to an empty string.' : 'LENGTH: the reported account ("paragraphs") is about ' + (readLenMode() === 'bulletin' ? 100 : Math.min(words, 170)) + ' words in ' + (readLenMode() === 'bulletin' ? '1 or 2' : '2 or 3') + ' paragraphs, only the facts the reading needs. The weight of the section is in "reading".',
       'STRUCTURE: "paragraphs" is the reported account only: facts, numbers and quotes from the sources, each attributed. Put no speculation in it. ' + readSpec(thin, lens),
+      kpRule('section'),
       '', 'FACT RULES (strict):',
       '- Every fact, number, name, date and quote must come from the SOURCES below. If it is not there, leave it out.',
       '- Do not add background from memory, except a pattern from before when the lens is "A pattern from before" and the case is well established; then say plainly it is from outside the sources. Use only widely documented history from before 2024, and never state anything about who currently holds office or about recent events that the SOURCES do not report.',
@@ -3357,7 +3393,7 @@
     var lines = ['You are the editor of "' + (p.name || 'a publication') + '". Below are the written sections of a digest article. Write the framing parts from them.', THINK,  '', 'VOICE:'].concat(dnaText(p).split('\n'), ['', 'HEADLINE: ' + o.headline, 'PLANNED OPENING IDEA: ' + (o.opening || '(none)'), '', 'SECTIONS:']);
     secs.forEach(function (s, i) { lines.push('## ' + s.heading + ' (' + dLens(s.lens).label + ')\n' + s.text); });
     lines.push('', 'WRITE:',
-      '- "summary": our verdict, 2 to 3 sentences and at most 90 words. The first sentence names the lasting subject plainly (the words a reader would search) and states what this means. Then the one or two facts that carry it and what to expect over the coming months. Take a position. Do not list every section or every outlet. Keep each number with its own subject (never merge two figures into one claim). This sits at the top of the article, so a search engine or an AI assistant can quote it on its own.',
+      '- "summary": our verdict, 2 to 3 sentences and at most 90 words and no sentence longer than 20 words. The first sentence names the lasting subject plainly (the words a reader would search) and states what this means. Then the one or two facts that carry it and what to expect over the coming months. Take a position. Do not list every section or every outlet. Keep each number with its own subject (never merge two figures into one claim). This sits at the top of the article, so a search engine or an AI assistant can quote it on its own.',
       '- "opening": 1 to 2 sentences that open the piece with the planned idea, in the voice. Do not repeat the summary.',
       o.watch ? '- "watch": 3 short items, each a concrete signal that would confirm or break a reading in the sections (a data release, a decision, a number to compare). No predictions as fact. Use only numbers, dates and names that appear in the sections above. Never invent a threshold, a deadline or an institution.' : '- "watch": an empty list.',
       '', 'Same style rules as the sections:');
@@ -3782,6 +3818,73 @@
     var hit = lines.filter(function (l) { return l.n > 0; }).sort(function (a, b) { return b.n - a.n; });
     return (hit.length ? hit : lines).slice(0, 3);
   }
+
+  // ---------- Plain-reading helpers (Yoast: sentences up to 20 words, short paragraphs) ----------
+  // Sentence splitter that never cuts inside 2.1%, U.S., St., Mr., e.g. and similar.
+  function sentencesSafe(t) {
+    var x = String(t || '').replace(/(\d)\.(\d)/g, '$1\u0001$2').replace(/\b(U)\.(S|K|N)\./g, '$1\u0001$2\u0001').replace(/\b(Mr|Mrs|Ms|Dr|St|No|Gen|Sen|Rep|Sgt|Col|Lt|Inc|Ltd|Co|Corp|vs|etc|e\.g|i\.e)\./g, '$1\u0001').replace(/\b([A-Z])\.\s(?=[A-Z])/g, '$1\u0001 ');
+    return sentencesOf(x).map(function (z) { return z.replace(/\u0001/g, '.'); });
+  }
+  function wc(t) { return String(t || '').split(/\s+/).filter(Boolean).length; }
+  function capFirst(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+  var SPLITS = [
+    { re: /;\s+(?=[a-z])/g, join: '. ' },
+    { re: /,\s+but\s+/g, join: '. But ' },
+    { re: /,\s+(?:whereas|while)\s+(?=(?!\w+ing\b)\w)/g, join: '. Meanwhile, ' },
+    { re: /,\s+and\s+(?=(?:the|it|he|she|they|we|there|this|that|these|those|its|his|her|their)\s)/gi, join: '. ' },
+    { re: /,\s+so\s+(?=\w)/g, join: '. So ' },
+    { re: /,\s+which\s+(?=(?:means|suggests|shows|is|was)\s)/g, join: '. That ' }
+  ];
+  function splitSentence(st) {
+    var trail = (st.match(/\s*$/) || [''])[0], s = st.replace(/\s+$/, '');
+    if (wc(s) <= 20 || /["“”]/.test(s)) return st;
+    var best = null, mid = s.length / 2;
+    SPLITS.forEach(function (sp) {
+      var rx = new RegExp(sp.re.source, sp.re.flags), m;
+      while ((m = rx.exec(s))) {
+        var l = s.slice(0, m.index), r = s.slice(m.index + m[0].length);
+        if (wc(l) >= 6 && wc(r) >= 6 && /[.!?]$/.test(r) !== null) { var d = Math.abs(m.index - mid); if (!best || d < best.d) best = { d: d, l: l, r: r, join: sp.join, idx: m.index }; }
+        if (m.index === rx.lastIndex) rx.lastIndex++;
+      }
+    });
+    if (!best) return st;
+    var left = best.l.replace(/[,;:\s]+$/, '') + '.', jn = best.join.replace(/^\.\s*/, ''), right = (jn ? jn : '') + best.r;
+    return splitSentence(left + ' ') + splitSentence(capFirst(right)) + trail;
+  }
+  function easy(t) { return sentencesSafe(String(t || '')).map(splitSentence).join('').replace(/\s+/g, ' ').trim(); }
+  function easyParas(t) {
+    var e = easy(t), ss = sentencesSafe(e);
+    if (wc(e) <= 110 || ss.length < 4) return [e];
+    var half = wc(e) / 2, acc = 0, cut = 1;
+    for (var i = 0; i < ss.length - 1; i++) { acc += wc(ss[i]); cut = i + 1; if (acc >= half) break; }
+    return [ss.slice(0, cut).join('').trim(), ss.slice(cut).join('').trim()];
+  }
+  function outputTexts() {
+    var dr = wrDraft(), out = [];
+    if (dr.frame && dr.frame.summary) out.push(easy(dr.frame.summary));
+    if (dr.frame && dr.frame.opening) out.push(easy(dr.frame.opening));
+    includedSections().forEach(function (x) { var r = dr.sections[x.c.id]; if (!r || !r.paras) return; r.paras.forEach(function (t) { easyParas(t).forEach(function (z) { out.push(z); }); }); String(r.reading || '').split(/\n{2,}/).forEach(function (z) { if (z.trim()) easyParas(z.trim()).forEach(function (y) { out.push(y); }); }); });
+    return out;
+  }
+  function readStats() {
+    var txt = outputTexts(), n = 0, long = 0, maxP = 0;
+    txt.forEach(function (p) { maxP = Math.max(maxP, wc(p)); sentencesOf(p).forEach(function (s) { if (!s.trim()) return; n++; if (wc(s) > 20 && !/["“”]/.test(s)) long++; }); });
+    return { n: n, long: long, pct: n ? Math.round(100 * long / n) : 0, maxP: maxP };
+  }
+  // A second digest from the stories the first one left out.
+  function nextFromLeft() {
+    if (aiBusy()) { toast('Wait until the AI has finished.', 'error'); return; }
+    var d0 = state.digest, ids = (d0.left || []).filter(function (i) { return state.stories.some(function (x) { return x.id === i; }); });
+    if (!ids.length) { toast('The Feed no longer holds those stories. Scan the feed again, then pick them.', 'error'); return; }
+    digestSave(); flushDigests();
+    var pid = state.profile.id, nd = digestBlank(); nd.edition = daypart(Date.now()) + ' update (2)'; nd.fromLeft = d0.id;
+    libRecs(pid)[nd.id] = nd; LIB.cur[pid] = nd.id; state.digest = nd; digestFor = pid;
+    state.selectedStoryIds = {}; ids.forEach(function (i) { state.selectedStoryIds[i] = true; });
+    afterDigestSwitch('cluster');
+    state.selectedStoryIds = {}; ids.forEach(function (i) { state.selectedStoryIds[i] = true; });
+    renderStories(); updateStepAvailability(); runClustering();
+    toast('Started a second digest from ' + ids.length + ' left-out stories. Your first digest is kept in the Digests list.', 'success');
+  }
   function articleHtml(opts) {
     opts = opts || {};
     var d = state.digest, o = d.outline, dr = wrDraft(), rv = dReview(), wp = !opts.preview, out = [];
@@ -3796,8 +3899,8 @@
     var mins = Math.max(1, Math.round(wordCount() / 230));
     var srcN = {}; secs.forEach(function (x) { (dr.sections[x.c.id].sources || []).forEach(function (z) { var u = safeUrl(z.url); if (u) srcN[u] = 1; }); }); var nSrc = Object.keys(srcN).length || secs.length;
     out.push(para((d.edition || (d.kind === 'commentary' ? 'Analysis' : 'Daily bulletin')) + '  ·  ' + dateHuman(d.created) + '  ·  ' + nSrc + ' ' + (nSrc === 1 ? 'source' : 'sources') + '  ·  ' + mins + ' min read', 'digest-meta'));
-    if (o.summary && dr.frame && dr.frame.summary) out.push(para(dr.frame.summary, 'digest-summary'));
-    if (dr.frame && dr.frame.opening) out.push(para(dr.frame.opening, 'digest-opening'));
+    if (o.summary && dr.frame && dr.frame.summary) out.push(para(easy(dr.frame.summary), 'digest-summary'));
+    if (dr.frame && dr.frame.opening) out.push(para(easy(dr.frame.opening), 'digest-opening'));
     if (rv.nav && secs.length >= 3) {
       out.push(htmlBlk('<nav class="digest-toc" aria-label="In this article"><p class="digest-toc-title">In this article</p><ol>' + secs.map(function (x, i) { return '<li><a href="#' + ids[i] + '">' + esc(x.s.heading) + '</a></li>'; }).join('') + '</ol></nav>', wp));
     }
@@ -3811,8 +3914,11 @@
       parts.push(blk('heading', { level: 2 }, '<h2 class="wp-block-heading" id="' + ids[i] + '">' + esc(x.s.heading) + '</h2>'));
       var factsEl = [], readEl = null, cut = r.paras.length;
       if (charts.length) { var target = 230 * charts.length, acc = 0; for (var q = 0; q < r.paras.length; q++) { acc += r.paras[q].split(/\s+/).length; if (acc >= target) { cut = q + 1; break; } } }
-      r.paras.forEach(function (t, k) { var items = [para(t)]; if (pq && pq.para === k) items.push(htmlBlk('<blockquote class="digest-pullquote"><p>' + esc(pq.text) + '</p></blockquote>', wp)); factsEl.push(items); });
-      if (r.reading) readEl = htmlBlk('<aside class="digest-read"><p class="digest-read-label">Our read</p>' + String(r.reading).split(/\n{2,}/).map(function (z) { return z.trim(); }).filter(Boolean).map(function (z) { return '<p>' + esc(z) + '</p>'; }).join('') + '</aside>', wp);
+      var totW = r.paras.reduce(function (m, z) { return m + wc(z); }, 0), accW = 0, subDone = false;
+      r.paras.forEach(function (t, k) { var items = easyParas(t).map(function (z) { return para(z); });
+        if (totW > 230 && !subDone && k > 0 && accW >= totW / 2) { subDone = true; items.unshift(htmlBlk('<h3 class="digest-read-label digest-sub">' + (/\d/.test(r.paras.slice(k).join(' ')) ? 'The numbers' : 'More detail') + '</h3>', wp)); }
+        accW += wc(t); if (pq && pq.para === k) items.push(htmlBlk('<blockquote class="digest-pullquote"><p>' + esc(pq.text) + '</p></blockquote>', wp)); factsEl.push(items); });
+      if (r.reading) readEl = htmlBlk('<aside class="digest-read"><h3 class="digest-read-label">Our read</h3>' + String(r.reading).split(/\n{2,}/).map(function (z) { return z.trim(); }).filter(Boolean).reduce(function (m, z) { return m.concat(easyParas(z)); }, []).map(function (z) { return '<p>' + esc(z) + '</p>'; }).join('') + '</aside>', wp);
       var flat = function (list) { return list.reduce(function (m, it) { return m.concat(it); }, []); };
       if (charts.length) {
         parts.push(groupBlk('digest-split', [groupBlk('digest-text', flat(factsEl.slice(0, cut)), wp), groupBlk('digest-aside', charts.map(function (c) { return chartFigure(c, wp); }), wp)], wp));
@@ -3828,7 +3934,7 @@
     if (o.watch && dr.frame && dr.frame.watch && dr.frame.watch.length) {
       out.push(htmlBlk('<section class="digest-watch"><h2 class="wp-block-heading" id="what-to-watch">What to watch</h2><p class="digest-watch-sub">Signals that would confirm or break the readings above.</p><ol>' + dr.frame.watch.map(function (w) { return '<li><span>' + esc(w) + '</span></li>'; }).join('') + '</ol></section>', wp));
     }
-    if (noteText(state.digest)) out.push(htmlBlk('<aside class="digest-read"><p class="digest-read-label">Analyst\'s note</p>' + noteText(state.digest).split(/\n{2,}/).map(function (z) { return '<p>' + esc(z.trim()) + '</p>'; }).join('') + '</aside>'));
+    if (noteText(state.digest)) out.push(htmlBlk('<aside class="digest-read"><h3 class="digest-read-label">Analyst\'s note</h3>' + noteText(state.digest).split(/\n{2,}/).map(function (z) { return '<p>' + esc(z.trim()) + '</p>'; }).join('') + '</aside>'));
     var pr = (state.profile && state.profile.promo) || {}, rel = relatedLinks(pr);
     if (rel.length) out.push(htmlBlk('<aside class="digest-related"><p class="digest-related-title">More from ' + esc(pubName()) + '</p><ul>' + rel.map(function (l) { return '<li><a href="' + esc(l.u) + '">' + esc(l.t) + '</a></li>'; }).join('') + '</ul></aside>', wp));
     var cu = linkOk(pr.ctaUrl);
@@ -3872,8 +3978,8 @@
     seoChecks().forEach(function (c) { var li = el('p', { class: 'dgs-seo-check ' + (c.ok ? 'is-ok' : c.warn ? 'is-warn' : 'is-bad') }); li.appendChild(el('span', { text: c.ok ? '✓' : c.warn ? '!' : '✕' })); li.appendChild(document.createTextNode(' ' + c.text)); box.appendChild(li); });
   }
   function metaFit(t) {
-    t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length <= 155) return t;
-    var cut = t.slice(0, 155), k = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('; ')); if (k > 90) return cut.slice(0, k + 1);
+    t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length <= 150) return t;
+    var cut = t.slice(0, 150), k = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('; ')); if (k > 90) return cut.slice(0, k + 1);
     k = cut.lastIndexOf(' '); return (k > 90 ? cut.slice(0, k) : cut).replace(/[,;:\s]+$/, '') + '…';
   }
   function seoPrompt() {
@@ -3906,6 +4012,10 @@
         title: dShort(plainDashes(String(j.title || fb.title)), 70), meta: metaFit(plainDashes(String(j.meta || fb.meta))), slug: slugify(j.slug || fb.slug, 60),
         excerpt: dShort(plainDashes(String(j.excerpt || fb.excerpt)), 220), focus: dShort(String(j.focus || fb.focus || '').toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, ' ').replace(/\s+/g, ' ').trim(), 60), secondary: (Array.isArray(j.secondary) ? j.secondary : []).map(function (t) { return dShort(String(t).toLowerCase().replace(/\s+/g, ' ').trim(), 50); }).filter(Boolean).slice(0, 5), tags: (j.tags || []).map(function (t) { return dShort(String(t), 30); }).slice(0, 5), alt: dShort(String(j.alt || fb.alt), 125)
       };
+      try {
+        var fit = bestKeyphrase([rv.seo.focus, plannedKeyphrase()].concat(tokenize(state.digest.outline.headline.split(':')[0]).length >= 2 ? [tokenize(state.digest.outline.headline.split(':')[0]).slice(-2).join(' ')] : []));
+        if (fit.phrase && fit.phrase !== rv.seo.focus && fit.n >= 2) { rv.seo.focus = fit.phrase; rv.seo.meta = metaFit(rv.seo.meta.toLowerCase().indexOf(fit.phrase) === -1 ? fit.phrase.charAt(0).toUpperCase() + fit.phrase.slice(1) + ': ' + rv.seo.meta : rv.seo.meta); }
+      } catch (e9) {}
       toast('Search fields written. Edit them.', 'success');
     }).catch(function (e) { rv.seo = Object.assign({}, fb); toast('The AI could not write the search fields (' + dShort(e && e.message, 100) + '). Filled them from your headline instead.', 'error'); })
       .then(function () { exBusy = false; digestSave(); renderExport(); });
@@ -4226,6 +4336,7 @@
     item(!!noteText(state.digest), noteText(state.digest) ? 'Your analyst\'s note is in the article' : 'No analyst\'s note yet. Two to four sentences in your own words are what make this yours.', !(state.digest.note && String(state.digest.note).trim()));
     item(st.numbers === 0, st.numbers ? st.numbers + ' number' + (st.numbers === 1 ? '' : 's') + ' not found in the sources. Check them in the Write step.' : 'Every number appears in the sources', st.numbers > 0);
     item(st.tells === 0, st.tells ? st.tells + ' phrase' + (st.tells === 1 ? '' : 's') + ' that read as machine-written. Fix them or accept them.' : 'No machine-sounding phrases flagged', st.tells > 0);
+    var rs = readStats(); item(rs.pct <= 25 && rs.maxP <= 150, 'Plain reading: ' + rs.pct + '% of sentences are over 20 words (aim for 25% or less)' + (rs.maxP > 150 ? '; one paragraph has ' + rs.maxP + ' words' : '') + '. Long sentences are split at the commas when the article is built.', rs.pct > 25 || rs.maxP > 150);
     var wb = watchBadCount(); if (wb) item(false, wb + ' "what to watch" item' + (wb === 1 ? '' : 's') + ' contain numbers that are not in the sources. They were invented by the AI. Press "Remove unsupported numbers".', false);
     var rk = riskWords(); if (rk.length) item(false, 'Our read uses serious-allegation words (' + rk.join(', ') + '). Confirm each is attributed to a source, not our own claim about a named person.', true);
     var rn = document.getElementById('dgs-rv-nums'); if (rn) rn.hidden = !(st.numbers || wb);
@@ -4235,7 +4346,7 @@
     
     var hd = document.getElementById('dgs-rv-head'); if (hd && document.activeElement !== hd) hd.value = state.digest.outline ? state.digest.outline.headline : '';
     var ed = document.getElementById('dgs-rv-edition'); if (ed && document.activeElement !== ed) ed.value = state.digest.edition || '';
-    var nt = document.getElementById('dgs-rv-note'); if (nt && document.activeElement !== nt) nt.value = state.digest.note || '';
+    var nt = document.getElementById('dgs-rv-note'); if (nt && (document.activeElement !== nt || nt.dataset.d !== state.digest.id)) { nt.value = state.digest.note || ''; nt.dataset.d = state.digest.id; }
     ensureDigestCss();
     var pv = document.getElementById('dgs-rv-preview');
     if (pv) pv.innerHTML = '<h1 class="dgs-pv-title">' + esc(state.digest.outline.headline) + '</h1>' + articleHtml({ preview: true });
@@ -4258,7 +4369,7 @@
       dReview().reviewed = cb.checked; digestSave(); updateStepAvailability(); paintReview(); });
     g('dgs-rv-nums', removeUnsupported);
     g('dgs-rv-strong', strengthenAll); g('dgs-rv-note-ai', suggestNote);
-    var nt0 = document.getElementById('dgs-rv-note'); if (nt0) nt0.addEventListener('input', function () { state.digest.note = nt0.value.slice(0, 1500); digestSave(); var pv = document.getElementById('dgs-rv-preview'); if (pv && state.digest.outline) pv.innerHTML = '<h1 class="dgs-pv-title">' + esc(state.digest.outline.headline) + '</h1>' + articleHtml({ preview: true }); });
+    var nt0 = document.getElementById('dgs-rv-note'); if (nt0) nt0.addEventListener('input', function () { if (nt0.dataset.d && nt0.dataset.d !== state.digest.id) return; state.digest.note = nt0.value.slice(0, 1500); digestSave(); var pv = document.getElementById('dgs-rv-preview'); if (pv && state.digest.outline) pv.innerHTML = '<h1 class="dgs-pv-title">' + esc(state.digest.outline.headline) + '</h1>' + articleHtml({ preview: true }); });
     var ed0 = document.getElementById('dgs-rv-edition'); if (ed0) ed0.addEventListener('input', function () { state.digest.edition = ed0.value.trim().slice(0, 40); touchDraft(); var pv = document.getElementById('dgs-rv-preview'); if (pv) pv.innerHTML = '<h1 class="dgs-pv-title">' + esc(state.digest.outline.headline) + '</h1>' + articleHtml({ preview: true }); });
     var hd = document.getElementById('dgs-rv-head'); if (hd) hd.addEventListener('input', function () { state.digest.outline.headline = hd.value.trim() || state.digest.outline.headline; digestSave(); var pv = document.getElementById('dgs-rv-preview'); if (pv) pv.innerHTML = '<h1 class="dgs-pv-title">' + esc(state.digest.outline.headline) + '</h1>' + articleHtml({ preview: true }); });
     g('dgs-ex-back', function () { setStep('review'); });
