@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var VERSION = '1.40.0';
+  var VERSION = '1.41.0';
   if (window.__autonomASGLoaded) return;
   window.__autonomASGLoaded = true;
   window.__asgVersion = VERSION;
@@ -160,15 +160,20 @@
         state.profiles.forEach(function (x, k) { if (x.id === state.profile.id) i = k; });
         if (i < 0) { state.profiles.push(state.profile); state.scripts = []; state.stories = []; state.selectedStoryIds = {}; persistScripts(); persistSettings(); }
         else state.profiles[i] = state.profile;
-        localStorage.setItem(LS.profile, JSON.stringify(state.profile));
       }
-      localStorage.setItem(LS.profiles, JSON.stringify({ active: state.profile ? state.profile.id : null, list: state.profiles }));
+      var pj = { t: Date.now(), active: state.profile ? state.profile.id : null, list: state.profiles };
+      // A safety copy in IndexedDB (hundreds of MB) first: localStorage is about 5 MB and refuses writes in silence when full.
+      try { if (typeof dbPut === 'function') dbPut('library', { id: '_profiles', t: pj.t, active: pj.active, list: JSON.parse(JSON.stringify(pj.list)) }); } catch (e3) {}
+      try { localStorage.removeItem(LS.profile); } catch (e4) {}
+      try { localStorage.setItem(LS.profiles, JSON.stringify(pj)); }
+      catch (e5) { if (!persistProfileRaw._warned) { persistProfileRaw._warned = true; setTimeout(function () { toast('Browser storage is full, so your profile is kept in a backup copy instead. Delete old saved videos in Settings, Saved work to free space.', 'error'); }, 0); } }
     } catch (e) {}
     try { renderProfileBar(); } catch (e2) {}
   }
   function persistSettings() { try { var j = JSON.stringify(state.settings); localStorage.setItem(settingsKey(), j); localStorage.setItem(LS.settings, j); } catch (e) {} }
   function persistScripts() {
-    try { var j = JSON.stringify(state.scripts); localStorage.setItem(scriptsKey(), j); localStorage.setItem(LS.scripts, j); } catch (e) {}
+    try { localStorage.removeItem(LS.scripts); } catch (e0) {}
+    try { var j = JSON.stringify(state.scripts); localStorage.setItem(scriptsKey(), j); } catch (e) {}
     // Safety copy in IndexedDB: localStorage is small and silently refuses writes when full.
     try { if (typeof dbPut === 'function' && state.profile) dbPut('library', { id: '_current_' + scriptsKey(), t: Date.now(), scripts: JSON.parse(JSON.stringify(state.scripts)) }); } catch (e1) {}
   }
@@ -583,7 +588,7 @@
   }
   function growPanel() {
     var p = state.profile, box = el('details', { class: 'asg-grow', style: 'margin:12px 0;border:1.5px solid #f5a524;border-radius:12px;background:rgba(245,165,36,.12);padding:10px 14px;' });
-    box.appendChild(el('summary', { style: 'cursor:pointer;font-weight:700;font-size:15px;list-style-position:inside;', text: '✨ Make your feed richer: find topics and words your profile is missing (click to open)' }));
+    box.appendChild(el('summary', { style: 'cursor:pointer;font-weight:700;font-size:15px;list-style-position:inside;', text: 'Make your feed richer: suggested topics and words' }));
     var body = el('div', { style: 'display:grid;gap:12px;margin-top:8px;' }); box.appendChild(body);
     var done = false;
     box.addEventListener('toggle', function () { if (!box.open || done) return; done = true; build(); });
@@ -1299,7 +1304,9 @@
     rows.forEach(function (r, k) {
       var done = r.g.every(function (x) { return state.selectedStoryIds[x.id]; }), c = el('div', { class: 'asg-pick' + (done ? ' is-done' : '') });
       c.appendChild(el('span', { class: 'asg-pick-n', text: String(k + 1) }));
-      var xb = el('button', { type: 'button', class: 'asg-pick-x', title: 'Not this one: remove it and bring the next story into the top 3', 'aria-label': 'Remove this pick', style: 'position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;opacity:.7;', text: '✕' });
+      var xb = el('button', { type: 'button', class: 'asg-pick-x', title: 'Not this one: remove it and bring the next story into the top 3', 'aria-label': 'Remove this pick', style: 'position:absolute;top:6px;right:6px;width:32px;height:32px;padding:0;border:0;border-radius:6px;background:transparent;color:inherit;cursor:pointer;opacity:.6;display:flex;align-items:center;justify-content:center;' });
+      xb.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>';
+      xb.addEventListener('mouseenter', function () { xb.style.opacity = '1'; xb.style.background = 'rgba(128,128,128,.2)'; }); xb.addEventListener('mouseleave', function () { xb.style.opacity = '.6'; xb.style.background = 'transparent'; });
       xb.addEventListener('click', function () { r.g.forEach(function (x) { dismissed[x.id] = true; delete state.selectedStoryIds[x.id]; }); updateStepAvailability(); renderPicks(box); renderStories(); });
       c.style.position = 'relative'; c.appendChild(xb);
       c.appendChild(el('div', { class: 'asg-pick-title', text: r.s.title }));
@@ -5080,7 +5087,10 @@
     var label = STOCK[provider].name;
     return mediaFetch(url, opts).then(function (r) {
       if (r.status === 401 || r.status === 403 || r.status === 400) throw Object.assign(new Error(label + ' rejected the key. Check it in Settings.'), { fatal: true });
-      if (r.status === 429) throw Object.assign(new Error(label + ' says too many requests. Wait a minute and try again.'), { fatal: true });
+      if (r.status === 429) {
+        if (!stockSearch._retry) { stockSearch._retry = 1; return sleep(6000).then(function () { stockSearch._retry = 0; return stockSearch(provider, q, key, target); }); }
+        stockSearch._retry = 0; throw Object.assign(new Error(label + ' hit its request limit (free keys allow a few hundred searches an hour). The scenes after this one use drawn cards. Try again later or switch footage library in Settings.'), { fatal: true });
+      }
       if (!r.ok) throw new Error(label + ' answered ' + r.status);
       return r.json();
     }).then(function (j) { var out = provider === 'pexels' ? normPexels(j, target) : normPixabay(j); cacheSet(ck, out); return out; });
@@ -6924,22 +6934,39 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
           localStorage.removeItem(LIB_KEY);
         }
       } catch (e0) {}
+      // Older versions saved many overlapping sets: fold them into one per profile.
+      (function () {
+        var groups = {}; libCache.forEach(function (e) { var k = e.profileId || 'p'; (groups[k] = groups[k] || []).push(e); });
+        var out = [], changed = false;
+        Object.keys(groups).forEach(function (k) {
+          var g = groups[k]; if (g.length === 1 && g[0].id === 'set_' + k) { out.push(g[0]); return; }
+          changed = true; var byId = {}, order = [];
+          g.slice().sort(function (a, b) { return a.t - b.t; }).forEach(function (e) { e.scripts.forEach(function (x) { if (!byId[x.id]) order.push(x.id); byId[x.id] = x; }); });
+          out.push({ id: 'set_' + k, key: 'set_' + k, t: g[0].t, profileId: g[0].profileId, profileName: g[0].profileName, label: '', scripts: order.map(function (id) { return byId[id]; }).reverse().slice(0, 300) });
+        });
+        if (changed) { var gone = libCache.slice(); libCache = out.sort(function (a, b) { return b.t - a.t; }); out.forEach(function (e) { dbPut('library', e); }); gone.forEach(function (e) { if (!out.some(function (o) { return o.id === e.id; })) dbDel('library', e.id); }); }
+      })();
       libReady = true;
       var tn = document.getElementById('asg-top-saved-n'); if (tn) tn.textContent = libCache.length ? libCache.length + ' set' + (libCache.length === 1 ? '' : 's') : '';
     });
   }
+  // One saved set per profile: it holds every script that was ever kept, each at its latest version.
   function archiveScripts(label) {
-    var keep = goodScripts().filter(function (s) { return !s.srcFail; });
+    var keep = goodScripts().filter(function (x) { return !x.srcFail; });
     if (!keep.length) return false;
-    var key = keep.map(function (s) { return s.id; }).join(',');
-    var lib = libLoad().filter(function (e) { return e.key !== key; });
+    var pid = (state.profile && state.profile.id) || 'p', sid = 'set_' + pid;
+    var lib = libLoad(), cur = lib.filter(function (e) { return e.id === sid; })[0];
+    var rest = lib.filter(function (e) { return e.id !== sid; });
     var copy; try { copy = JSON.parse(JSON.stringify(keep)); } catch (e) { return false; }
-    lib.unshift({ id: 'l' + Date.now().toString(36), key: key, t: Date.now(), profileId: state.profile && state.profile.id, profileName: state.profile && state.profile.name, label: label || '', scripts: copy });
-    return libSave(lib.slice(0, 25));
+    var byId = {}, order = [];
+    (cur ? cur.scripts : []).concat(copy).forEach(function (x) { if (!byId[x.id]) order.push(x.id); byId[x.id] = x; });
+    var all = order.map(function (id) { return byId[id]; });
+    all.sort(function (a, b) { return String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)); });
+    var entry = { id: sid, key: sid, t: Date.now(), profileId: pid, profileName: state.profile && state.profile.name, label: label || '', scripts: all.slice(0, 300) };
+    return libSave([entry].concat(rest).slice(0, 25));
   }
   function libOpen(e) {
     if (generating || vidBusy) { toast('Wait until the current run finishes.', 'error'); return; }
-    archiveScripts('Before opening saved work');
     try { state.scripts = JSON.parse(JSON.stringify(e.scripts)); } catch (x) { return; }
     persistScripts(); renderScripts(); updateStepAvailability();
     var withVid = state.scripts.some(function (x) { return x.mediaId; });
@@ -6974,7 +7001,7 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
     if (!entries.length) lib.appendChild(el('p', { text: 'Nothing saved yet.' }));
     entries.forEach(function (e) {
       var row = el('div', { class: 'asg-lib-row' }), info = el('div', {});
-      info.appendChild(el('b', { text: e.scripts.length + ' script' + (e.scripts.length === 1 ? '' : 's') + ' · ' + fmtDay(e.t) }));
+      info.appendChild(el('b', { text: (e.profileName || 'Saved scripts') + ': ' + e.scripts.length + ' script' + (e.scripts.length === 1 ? '' : 's') + ' · updated ' + fmtDay(e.t) }));
       info.appendChild(el('small', { text: (e.profileName ? e.profileName + ' · ' : '') + e.scripts.slice(0, 3).map(function (s) { return clipText(s.title || s.storyTitle, 48); }).join(' | ') + (e.scripts.length > 3 ? ' …' : '') }));
       row.appendChild(info);
       var act = el('div', { class: 'asg-lib-act' });
@@ -6982,6 +7009,15 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       var db = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', text: 'Delete' });
       db.addEventListener('click', function () { if (!confirm('Delete this saved set? The scripts in it are removed. Videos are kept until you delete them below.')) return; libSave(libLoad().filter(function (x) { return x.id !== e.id; })); rerenderLater(host); });
       act.appendChild(ob); act.appendChild(db); row.appendChild(act); lib.appendChild(row);
+      var lst = el('div', { style: 'grid-column:1/-1;display:grid;gap:4px;margin-top:6px;' });
+      e.scripts.forEach(function (sx) {
+        var li = el('div', { style: 'display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13px;' });
+        li.appendChild(el('span', { text: clipText(sx.title || sx.storyTitle, 70) + (sx.mediaId ? ' · video' : '') }));
+        var rb = el('button', { type: 'button', class: 'asg-btn asg-btn-ghost', style: 'padding:2px 8px;font-size:12px;', text: 'Remove' });
+        rb.addEventListener('click', function () { e.scripts = e.scripts.filter(function (z) { return z.id !== sx.id; }); libSave(libLoad().map(function (z) { return z.id === e.id ? e : z; }).filter(function (z) { return z.scripts.length; })); rerenderLater(host); });
+        li.appendChild(rb); lst.appendChild(li);
+      });
+      row.appendChild(lst);
     });
     host.appendChild(lib);
 
@@ -7275,6 +7311,16 @@ var VZ_WORLD=["Zimbabwe|25:knB_btCILQpBKNUCUPCDQpBWjBmCmCFmBqBgBOGWiBOaACNgBAkCb
       }
     })();
     libInit().then(function () {
+      // Profile backup newer than what localStorage kept (storage was full): use the backup.
+      return dbGet('library', '_profiles').then(function (r) {
+        var cur = 0; try { cur = (JSON.parse(localStorage.getItem(LS.profiles) || 'null') || {}).t || 0; } catch (e) {}
+        if (r && r.list && r.list.length && r.t > cur) {
+          state.profiles = r.list; state.profile = r.list.filter(function (x) { return x.id === r.active; })[0] || r.list[0];
+          try { renderProfileBar(); } catch (e1) {} try { renderProfile(); } catch (e2) {}
+          toast('Restored your latest profile changes from the backup copy.', 'success');
+        }
+      }).catch(function () {});
+    }).then(function () {
       // If the browser refused to keep the current scripts (storage full), bring back the safety copy.
       if (state.profile && !state.scripts.length) return dbGet('library', '_current_' + scriptsKey()).then(function (r) {
         if (r && r.scripts && r.scripts.length && !state.scripts.length) { state.scripts = r.scripts; renderScripts(); updateStepAvailability(); toast('Restored ' + r.scripts.length + ' script' + (r.scripts.length === 1 ? '' : 's') + ' from this browser.', 'success'); }
